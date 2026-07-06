@@ -1,0 +1,17 @@
+@startuml fig3_3_activity_search
+title 图3.3 案例检索活动图
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+
+start
+:输入关键词/法域/时间;
+if (Redis ZSet\n缓存命中?) then (是)
+  :按时间分页取案号;
+else (否)
+  :并行请求各数据源\ncrawl.json;
+  :超时合并已返回来源;
+  :归并入库(MySQL);
+endif
+:返回列表给用户\n(可选 SSE 渐进推送);
+stop
+@enduml

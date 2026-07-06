@@ -1,0 +1,135 @@
+server:
+  port: 8122
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: legal_cases
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 本机 MySQL：端口默认 3306；password 改成你安装 MySQL 时给 root 设的密码
+    url: jdbc:mysql://127.0.0.1:3306/legal_cases?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&connectionCollation=utf8_general_ci
+    username: root
+    password: "frcs123456"
+  data:
+    redis:
+      # 本机需安装并启动 Redis；无密码时下面用空字符串 ""
+      host: 127.0.0.1
+      port: 6379
+      password: ""
+      database: 0
+      ssl:
+        enabled: false
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+  ai:
+    openai:
+      # 默认：本机 Ollama（OpenAI 兼容端点）。
+      # 切到 DeepSeek 云调用（不改默认逻辑）：启动前导出环境变量，或启用 profile「deepseek」见 application-deepseek.yml
+      #   SPRING_AI_OPENAI_API_KEY=你的Key
+      #   SPRING_AI_OPENAI_BASE_URL=https://api.deepseek.com
+      #   SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=deepseek-chat（或控制台里可用的模型名）
+      api-key: ${SPRING_AI_OPENAI_API_KEY:ollama}
+      base-url: ${SPRING_AI_OPENAI_BASE_URL:http://127.0.0.1:11434}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:qwen2.5:7b-instruct}
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.hnu.legal_cases.pojo
+
+crawler:
+  # 爬虫 HTTP 超时（毫秒）：交互页面优先快速返回，慢源到点跳过
+  connect-timeout-ms: 5000
+  read-timeout-ms-list: 45000
+  read-timeout-ms-detail: 60000
+  # 列表搜索「整次请求」最长等待（毫秒）：到点合并已完成数据源
+  search-total-timeout-ms: 60000
+  # 详情响应体 / 单条正文上限，防 CourtListener 等返回过大 JSON 导致小堆 OOM
+  max-detail-response-bytes: 2097152
+  max-detail-item-chars: 350000
+  # 案例详情爬取（单 url）
+  detail-url: "http://127.0.0.1:9001/crawl.json"
+  # key 须与 CountryEnum 代码一致（当前仅启用 US/EU/JPN）；value 为列表搜索用 crawl.json
+  search:
+    US: "http://127.0.0.1:9003/crawl.json"
+    # EU/JPN：无外置爬虫或 9002/9004 不可用/无数据时，走后端内置桥（JDK 直连列表页）
+    EU: "http://127.0.0.1:8122/api/crawler-bridge/list/EU/crawl.json"
+    JPN: "http://127.0.0.1:8122/api/crawler-bridge/list/JPN/crawl.json"
+    # 外置 Scrapy 可用且能返回 items 时改为：
+    # EU: "http://127.0.0.1:9002/crawl.json"
+    # JPN: "http://127.0.0.1:9004/crawl.json"
+
+app:
+  ai:
+    priority: "local-first"
+    local:
+      enabled: true
+      base-url: "http://127.0.0.1:11434"
+      model: "qwen2.5:7b-instruct"
+    # 原有上游 AI 保留，不删除；需要回切时把 spring.ai.openai 改回下面这组即可
+    upstream:
+      enabled: true
+      api-key: "sk-sxirc638ikYUw7ZNCfYzGmEw6PLN0ZGrgXOlCoUpVCXc3bvH"
+      base-url: "https://ai.nengyongai.cn"
+      model: "gpt-4o-2024-08-06"
+  admin:
+    # 管理接口 /api/admin/grant-credits 请求头 X-Admin-Secret；生产环境务必修改
+    secret: "frcs-admin-change-me"
+  payment:
+    packages:
+      - id: pkg10
+        credits: 10
+        priceCents: 990
+        currency: cny
+        labelZh: "10 次 AI 摘要"
+        labelEn: "10 AI summaries"
+        stripeAmountCents: 990
+        stripeCurrency: usd
+      - id: pkg50
+        credits: 50
+        priceCents: 3990
+        currency: cny
+        labelZh: "50 次 AI 摘要"
+        labelEn: "50 AI summaries"
+        stripeAmountCents: 3990
+        stripeCurrency: usd
+    stripe:
+      enabled: false
+      secretKey: ""
+      webhookSecret: ""
+      successUrl: "http://localhost:8080/case-query/recharge?paid=1"
+      cancelUrl: "http://localhost:8080/case-query/recharge?cancel=1"
+  quota:
+    # true = 即使使用本地 Ollama，也按业务规则扣减摘要剩余次数
+    enabled: true
+    summary-daily-per-user: 50
+    # 批处理账号 userId 列表（逗号分隔）：不扣摘要次数、不受每日 Redis 上限；仍会写 usage_log
+    batch-user-ids: "1"
+  auth:
+    code-ttl-seconds: 600
+    send-cooldown-seconds: 60
+    # 无 SMTP 时便于联调；生产务必 false，并配置发信或仅以日志为准
+    expose-code-in-response: true
+
+kb:
+  local:
+    # 本地知识库索引文件（相对路径基于后端启动目录）
+    index-file: "kb-index/local-kb.json"
+    chunk-size: 800
+    chunk-overlap: 120
+    default-top-k: 5
+    max-top-k: 12
+
+logging:
+  level:
+    com.hnu.legal_cases.controller.CasesController: INFO
+    org.springframework.ai.chat.client.advisor: DEBUG
+    com.hnu.legal_cases: DEBUG
+    com.hnu.legal_cases.dao: WARN
+  pattern:
+    console: "%-5level %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] - %msg%n"

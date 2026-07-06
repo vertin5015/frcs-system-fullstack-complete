@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnu.legal_cases.dao.CaseDetailMapper">
+    <sql id="Base_Column_List">
+        pk AS pk,
+        case_id AS caseId,
+        content_zh_CN AS contentZhCn,
+        content_en_US AS contentEnUs,
+        summary_status AS summaryStatus,
+        summary_error AS summaryError,
+        summary_updated_at AS summaryUpdatedAt,
+        insert_time AS insertTime,
+        update_time AS updateTime
+    </sql>
+
+    <insert id="insert" parameterType="com.hnu.legal_cases.pojo.CaseDetailInfo">
+        INSERT INTO case_detail_info
+            (case_id, content_zh_CN, content_en_US, summary_status, summary_updated_at)
+        VALUES (#{caseId}, #{contentZhCn}, #{contentEnUs}, 'DONE', NOW())
+    </insert>
+
+    <select id="getCaseDetailByCaseId" resultType="com.hnu.legal_cases.pojo.CaseDetailInfo">
+        SELECT <include refid="Base_Column_List"/>
+        FROM case_detail_info
+        WHERE case_id = #{caseId}
+    </select>
+
+    <insert id="insertPlaceholder">
+        INSERT INTO case_detail_info (case_id, summary_status, summary_updated_at)
+        VALUES (#{caseId}, 'RUNNING', NOW())
+    </insert>
+
+    <update id="updateSummaryStatus">
+        UPDATE case_detail_info
+        SET summary_status = #{status},
+            summary_error = #{error},
+            summary_updated_at = NOW()
+        WHERE case_id = #{caseId}
+    </update>
+
+    <update id="updateSummaryDone">
+        UPDATE case_detail_info
+        SET content_zh_CN = #{contentZhCn},
+            content_en_US = #{contentEnUs},
+            summary_status = 'DONE',
+            summary_error = NULL,
+            summary_updated_at = NOW()
+        WHERE case_id = #{caseId}
+    </update>
+
+    <update id="resetSummary">
+        UPDATE case_detail_info
+        SET content_zh_CN = NULL,
+            content_en_US = NULL,
+            summary_status = 'RUNNING',
+            summary_error = NULL,
+            summary_updated_at = NOW()
+        WHERE case_id = #{caseId}
+    </update>
+
+    <select id="listRecentForKb" resultType="com.hnu.legal_cases.pojo.CaseDetailInfo">
+        SELECT <include refid="Base_Column_List"/>
+        FROM case_detail_info
+        WHERE (content_zh_CN IS NOT NULL AND content_zh_CN != '')
+           OR (content_en_US IS NOT NULL AND content_en_US != '')
+        ORDER BY update_time DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

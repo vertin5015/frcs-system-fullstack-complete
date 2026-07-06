@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnu.legal_cases.dao.RechargeOrderMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO recharge_order (order_no, user_id, package_id, credits, amount_cents, currency, status,
+                                    channel, stripe_session_id, remark)
+        VALUES (#{orderNo}, #{userId}, #{packageId}, #{credits}, #{amountCents}, #{currency}, #{status},
+                #{channel}, #{stripeSessionId}, #{remark})
+    </insert>
+
+    <select id="selectByOrderNo" resultType="com.hnu.legal_cases.pojo.RechargeOrder">
+        SELECT id,
+               order_no AS orderNo,
+               user_id AS userId,
+               package_id AS packageId,
+               credits,
+               amount_cents AS amountCents,
+               currency,
+               status,
+               channel,
+               stripe_session_id AS stripeSessionId,
+               stripe_payment_intent AS stripePaymentIntent,
+               created_at AS createdAt,
+               paid_at AS paidAt,
+               remark
+        FROM recharge_order
+        WHERE order_no = #{orderNo}
+    </select>
+
+    <update id="updatePaid">
+        UPDATE recharge_order
+        SET status = 'PAID',
+            paid_at = NOW(),
+            stripe_payment_intent = #{stripePaymentIntent}
+        WHERE order_no = #{orderNo}
+          AND status = 'PENDING'
+    </update>
+
+    <update id="updateStripeSession">
+        UPDATE recharge_order
+        SET stripe_session_id = #{stripeSessionId}
+        WHERE order_no = #{orderNo}
+    </update>
+</mapper>

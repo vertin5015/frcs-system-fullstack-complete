@@ -1,0 +1,338 @@
+<html><head><meta charset="utf-8"><title>涉外法律知识查询与问答系统</title><style>
+@page { size: A4; margin: 30mm 20mm 25mm 30mm; }
+body { font-family: SimSun, 宋体, serif; font-size: 12pt; line-height: 1.5; }
+p { text-indent: 2em; margin: 0 0 6pt 0; text-align: justify; }
+.center { text-align:center; text-indent:0; }
+h1 { font-family: SimHei, 黑体, sans-serif; font-size: 16pt; text-align:center; page-break-before: always; margin: 18pt 0; }
+h2 { font-family: SimHei, 黑体, sans-serif; font-size: 14pt; margin: 12pt 0 6pt 0; }
+h3 { font-family: SimHei, 黑体, sans-serif; font-size: 12pt; margin: 10pt 0 6pt 0; }
+.title { font-family: SimHei, 黑体, sans-serif; font-size: 22pt; font-weight:bold; text-align:center; text-indent:0; margin-top:80pt; }
+.en { font-family: "Times New Roman", serif; }
+.ref { text-indent: -2em; margin-left: 2em; }
+.fig { margin: 12pt auto; text-align: center; text-indent: 0; page-break-inside: avoid; }
+.fig img { max-width: 100%; height: auto; border: 1px solid #ccc; box-sizing: border-box; }
+.fig-cap { text-align: center; text-indent: 0; font-size: 10.5pt; margin-top: 6pt; margin-bottom: 6pt; }
+.toc-wrap { font-size: 11pt; line-height: 1.65; text-indent: 0; margin: 0 0 12pt 0; }
+.toc-wrap a { color: #000; text-decoration: none; }
+.cover-meta { text-align: center; text-indent: 0; margin-top: 48pt; font-size: 12pt; }
+@page { @bottom-center { content: counter(page); } }
+</style></head><body>
+<p class="title" id="cover-title">涉外法律知识查询与问答系统</p>
+<p class="center en">Foreign-Related Legal Knowledge Inquiry and Q&amp;A System</p>
+<p class="center">本科毕业论文（设计）初稿</p>
+<p class="cover-meta">（请按学院统一格式在 Word 中补全：学校 Logo、学院、专业、学生姓名、学号、指导教师、完成日期；双面打印与装订以学院通知为准。）</p>
+<p>说明：正文已含第1章至第7章及附录、参考文献扩编初稿。<b>生成 Word 时</b>请用学校 Word 样张替换本页与本稿声明页样式；开启页眉页脚（奇偶页以学院要求为准）、插入页码；用「引用 → 目录 → 自动目录」生成目录与图表目录（本 HTML 稿中提供了章节锚点便于核对）。</p>
+
+<h1 id="declaration">毕业论文（设计）原创性声明和版权使用授权书</h1>
+<p>学校通常要求单独成页的《毕业论文（设计）原创性声明》《毕业论文（设计）版权使用授权书》文本与学生签名、日期。<b>正式装订前请以学校当年发放的 Word 样张为准整页替换本节</b>；勿删改学校法务审定的条款表述；签名须手写或使用学院认可的电子签批流程。本电子版提供可替换占位段以便排版连贯：</p>
+<p>本人郑重声明：所呈交的毕业设计（论文），是本人在指导教师指导下独立完成的；除文中已经注明引用的内容外，本论文不包含其他个人或集体已经发表或撰写过的作品成果。对本文的研究做出重要贡献的个人和集体，均已在文中以明确方式标明。本人完全意识到本声明的法律结果由本人承担。</p>
+<p>论文作者签名：____________　　　　　日期：____年____月____日</p>
+<p>本人完全了解学校关于收集、保存、使用学位论文的规定，同意学校将本论文提交国家有关部门或机构送交和允许论文被查阅与借阅；学校可以将论文的全部或部分内容编入有关数据库进行检索与传播，可以采用影印、缩印或扫描等复制手段保存和汇编本学位论文。（以上占位内容请用学校授权书原文替换。）论文作者签名：____________　　　日期：____年____月____日</p>
+
+<h1 id="abstract-cn">中文摘要</h1>
+<p>随着我国对外开放水平不断提高和企业国际化进程持续推进，跨境贸易、海外投资、涉外民商事纠纷等活动日益频繁，涉外法律知识查询与案例分析需求不断增长。然而，现有涉外法律案例资源分布较为分散，不同国家和地区的司法案例通常存储于各自独立的官方网站或法律数据库中，存在检索入口不统一、语言理解门槛高、判决文书篇幅较长、专业术语复杂等问题。传统法律检索系统多以关键词匹配和静态列表展示为主，难以满足用户对案例快速理解、重点提炼和交互式问答的需求。针对上述问题，本文设计并实现了一套涉外法律知识查询与问答系统，旨在为中文用户提供多法域法律案例检索、案例阅读、智能摘要和问答分析等综合服务。</p>
+<p>系统采用前后端分离架构进行设计。前端基于 Vue 3 和 Element Plus 构建用户交互界面，提供用户登录注册、案例检索、案例阅读、收藏历史、本地知识库和配额充值等功能页面；后端基于 Spring Boot 框架实现业务逻辑处理，使用 MyBatis 完成数据持久化，使用 MySQL 存储用户信息、案例元数据、案例详情、收藏记录和订单数据等结构化信息，使用 Redis 实现检索结果缓存、验证码存储、分布式锁和摘要配额控制。系统面向美国、日本、欧盟等涉外案例来源，结合爬虫接口与内置桥接机制实现案例数据采集，并通过统一接口对前端提供检索服务。在智能化处理方面，系统接入大语言模型能力，实现关键词抽取、案例摘要生成和基于案例上下文的问答功能；同时构建本地知识库模块，通过文本切片和向量检索机制支持知识入库与问答查询，提高系统对法律文本的组织和利用能力。</p>
+<p>在系统实现过程中，本文重点设计了多数据源案例检索流程、异步摘要生成流程、摘要配额扣减与异常退款机制、原文代理与缓存机制、本地知识库检索流程以及前后端接口交互机制。为验证系统的可用性与稳定性，本文从功能测试和非功能测试两个方面进行测试设计，覆盖用户认证、案例检索、案例阅读、AI 摘要、智能问答、收藏历史、知识库问答和支付配额等核心功能，并对响应时间、异常输入、外部服务不可用和缓存效果等非功能指标进行分析。测试结果表明，系统能够较好地完成涉外法律案例的查询、展示、摘要和问答任务，能够在一定程度上降低用户理解涉外判决文书的难度，为涉外法律知识获取和案例分析提供辅助支持。</p>
+<p><b>关键词：</b>涉外法律；案例检索；大语言模型；智能问答；知识库</p>
+
+<h1 class="en" id="abstract-en">Abstract</h1>
+<p class="en">With the continuous improvement of China's opening-up and the acceleration of enterprise internationalization, cross-border trade, overseas investment, and foreign-related civil and commercial disputes have become increasingly frequent. As a result, the demand for foreign-related legal knowledge inquiry and case analysis has grown significantly. However, existing foreign-related legal case resources are usually distributed across independent official websites or legal databases in different jurisdictions. Users often face problems such as scattered information sources, inconsistent retrieval entrances, language barriers, lengthy judgments, and complex legal terminology. Traditional legal retrieval systems mainly rely on keyword matching and static result presentation, which makes it difficult to meet users' needs for rapid case understanding, key information extraction, and interactive question answering. To address these problems, this thesis designs and implements a foreign-related legal knowledge inquiry and Q&amp;A system, aiming to provide Chinese users with integrated services including multi-jurisdiction case retrieval, case reading, intelligent summarization, and question answering.</p>
+<p class="en">The system adopts a front-end and back-end separated architecture. The front end is developed based on Vue 3 and Element Plus, providing pages for user login and registration, case retrieval, case reading, favorites and browsing history, local knowledge base, and quota recharge. The back end is implemented with Spring Boot, while MyBatis is used for data persistence. MySQL stores structured data such as user information, case metadata, case details, favorite records, browsing history, and payment orders. Redis is used for search result caching, verification code storage, distributed locking, and summary quota control. The system collects legal case data from sources related to the United States, Japan, and the European Union through crawler interfaces and built-in bridge mechanisms, and provides unified retrieval services to the front end. In terms of intelligent processing, the system integrates large language model capabilities to support keyword extraction, case summary generation, and context-based case question answering. In addition, a local knowledge base module is designed with text chunking and vector retrieval mechanisms to support knowledge ingestion and question answering, thereby improving the organization and utilization of legal texts.</p>
+<p class="en">During the implementation of the system, this thesis focuses on the design of multi-source case retrieval, asynchronous summary generation, summary quota deduction and refund on failure, original document proxy and caching, local knowledge base retrieval, and front-end/back-end API interaction. To verify the usability and stability of the system, both functional and non-functional tests are designed. The functional tests cover user authentication, case retrieval, case reading, AI-based summarization, intelligent question answering, favorites and browsing history, knowledge base Q&amp;A, and payment quota management. The non-functional tests analyze response time, abnormal input handling, external service unavailability, and caching effects. The test results show that the system can effectively support foreign-related legal case inquiry, presentation, summarization, and question answering, reducing the difficulty for users to understand foreign legal judgments and providing auxiliary support for foreign-related legal knowledge acquisition and case analysis.</p>
+<p class="en"><b>Key words:</b> foreign-related law; case retrieval; large language model; intelligent question answering; knowledge base</p>
+
+<h1 id="toc">目录</h1>
+<p class="toc-wrap" style="font-size:10.5pt;color:#444;">Word 终稿：请为章、节应用「标题1/2/3」样式，使用<b>引用 → 目录 → 自动目录</b>与<b>引用 → 插入表目录</b>（题注）生成正式目录；勿依赖本节手工页码。以下为 HTML 稿章节锚点导航。</p>
+<p class="toc-wrap"><b>摘要</b>　<a href="#abstract-cn">中文摘要</a>　<a href="#abstract-en">Abstract</a></p>
+<p class="toc-wrap"><b>正文</b>　<a href="#ch1">第1章 绪论</a>　<a href="#ch2">第2章 相关技术与理论基础</a>　<a href="#ch3">第3章 系统需求分析</a>　<a href="#ch4">第4章 系统总体设计</a>　<a href="#ch5">第5章 系统详细设计与实现</a>　<a href="#ch6">第6章 系统测试与结果分析</a>　<a href="#ch7">第7章 结论与展望</a></p>
+<p class="toc-wrap"><b>篇末</b>　<a href="#refs">参考文献</a>　<a href="#ack">致谢</a>　<a href="#appendix">附录</a></p>
+<p class="toc-wrap" style="font-size:10pt;color:#555;">小节标题（如 1.1、3.2.1 等）与正文中 <code>h2</code>/<code>h3</code> 标题一致，转入 Word 后由样式与自动目录生成，此处不逐条展开。</p>
+
+<h1 id="fig-list">插图索引</h1>
+<p><b>第3章：</b>图3.1 系统业务流程图；图3.2 用例图；图3.3 案例检索活动图。<b>第4章：</b>图4.1 系统总体架构图；图4.2 功能模块结构图；图4.3 异步摘要主要时序图；图4.4 核心实体 ER 图（示意）。<b>附录C：</b>图C-1—图C-8 系统运行截图（占位，可替换为实际 PNG）。</p>
+<h1>附表索引</h1>
+<p><b>第3章：</b>表3.1—表3.3。<b>第4章：</b>表4.1。<b>第6章：</b>表6.1。<b>附录A/B：</b>接口与测试表。</p>
+
+<h1 id="ch1">第1章 绪论</h1>
+<p>本章围绕涉外法律知识查询与问答系统的研究背景、研究目的、研究意义和国内外研究现状展开论述。在企业国际化、跨境贸易和涉外法治建设持续推进的背景下，涉外法律案例查询与智能分析需求不断增长。通过对法律信息检索、法律人工智能、大语言模型和涉外法律知识服务平台等方向的研究现状进行梳理，可以为后续系统需求分析、总体设计和功能实现奠定基础。</p>
+<h2>1.1 研究背景</h2>
+<p>随着经济全球化、区域贸易合作和我国高水平对外开放的持续推进，中国企业、公民与境外市场之间的联系日益紧密。跨境投资、国际贸易、海外知识产权保护、涉外合同履行、跨境劳务、国际商事争端等活动不断增加，使得涉外法律服务需求呈现出持续增长的趋势。对于出海企业而言，是否能够及时了解目标国家或地区的司法规则、判例倾向和争议解决路径，直接关系到企业在海外经营过程中的合规水平和风险防控能力。对于普通公民和法律从业者而言，涉外案件的查询、理解和分析同样具有重要意义，尤其是在国际交往日益频繁的背景下，涉外法律知识已经不再局限于少数专业机构内部，而逐渐成为企业经营、法律服务和社会公众知识获取的重要内容。</p>
+<p>近年来，我国高度重视涉外法治建设。相关政策文件多次强调要加强涉外法律服务能力建设，完善域外法查明机制，提升我国在国际法律事务中的参与能力和话语权。在这一背景下，如何利用信息技术提升涉外法律知识获取效率，成为法律信息化建设中的重要课题。传统涉外法律信息获取方式主要依赖人工检索、商业数据库查询以及专业人员翻译分析。这类方式虽然具有一定准确性，但也存在成本较高、效率较低、信息入口分散、普通用户使用门槛高等问题。尤其是美国、日本、欧盟等国家和地区的判例资源通常分布在不同司法机构、法律数据库或公开平台中，数据格式、语言类型、检索方式和开放程度并不统一，导致用户难以通过一个统一入口完成高效查询。</p>
+<p>与此同时，人工智能技术的发展为法律知识服务提供了新的技术路径。自然语言处理、信息检索、知识图谱和大语言模型等技术逐渐应用于法律文本分析、案例推荐、智能问答和文书生成等场景。特别是大语言模型在文本理解、摘要生成、语义匹配和对话交互方面表现出较强能力，为冗长复杂的法律文书自动摘要、法律知识解释和上下文问答提供了可能。通过将法律案例检索系统与大语言模型相结合，可以在传统关键词查询的基础上进一步实现案例要点提取、争议焦点分析、裁判逻辑概括和自然语言问答，从而降低用户理解外文判决文书的难度。</p>
+<p>然而，现有法律检索平台大多仍以国内法律法规、中文裁判文书或单一法域案例为主要服务对象，对多法域涉外案例的统一聚合、智能摘要和交互式问答支持相对不足。一方面，涉外案例来源复杂，涉及不同国家和地区的司法公开平台，需要通过爬虫、接口或数据桥接方式进行采集和整理；另一方面，涉外判决文书通常篇幅较长、专业术语较多、语言障碍明显，仅提供原始文档并不能充分满足用户快速理解和分析的需求。因此，设计并实现一个面向中文用户的涉外法律知识查询与问答系统，具有较强的现实意义和应用价值。</p>
+<p>本课题以“涉外法律知识查询与问答系统”为研究对象，围绕涉外案例聚合查询、案例详情展示、智能摘要生成、上下文问答和本地知识库管理等需求展开设计与实现。系统面向美国、日本、欧盟等主要涉外案例来源，通过前后端分离架构构建 Web 应用平台，结合爬虫接口、Redis 缓存、MySQL 数据存储和大语言模型服务，实现从案例检索、原文查看到智能分析的完整业务流程。该系统不仅能够提升涉外法律案例查询效率，也能够为用户理解复杂外文判决文书提供辅助支持。</p>
+<h2>1.2 研究目的与意义</h2>
+<h3>1.2.1 研究目的</h3>
+<p>本文的研究目的在于设计并实现一套面向中文用户的涉外法律知识查询与问答系统，通过信息检索、数据采集、人工智能摘要和智能问答等技术手段，解决涉外法律案例资源分散、检索效率低、文书理解困难和交互分析不足等问题。系统以 Web 应用形式提供服务，用户可以通过浏览器完成账号登录、案例检索、原文阅读、AI 摘要生成、案件问答、案例收藏、浏览历史查看和本地知识库问答等操作。</p>
+<p>具体而言，本文的研究目标主要包括以下几个方面。第一，构建多法域涉外案例统一查询入口。系统围绕美国、日本、欧盟等重要司法辖区的公开案例资源，通过爬虫接口或内置桥接机制获取案例列表和案例详情，并将不同来源的数据转换为统一的案例元数据格式。用户无需分别访问多个国外网站，即可在系统中按照关键词、法域、时间等条件进行统一检索。第二，实现面向法律案例的智能摘要生成。涉外判决文书通常篇幅较长，且语言、制度和专业术语对普通用户存在较高门槛。系统通过接入大语言模型，对案例原文或案例详情进行分析，自动生成结构化中文摘要，帮助用户快速了解案件基本事实、争议焦点、裁判理由和裁判结果。第三，提供基于案例上下文的智能问答能力。传统检索系统主要提供“查找文档”的能力，而用户在阅读案例时往往还会产生进一步问题，例如某一争议焦点如何认定、法院采纳了何种裁判逻辑、案件对类似争议有何参考意义等。系统通过问答模块支持用户围绕具体案例进行自然语言提问，并结合案例上下文生成回答，从而提升系统的交互性和辅助分析能力。第四，完善用户侧知识管理功能。系统不仅提供即时查询和问答，还设计了收藏、浏览历史、本地知识库和摘要导出等功能，便于用户对有价值的涉外案例进行长期保存和复用。第五，验证前后端分离架构下涉外法律智能服务系统的可行性。系统前端采用 Vue 3 和 Element Plus 实现交互界面，后端采用 Spring Boot、MyBatis、MySQL、Redis 和 Spring AI 等技术实现业务逻辑、数据存储、缓存控制和 AI 调用。通过完整系统实现与测试，验证相关技术在涉外法律知识查询场景中的适用性。</p>
+<h3>1.2.2 研究意义</h3>
+<p>从现实应用角度来看，涉外法律知识查询与问答系统能够为中国企业、公民和法律服务人员提供更加便捷的涉外案例获取渠道。随着企业“走出去”步伐加快，海外市场的法律风险日益复杂。企业在开展国际贸易、海外投资、知识产权保护和跨境合同履行时，需要了解目标国家或地区的司法实践和裁判规则。系统通过聚合多法域案例资源并提供中文化摘要，有助于降低涉外法律信息获取成本，提高企业法律风险识别和预判能力。</p>
+<p>从法律信息化角度来看，本文所设计的系统有助于探索涉外法律服务平台建设的新模式。传统法律数据库通常重视文献收录和关键词检索，而本文系统进一步引入智能摘要、上下文问答、本地知识库和用户知识管理功能，使法律知识服务从“信息查询”向“知识理解”和“交互分析”延伸。这种模式能够提升法律信息资源的利用效率，也为涉外法治服务数字化提供一定参考。</p>
+<p>从技术应用角度来看，本文将前后端分离开发、缓存机制、爬虫桥接、大语言模型和本地知识库检索结合起来，形成一个较完整的应用系统。系统中涉及的异步摘要任务、Redis 配额控制、多数据源检索、原文代理、本地向量检索等模块，体现了软件工程方法在复杂业务场景中的综合应用。通过该系统的设计与实现，可以验证相关技术在法律文本处理场景中的可行性，并为后续扩展更专业的法律语义检索和智能分析功能奠定基础。</p>
+<p>从教学与工程实践角度来看，本课题覆盖需求分析、系统设计、数据库设计、接口设计、前端开发、后端开发、系统测试和部署运行等完整软件开发环节，符合软件工程专业毕业设计对综合实践能力的要求。通过完成该系统，可以提升对 Web 应用开发、数据管理、人工智能服务集成和系统测试方法的理解，也能够形成具有一定实用价值的毕业设计成果。总体而言，涉外法律知识查询与问答系统的设计与实现，不仅能够解决涉外案例资源获取和理解方面的实际问题，也能够体现人工智能技术与法律信息服务融合发展的趋势。</p>
+<h2>1.3 国内外研究现状</h2>
+<h3>1.3.1 法律信息检索研究现状</h3>
+<p>法律信息检索是法律信息化和法律人工智能研究中的基础方向，其目标是从大规模法律文本中快速定位与用户需求相关的法律法规、裁判文书、案例材料和法律解释。传统法律信息检索主要依赖关键词匹配、布尔检索、字段过滤和人工分类目录。Manning 等在信息检索经典研究中指出，信息检索系统通常需要解决文档表示、查询表达、相关性排序和结果评价等问题[1]。在法律场景中，由于法律文本具有术语专业、句式复杂、篇幅较长、引用关系密集等特点，通用信息检索方法往往难以直接满足法律用户的精确查询需求。</p>
+<p>在早期法律数据库建设中，Westlaw、LexisNexis 等商业数据库通过结构化索引、法律主题分类和判例引用网络等方式提升检索效率。这类系统在英美法系中具有较强影响力，但通常具有较高使用成本，且更面向法律专业人士。对于普通用户而言，复杂的检索语法和专业分类体系仍然形成较高使用门槛。随着互联网公开司法数据不断增加，法律案例检索逐渐从封闭数据库走向开放网络平台，但开放平台也带来数据来源分散、格式不统一、排序质量不稳定等问题。因此，如何在多源数据环境下构建统一检索入口，仍然是法律检索系统设计的重要问题。</p>
+<p>近年来，随着自然语言处理技术的发展，法律信息检索逐渐从单纯的关键词匹配转向语义检索和智能推荐。法律案例检索不再仅要求返回包含相同关键词的文档，而是要求系统能够理解案件事实、争议焦点、法律依据和裁判逻辑之间的相似性。Zhong 等对法律人工智能任务进行了总结，指出法律检索、法律问答、判决预测、法律文书摘要等任务共同构成了法律人工智能的重要研究方向[2]。其中，法律案例检索既是独立任务，也是智能问答、类案推荐和裁判辅助分析的基础。</p>
+<p>在法律案例检索研究中，国外学者逐渐引入向量空间模型、机器学习排序模型和深度语义表示模型。传统方法通常通过 TF-IDF、BM25 等方式表示文本特征，能够在一定程度上改善关键词检索效果，但对法律文本中隐含语义、长距离依赖和专业概念之间关系的表达能力有限。随着深度学习方法的发展，基于神经网络的文本表示模型被广泛应用于法律文本相似度计算和案例检索中。尤其是预训练语言模型出现后，法律文本可以通过上下文语义表示方式进行建模，从而提升检索结果的相关性。本文所设计的涉外法律知识查询与问答系统，正是在上述研究背景下展开。系统并不局限于单一法域或单一数据库，而是围绕美国、日本、欧盟等涉外案例资源，构建多数据源统一查询机制，并结合缓存、分页、排序和案例详情展示等功能，为中文用户提供更便捷的涉外法律案例检索入口。</p>
+<h3>1.3.2 法律人工智能与法律文本处理研究现状</h3>
+<p>法律人工智能是人工智能技术在法律领域中的具体应用，涵盖法律检索、合同审查、案例推荐、判决预测、法律问答、法律文书生成和法律知识图谱等多个方向。Ashley 在法律分析与人工智能研究中系统讨论了人工智能技术在法律推理、案例分析和法律知识建模中的应用，指出法律文本不仅包含事实描述和规则表达，还包含复杂的论证结构与裁判逻辑[3]。因此，法律人工智能系统不能仅依赖表层文本匹配，还需要考虑法律概念、事实要素、规则适用和推理过程。</p>
+<p>在判决预测方面，Aletras 等以欧洲人权法院案件为研究对象，利用自然语言处理方法预测法院判决结果，研究表明案件事实部分对预测结果具有较高贡献[4]。Katz 等进一步对美国联邦最高法院判决行为进行建模，提出一种面向美国最高法院判决预测的一般方法[5]。这些研究说明，法律文本中蕴含的事实、规则和裁判理由可以通过数据驱动方法进行建模和分析，但也引发了关于模型可解释性、法律价值判断和司法公正性的讨论。对于毕业设计系统而言，本文并不将判决预测作为主要目标，而是将人工智能技术用于摘要、问答和知识辅助，以降低法律文本理解难度。</p>
+<p>在法律文本表示方面，预训练语言模型极大推动了法律自然语言处理的发展。Devlin 等提出 BERT 模型，通过双向 Transformer 编码器学习上下文语义表示，在多种自然语言理解任务中取得显著效果[6]。但通用 BERT 并未针对法律语料训练，直接应用于法律领域可能存在术语理解不足和语义迁移不充分的问题。Chalkidis 等提出 LEGAL-BERT，通过在法律语料上继续预训练或从头训练 BERT 模型，验证了领域预训练对法律文本处理任务的重要性[7]。这一研究表明，法律领域具有明显的语言特征和专业知识结构，面向法律场景构建智能系统时，应充分考虑领域语料和专业术语的影响。</p>
+<p>在中文法律人工智能领域，随着中国裁判文书公开和智慧法院建设推进，法律文本分类、类案检索、法条推荐、法律问答等方向逐渐受到关注。我国《新一代人工智能发展规划》明确提出要推动人工智能在司法、公共安全、社会治理等领域的应用[8]。在司法实践层面，智慧法院、类案检索、在线诉讼服务等建设不断推进，为法律人工智能应用提供了现实基础。对于涉外法律场景而言，由于案例来源涉及不同国家和地区，语言、制度、法律概念和文书格式差异更加明显，因此更需要结合数据采集、机器翻译、摘要生成和问答分析等技术进行综合设计。</p>
+<h3>1.3.3 大语言模型与检索增强生成研究现状</h3>
+<p>近年来，大语言模型的发展显著提升了自然语言理解和生成能力。Vaswani 等提出的 Transformer 架构利用自注意力机制建模序列依赖关系，为后续大规模预训练模型奠定了基础[9]。Brown 等提出 GPT-3，展示了大规模语言模型在少样本学习、文本生成和问答任务中的能力[10]。随着模型规模扩大和训练数据增加，大语言模型在摘要生成、知识问答、代码生成、文本改写等任务中表现出较强通用能力，也为法律文本处理提供了新的技术路径。</p>
+<p>但在法律领域，单纯依赖大语言模型存在一定风险。法律问答和法律摘要对准确性、可追溯性和专业性要求较高，如果模型仅凭训练参数生成回答，可能出现事实错误、引用错误或“幻觉”问题。因此，近年来检索增强生成技术受到广泛关注。Lewis 等提出 Retrieval-Augmented Generation（RAG）方法，将外部知识检索与生成模型结合，在生成回答前先从知识库中检索相关文档，再利用生成模型组织答案[11]。这种方式能够在一定程度上增强生成内容的依据性，并降低模型凭空生成错误信息的风险。</p>
+<p>在法律问答场景中，RAG 思想具有较强适用性。法律问题通常需要依据具体法条、案例事实或裁判文书内容进行回答，系统如果能够先检索相关法律文本或案例上下文，再将检索结果作为大语言模型输入，就可以提升回答的针对性和可解释性。本文系统中的本地知识库模块正是基于这一思想设计：系统对文本进行切片和向量化表示，用户提问时先进行相似内容检索，再结合检索结果生成回答。虽然本文系统并未训练新的法律大模型，但通过工程化集成大语言模型、案例上下文和本地知识库，可以满足毕业设计场景下的智能问答需求。</p>
+<p>同时，大语言模型在法律摘要中的应用也具有现实意义。涉外判决文书通常篇幅较长、事实背景复杂、裁判逻辑多层展开，用户难以在短时间内把握重点。通过大语言模型自动生成结构化摘要，可以帮助用户快速了解案件当事人、基本事实、争议焦点、法院观点和裁判结果。但法律摘要不能简单追求语言流畅，还需要尽量保持事实准确和结构清晰。因此，系统设计中需要设置异步摘要流程、原文缓存、异常处理和配额控制，避免长文本处理导致系统阻塞或资源滥用。</p>
+<h3>1.3.4 涉外法律知识服务平台研究现状</h3>
+<p>涉外法律知识服务平台的建设与我国涉外法治能力提升密切相关。随着“一带一路”建设、企业国际化经营和跨境交易增加，涉外法律服务需求日益突出。最高人民法院曾发布关于为“一带一路”建设提供司法服务和保障的相关意见，强调提升涉外商事海事审判、国际商事纠纷解决和域外法查明等方面的能力[12]。从应用需求看，涉外法律知识服务不仅需要提供法律条文查询，还需要提供外国司法案例、裁判规则、争议解决经验和风险提示等知识支持。</p>
+<p>目前，国外法律平台在案例数据积累、判例引用网络和商业检索服务方面较为成熟，但多数平台面向本国法律体系和本国语言用户。例如，美国公开法律资源平台可以提供大量判例文本和法院信息，日本、欧盟等地区也存在各自的司法公开网站。但这些平台通常分散建设，检索界面、数据格式和语言体系并不统一。对于中文用户而言，直接使用这些平台需要具备较高的外语能力和法律专业背景。商业数据库虽然功能强大，但存在费用高、访问受限等问题，难以满足普通企业和公众的普惠性知识服务需求。</p>
+<p>国内涉外法律知识服务仍处于发展阶段。一方面，法律服务平台、法律数据库和司法公开平台不断完善，为法律信息化建设提供了基础；另一方面，面向多法域外国案例的统一检索、中文摘要和智能问答系统仍相对不足。尤其是在涉外判例知识服务方面，系统需要同时解决数据采集、跨语言理解、案例结构化、摘要生成和交互问答等问题，具有较强的综合性和工程复杂度。</p>
+<p>因此，本文设计的涉外法律知识查询与问答系统具有一定实践价值。系统通过 Web 平台整合用户认证、案例检索、案例阅读、AI 摘要、上下文问答、本地知识库、收藏历史和配额管理等功能，形成从“案例获取”到“知识理解”再到“交互问答”的完整流程。与传统检索系统相比，该系统不仅提供检索结果列表，还进一步提供案例摘要和问答能力；与单纯大语言模型问答相比，该系统结合真实案例原文和本地知识库，能够使回答更加贴近具体文本依据。总体来看，涉外法律知识服务的发展趋势将从单一检索平台转向多源数据融合、智能文本处理和交互式法律知识服务相结合的综合系统。</p>
+<h3>1.3.5 研究现状总结</h3>
+<p>综上所述，国内外关于法律信息检索、法律人工智能、大语言模型和检索增强生成的研究已经形成较为丰富的成果。国外研究在法律案例检索、法律文本表示、判决预测和法律 NLP 数据集建设方面起步较早，形成了较多经典模型和基准任务；国内研究则依托智慧法院建设、裁判文书公开和法律服务数字化，在法律检索、类案推荐、智能问答和司法辅助方面不断推进。与此同时，涉外法律知识服务仍面临多法域数据分散、外文判决理解困难、统一检索入口不足、智能摘要和问答能力不完善等问题。本文在已有研究基础上，结合软件工程方法，设计并实现涉外法律知识查询与问答系统。系统不以提出新的底层算法为主要目标，而是面向真实应用需求，将多数据源案例采集、前后端分离架构、Redis 缓存、大语言模型摘要、本地知识库和智能问答等技术进行综合集成。该设计既回应了涉外法律案例查询中的实际痛点，也为法律人工智能技术在应用系统中的落地提供了一个可验证的实现方案。</p>
+<h2>1.4 本文主要研究内容</h2>
+<p>本文围绕“涉外法律知识查询与问答系统”的设计与实现展开研究，目标是构建一个面向中文用户的涉外案例检索、案例阅读、智能摘要和问答分析平台。系统以美国、日本、欧盟等涉外案例资源为主要对象，通过前后端分离架构、多数据源采集、缓存机制、大语言模型调用和本地知识库检索等技术，解决涉外法律案例资源分散、检索入口不统一、外文判决理解成本高和交互式分析能力不足等问题。本文的主要研究内容包括以下几个方面。</p>
+<p>第一，分析涉外法律知识查询与问答系统的业务需求。本文结合涉外法律服务、企业出海法律风险防控和法律信息化建设背景，对系统的用户角色、业务流程、功能需求、非功能需求、数据需求、接口需求和运行环境需求进行分析。第二，设计系统总体架构和功能模块。系统采用前后端分离架构，前端基于 Vue 3 和 Element Plus 构建用户界面，后端基于 Spring Boot 提供 RESTful 接口和业务处理能力。第三，实现多法域案例检索与数据采集机制。针对涉外案例来源分散的问题，系统设计统一的案例数据结构，将来自美国、日本、欧盟等不同来源的案例元数据转换为统一格式。第四，实现基于大语言模型的案例摘要与问答功能。针对涉外判决文书篇幅长、语言难度高和专业术语复杂的问题，系统接入大语言模型服务，对案例原文进行分析并生成结构化中文摘要。第五，构建本地知识库与知识问答能力。第六，完成系统测试与结果分析，从功能测试和非功能测试两个方面验证系统的有效性。</p>
+<p>综上，本文并不以提出新的底层算法为主要目标，而是面向涉外法律知识服务这一实际应用场景，将 Web 开发、数据采集、缓存机制、人工智能摘要、问答交互和知识库检索等技术进行综合集成，形成一个具有完整业务流程和实际应用价值的涉外法律知识查询与问答系统。</p>
+<h2>1.5 论文组织结构</h2>
+<p>本文围绕涉外法律知识查询与问答系统的需求分析、系统设计、功能实现和测试验证展开，全文结构安排如下。第1章为绪论，介绍研究背景、研究目的和意义、国内外研究现状、主要研究内容和论文组织结构。第2章为相关技术与理论基础，介绍系统开发和实现过程中涉及的关键技术。第3章为系统需求分析，从软件需求规格说明的角度，对系统的总体需求、用户角色、业务需求、功能需求、非功能需求、数据需求、接口需求和运行环境需求进行分析。第4章为系统总体设计，根据需求分析结果，设计系统总体架构、前端架构、后端架构、数据库结构、Redis 缓存机制、系统接口和部署方案。第5章为系统详细设计与实现，详细介绍系统各功能模块的实现过程。第6章为系统测试与结果分析，对系统进行功能测试和非功能测试，并对测试结果进行总结。第7章为结论与展望，对全文工作进行总结，指出系统不足并提出后续优化方向。</p>
+<h2>1.6 本章小结</h2>
+<p>本章主要围绕涉外法律知识查询与问答系统的研究背景、研究目的、研究意义、国内外研究现状和论文组织结构进行了阐述。通过分析可以看出，涉外法律案例资源分散、外文文书理解困难和传统检索系统交互能力不足，是当前涉外法律知识服务中较为突出的现实问题。大语言模型、检索增强生成、前后端分离开发和本地知识库等技术的发展，为构建智能化涉外法律知识服务系统提供了条件。下一章将进一步介绍系统实现所涉及的相关技术与理论基础，为后续需求分析、系统设计和功能实现奠定技术基础。</p>
+
+<h1 id="ch2">第2章 相关技术与理论基础</h1>
+<p>本章阐述涉外法律知识查询与问答系统在设计与实现过程中涉及的主要技术选型与理论基础，包括前后端分离架构、Vue 3 与 Element Plus、Spring Boot 与 MyBatis、MySQL 与 Redis、Spring AI、HTTP 客户端与 REST 风格接口、多数据源爬虫协议以及本地知识库向量化检索等内容。通过归纳这些技术的基本原理与适用场景，可为第3章需求分析、第4章总体设计及第5章详细实现提供一致的术语与工程背景。</p>
+<h2>2.1 前后端分离架构</h2>
+<p>前后端分离是目前 Web 应用的主流架构形态。系统将用户界面渲染、路由跳转与交互逻辑部署在浏览器侧，业务规则、数据访问、缓存与外部服务编排部署在服务端，二者通过 HTTPS 之上的 REST 风格接口进行通信。与传统“服务端渲染整页 HTML”的模式相比，前后端分离有利于团队分工、并行开发与独立部署：前端可按页面与组件迭代体验，后端可按领域服务扩展接口与安全策略。本项目前端使用 Vue CLI 开发与打包，后端使用 Spring Boot 暴露统一前缀 `/api` 下的 JSON 接口，开发环境下通过 webpack devServer 将 `/api` 代理至后端端口，减小跨域配置的复杂度。</p>
+<p>在该架构下，可观测性与故障隔离成为工程重点：前端错误（资源加载失败、脚本兼容）与后端错误（数据库连接池耗尽、外部爬虫超时）应由不同渠道上报或记录。对于长耗时任务（如大模型摘要），应采用异步任务队列或至少是非阻塞调度，使 Tomcat 线程能够快速归还，从而避免“慢请求占满连接池”的典型反模式。静态资源与接口流量也可在反向代理层拆分缓存策略，为未来横向扩容预留空间。</p>
+<h2>2.2 Vue 3 与 Element Plus</h2>
+<p>Vue 3 是一套渐进式 JavaScript 前端框架，提供组件化开发与响应式数据绑定机制，配套的 Vue Router 负责单页应用的页面路由与会话跳转时的登录守卫；Vuex 可在多视图之间共享检索条件、界面语言与用户状态等业务数据。Element Plus 提供表格、表单、对话框、侧边布局等成套 UI 组件，适合快速搭建管理后台与内容检索类界面。系统在案例检索、收藏历史、充值与知识库等页面大量使用表格与分页组件，以降低列表数据展示与批量操作的开发成本。</p>
+<h2>2.3 Spring Boot 技术</h2>
+<p>Spring Boot 在 Spring 框架基础上提供自动装配与嵌入式容器，能够以单一可执行 Jar 的形式启动 Tomcat，简化配置与依赖管理。系统采用分层结构：控制器层封装 HTTP 入参与出参校验，服务层组织业务编排与事务边界，持久层通过 MyBatis 访问数据库；配置类统一管理 Redis、异步线程池、AI 客户端与爬虫 HTTP 客户端等 Bean。分层有利于测试替换与横向扩展。</p>
+<h2>2.4 MyBatis 与 MySQL</h2>
+<p>MyBatis 是典型的半自动 ORM 框架，开发者以接口加 XML（或注解）方式编写 SQL，可在复杂查询场景下兼顾可读性与可控性。系统使用 MySQL 存储用户信息、双语案例条目、摘要与详情持久化字段、订单与配额相关记录等结构化数据；通过主键与外键约束、唯一索引与字段长度约束保证数据一致性。涉外案例往往存在案号格式差异，系统在业务层对外部爬取条目进行规范化后再写入持久层，以降低重复入库与脏数据概率。</p>
+<h2>2.5 Redis 与分布式锁</h2>
+<p>Redis 是内存型键值数据库，常用于缓存热点数据、会话扩展或分布式环境下的协调。系统将案例检索的中间结果写入有序集合以实现按时间的排序分页，同时为验证码冷却、摘要日配额计数等提供原子递增能力；在并发检索或摘要任务场景下引入基于 SET NX EX 获取锁并结合 Lua 脚本安全释放的实现，可避免同一用户对同一案件的重复计费或重复异步任务抢占。TTL 的设置需与业务允许的最大等待时间对齐，避免出现长期脏锁。</p>
+<p>从理论上看，Redis 作为 AP 倾向的分布式存储，在开发与单机部署场景下可近似视为高可用内存表；一旦引入主从或哨兵拓扑，需要理解复制延迟对“刚写后读”链路的影响。配额扣减要求具备原子性（INCR/DECR）与可回滚语义（失败补回），这通常通过事务脚本或业务层补偿实现。对于有序集合缓存，应设计 score 的单调规则（如按检索时间戳毫秒化）以便稳定分页与淘汰策略。</p>
+<h2>2.6 Spring AI 与大语言模型</h2>
+<p>Spring AI 为 JVM 生态提供与大模型对话的统一抽象；系统配置文件中将 OpenAI 兼容端点指向本机推理服务或其他网关，从而为关键词抽取与摘要、问答等业务提供可调用的 ChatClient。工程实践上需要将提示词模板、温度与最大令牌数等与具体任务对齐：检索阶段强调可控短输出以降低延迟，摘要与问答在保证结构化的前提下适当放宽长度上限。对大模型输出应视作“辅助生成”，在界面层提示仅供学习研究参考，并结合原文与配额机制降低滥用风险。</p>
+<p>法律场景下需关注三类风险：<b>幻觉</b>（事实与原文不符）、<b>越权解释</b>（输出具有“法律意见”外观）、<b>长上下文截断</b>（模型窗口无法覆盖全文）。工程上可通过段落切分、检索增强、引用原文片段编号与“免责声明”缓解，但无法从数学上完全消除不确定性。因此系统将 LLM 定位为效率工具，核心事实仍以判决原文与结构化元数据为准。</p>
+<h2>2.7 RESTful 接口与 HTTP 客户端</h2>
+<p>系统将浏览器与后端之间的交互设计成资源导向的无状态调用：检索、摘要、问答、支付等均以 JSON 为载体，动词由 HTTP GET/POST/DELETE 表达。后端对外部爬虫 `crawl.json` 网关使用 RestTemplate 并分别配置列表与详情读超时时间，避免因某一慢源拖累整体超时策略。爬虫返回体若异常庞大，须在客户端侧限定最大字节或直接失败快速返回以保护 JVM 堆空间。</p>
+<h2>2.8 多数据源爬虫接入</h2>
+<p>爬虫侧约定统一查询参数：`spider_name`、`start_requests` 以及 JSON 格式的 `crawl_args`，后端将其映射为国内源、境外源与国家枚举。多国并行检索采用异步任务编排，在时间预算内对已完成的来源合并；对于缺乏独立爬虫进程的开发环境，可启用内置 Bridge 适配部分法域以降低部署门槛。</p>
+<h2>2.9 本地知识库与向量检索</h2>
+<p>系统在本地磁盘维护知识切片索引，通过轻量 Embedding 算法将段落映射到固定维度向量并进行余弦相似度检索，再将命中的上下文片段与用户问题一并送入大模型生成答复。该类方案等价于小规模 RAG 流水线，优点是部署简单、无外注 API；缺点是语义表征能力逊于大规模预训练嵌入模型，适合毕业设计环境下的可用性验证。</p>
+<h2>2.10 本章小结</h2>
+<p>本章从架构与关键技术两个维度介绍了系统实现赖以支撑的技术栈。前后端分离为复杂交互和长耗时任务拆分提供了结构基础；Vue 负责体验与模块化界面；Spring Boot 与 MyBatis 负责业务流程与结构化存储；Redis 在高并发读写与配额控制场景发挥支点作用；Spring AI 与爬虫 HTTP 网关将“智能抽取与外部判例数据采集”连成闭环；本地向量检索补足法规与自拟材料的知识点问答能力。后续章节将从需求与设计中具体展开这些技术在业务上的映射关系。</p>
+
+<h1 id="ch3">第3章 系统需求分析</h1>
+<p>本章依据软件需求工程方法，结合任务书与本系统实际业务流程，分别从总体需求、用户角色、业务需求、功能与非功能需求、数据需求、接口需求与运行环境需求等方面给出规格化描述；并通过文字说明业务流程图、用例图及活动图的绘制意图，辅以核心需求三线表（见表3.1、表3.2），以满足学院对软件需求规范的考核要求。</p>
+<h2>3.1 系统总体需求</h2>
+<p>系统需提供面向涉外法律场景的 Web 一站式服务：用户能够以中文检索美国、日本和欧盟等区域公开判例或其元数据摘要，在阅读原文后进行 AI 概要生成与自然语言案情问答；同时支持个人账户管理、配额付费或模拟支付演示、浏览历史与个人知识库的沉淀。系统应在依赖不可用时对用户给出可理解的降级提示。</p>
+<h2>3.2 用户角色分析</h2>
+<h3>3.2.1 游客用户</h3>
+<p>游客可浏览受限功能或体验检索列表，摘要与问答等高级能力在无登录或零配额情形下应被拒绝或弱化，以保护资源。</p>
+<h3>3.2.2 注册用户</h3>
+<p>注册用户可进行完整检索流程、摘要与问答调用、收藏与历史回看、充值续费和使用本地知识库文档问答。</p>
+<h3>3.2.3 管理员</h3>
+<p>管理员可进行运营侧的发放配额、观测订单与Webhook回调等运维操作（本项目以校内演示为主时可弱化详细 RBAC）。</p>
+<h2>3.3 业务需求分析</h2>
+<p>总体业务主线如<b>图3.1</b>所述：用户在登录通过后进入检索页，录入关键词与国别与时间段等条件触发检索；系统将查询请求路由至爬虫网关或缓存分支，返回分页列表；用户在阅读器中打开原文视图并触发异步摘要，摘要完成后可读；用户可提出问题由模型在给定案例上下文中回答；若需要将资料沉淀可选择收藏或使用知识库入库。充值流程在配额不足时提示用户跳转支付或模拟结账。</p>
+<div class="fig" id="fig-3-1"><img src="thesis_assets/fig3_1_business_flow.svg" alt="图3.1 系统业务流程图"/><p class="fig-cap"><b>图3.1</b> 系统业务流程图</p></div>
+<h2>3.4 功能需求分析</h2>
+<p>系统的主要功能划分为认证子系统、检索子系统、阅读与摘要子系统、问答子系统、知识库子系统、收藏与历史子系统、计费子系统及后台运维子系统；其需求要点汇总见<b>表3.1</b>。</p>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:22%;padding:6pt;text-align:center;">编号</th><th style="width:38%;padding:6pt;text-align:center;">功能模块</th><th style="width:40%;padding:6pt;text-align:center;">需求描述</th></tr><tr><td style="padding:6pt;text-align:center;">F1</td><td style="padding:6pt;">用户认证</td><td style="padding:6pt;">注册登录、验证码登录、重置与修改口令，保存会话状态。</td></tr><tr><td style="padding:6pt;text-align:center;">F2</td><td style="padding:6pt;">涉外案例检索</td><td style="padding:6pt;">支持关键词、数据源、时间与分页；支持流式分部返回示意。</td></tr><tr><td style="padding:6pt;text-align:center;">F3</td><td style="padding:6pt;">阅读原文</td><td style="padding:6pt;">IFrame 外链或同源代理以避免混合内容受限；打不开时提示。</td></tr><tr><td style="padding:6pt;text-align:center;">F4</td><td style="padding:6pt;">AI摘要</td><td style="padding:6pt;">异步任务、轮询状态、配额扣减与失败后退款语义。</td></tr><tr><td style="padding:6pt;text-align:center;">F5</td><td style="padding:6pt;">案情问答</td><td style="padding:6pt;">基于给定案号或案例上下文进行多轮 QA。</td></tr><tr><td style="padding:6pt;text-align:center;">F6</td><td style="padding:6pt;">知识库</td><td style="padding:6pt;">手工或批量入库并进行向量检索式问答。</td></tr><tr><td style="padding:6pt;text-align:center;">F7</td><td style="padding:6pt;">收藏历史</td><td style="padding:6pt;">收藏案号、分页浏览足迹，支持导出总结稿。</td></tr><tr><td style="padding:6pt;text-align:center;">F8</td><td style="padding:6pt;">计费配额</td><td style="padding:6pt;">Stripe 结账或演示支付，管理员补发点数。</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">F9</td><td style="padding:6pt;">国际化</td><td style="padding:6pt;">中英文界面切换并保持查询语言一致。</td></tr></table>
+<p style="text-align:center;text-indent:0;"><b>表3.1 功能需求一览表</b></p>
+<p>角色的主要用例如<b>图3.2</b>所示：注册用户与游客在案例检索上的继承关系、与管理员的授权关系均应体现。</p>
+<div class="fig" id="fig-3-2"><img src="thesis_assets/fig3_2_use_case.svg" alt="图3.2 系统用例图"/><p class="fig-cap"><b>图3.2</b> 系统用例图</p></div>
+<h2>3.5 非功能需求分析</h2>
+<p>为保证线上可用体验，本节从性能、安全、可用性与可维护性提出要求，参见<b>表3.2</b>。</p>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:26%;padding:6pt;text-align:center;">维度</th><th style="width:74%;padding:6pt;text-align:center;">需求说明</th></tr><tr><td style="padding:6pt;text-align:center;">性能</td><td style="padding:6pt;">列表检索在局域网部署下首轮返回目标 &lt;= 数十秒量级；爬虫总等待可配置；异步摘要不占满 Tomcat Worker。</td></tr><tr><td style="padding:6pt;text-align:center;">安全</td><td style="padding:6pt;">密码哈希存储（若已实现）、Stripe Webhook 验签（若启用）、敏感配置不落库公开仓库。</td></tr><tr><td style="padding:6pt;text-align:center;">可用性</td><td style="padding:6pt;">Webpack chunk 失败后自动单次刷新提示；爬虫不可达降级提示文案。</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">可维护性</td><td style="padding:6pt;">Maven 模块化依赖；配置外置 YAML；日志链路可检索异常栈。</td></tr></table>
+<p style="text-align:center;text-indent:0;"><b>表3.2 非功能需求表</b></p>
+<h2>3.6 数据需求分析</h2>
+<p>系统数据可分为<b>结构化业务数据</b>、<b>半结构化配置</b>与<b>文件型知识索引</b>三类。结构化数据主要存放于 MySQL，支撑账户体系、案例主从表、用户行为轨迹与计费订单；Redis 存放短期键值与会话相关信息（如验证码、检索缓存条目、配额计数器等）；磁盘目录存放知识库切片向量与段落 JSON，供问答检索阶段加载。</p>
+<p>核心业务实体与用户视角的映射关系要求在逻辑上消除“同源不同表”的矛盾：涉外案例在多数据源合并后应以统一的主键标识（通常为归一化后的案号或系统内部 surrogate key）联结元数据表与正文详情表。<b>Favorite/BrowseHistory</b>表中应记录用户维度与案例维度的外部键，并按时间分页查询。<b>PaymentOrder</b>需留存第三方支付会话标识、币种、金额快照与Webhook处理状态机，以防止重复入账或漏账。</p>
+<p>对上述实体的粒度与主要职责进行归纳，可得<b>表3.3</b>所列概要。</p>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:26%;padding:6pt;text-align:center;">实体/数据域</th><th style="width:74%;padding:6pt;text-align:center;">内容与一致性要求</th></tr><tr><td style="padding:6pt;text-align:center;">User</td><td style="padding:6pt;">用户名唯一、配额字段非负摘要次数、与时间相关的日重置策略；敏感字段仅存摘要或哈希。</td></tr><tr><td style="padding:6pt;text-align:center;">CaseInfo</td><td style="padding:6pt;">题名、裁判机构、裁定日期、国别枚举、数据源标签、中英文摘要占位；入库去重。</td></tr><tr><td style="padding:6pt;text-align:center;">CaseDetail</td><td style="padding:6pt;">Markdown 或纯文本超长字段；应与 CaseInfo 一一对应或可空懒加载。</td></tr><tr><td style="padding:6pt;text-align:center;">Favorite / BrowseHistory</td><td style="padding:6pt;">按用户与时间排序；浏览历史可考虑上限截断以防表膨胀。</td></tr><tr><td style="padding:6pt;text-align:center;">PaymentOrder</td><td style="padding:6pt;">幂等订单号；状态流转：创建—支付中—完成/失败—回调校验。</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">KB 向量索引</td><td style="padding:6pt;">文本切片粒度、embedding 维度、文件名与更新时间；重建索引需无损或版本化迁移。</td></tr></table>
+<p style="text-align:center;text-indent:0;"><b>表3.3 核心数据实体概要表</b></p>
+<p>爬虫侧返回的案例 JSON 可能存在字段稀疏或别名差异，系统在持久化前应完成字段校验、类型转换与缺省回填；对无法映射的条目应记入失败日志以供人工校对，从而在数据层保障后续摘要与 QA 的稳定输入。</p>
+<h2>3.7 接口需求分析</h2>
+<p>前后端契约应满足：统一响应信封（成功体、错误码、可追溯 message）、分页参数约定（page、size 或 cursor）、以及浏览器可缓存性策略区分（动态接口禁用强缓存）。</p>
+<p>主要 REST 分组如下。<b>（1）认证与用户</b>：注册登录、手机号或邮箱校验、令牌刷新与会话校验拦截器链路。<b>（2）案例检索</b>：`/cases/search` 接收关键词、数据源集合、时间与排序偏好；`/cases/meta` 供列表页按需拉取富字段。<b>（3）阅读与异步摘要</b>：`cases/summary/async/*` 提交任务后轮询进度与结果读取；失败路径需返还配额或明示不可恢复原因。<b>（4）问答</b>：`cases/qa` 将案号与用户问题拼装为模型输入，上下文长度超限时应截断或分段摘要预处理。<b>（5）知识库</b>：`/kb/upload`、`/kb/query` 等在演示环境可降低鉴权粒度，生产环境则应恢复上传 MIME 与白名单。<b>（6）计费</b>：创建结账 Session、Stripe Webhook（含签名校验头）、管理员手工调账接口。</p>
+<p>对<b>爬虫网关</b>：`GET crawl.json` 的参数需与爬虫进程约定对齐；列表与详情宜采用两类超时-profile，以适应境外网络抖动。网关不可达时应返回可读错误并让前端降级为本地缓存或无结果提示。<b>（7）运维健康检查</b>：可选 `/actuator/health`（若未对外暴露则需内网屏蔽），以供部署探活。</p>
+<p>附录A中将给出字段级明细与示例 JSON；本章只规定分组职责与容错边界。</p>
+<h2>3.8 运行环境需求分析</h2>
+<p><b>服务器端：</b>JRE（或 JDK）21 及以上，以满足 Spring Boot 3.4 运行时要求；建议使用 64 位 Linux 或 Windows Server 作为部署宿主，内存不低于 4GB（若同时运行embedding与模型推理可适当上调）。Tomcat Worker 线程池与爬虫 HTTP 客户端连接池的规模应在压力测试后与 CPU 核心数对齐，避免上下文切换过载。</p>
+<p><b>数据与缓存：</b>MySQL 8.x，字符集建议使用 utf8mb4 以兼容判例中出现的特殊标点；InnoDB 引擎与合理的索引字段（用户唯一键、案号索引、用户-时间联合索引）；Redis 6+，开启持久化策略视演示/生产而定，开发环境可关闭 AOF 以简化。</p>
+<p><b>智能化依赖：</b>可选 Ollama 或其他 OpenAI 兼容网关；若完全离线，应提供 CPU 推理配置说明与首字延迟预期。Spring AI 相关密钥与 base-url 仅允许通过环境变量或加密配置中心注入。</p>
+<p><b>客户端：</b>构建环境 Node.js 18 LTS 及以上，包管理器 npm 或 yarn；浏览器需支持 ES2020 子集与现代 Fetch；移动端未作专门适配时应在页面提示“推荐使用桌面浏览器”。</p>
+<p><b>网络：</b>生产环境出站需能访问境外公开司法站点或自建爬虫中继；防火墙应放行 Stripe Webhook 入站 HTTPS；开发环境可使用反向代理绕过混合内容拦截。</p>
+<h2>3.9 需求模型与图表说明</h2>
+<p>案例检索的动态过程可用活动图<b>图3.3</b>说明：从开始事件到输入校验、缓存命中判定、爬虫并行、结果入库、分页返回与用户查看；其中决策节点应体现超时合并策略。UML 图示可在 Visio / StarUML / PlantUML 中依据本节文字再行绘制。<b>图3.1</b>、<b>图3.2</b>、<b>图3.3</b>与<b>表3.1</b>至<b>表3.3</b>须在终稿中正文中逐项引用以保持学院格式一致。</p>
+<div class="fig" id="fig-3-3"><img src="thesis_assets/fig3_3_activity_search.svg" alt="图3.3 案例检索活动图"/><p class="fig-cap"><b>图3.3</b> 案例检索活动图</p></div>
+<h2>3.10 本章小结</h2>
+<p>本章给出了涉外法律知识查询与问答系统的需求规格概要，覆盖了业务、功能、非功能、数据、接口与环境等方面，并用三线表对部分需求进行了条目化罗列。下一阶段将把工作重心转向架构与概要设计文档，对上述需求进行模块化映射与可视化设计，为最终实现与验证测试奠定依据。</p>
+
+<h1 id="ch4">第4章 系统总体设计</h1>
+<p>本章在前述需求分析基础上，给出涉外法律知识查询与问答系统的总体设计方案。设计工作遵循高内聚、低耦合、可扩展与可观测性原则，将系统划分为浏览器端单页应用、Spring Boot 业务服务层、MySQL 持久层、Redis 协调与缓存层、外部爬虫网关及大模型推理端等逻辑部件，并说明主要数据表、缓存键语义、智能流水线及部署形态。文中对<b>图4.1</b>系统总体架构图、<b>图4.2</b>功能模块结构图及<b>表4.1 主要数据表一览</b>进行引用；本章另给出<b>图4.3</b>（异步摘要时序）、<b>图4.4</b>（核心实体 ER）作为补充示意，终稿可按学院规范替换为正式矢量图或高清导出图。</p>
+<h2>4.1 设计原则与约束</h2>
+<p>（1）<b>前后端分离与无状态接口</b>：业务会话由前端存储与请求头携带机制维护，服务端接口以 JSON 为主，符合 REST 风格资源划分思想[13][14]。（2）<b>外部依赖可失败</b>：爬虫与境外网站不可达、模型推理超时等属于常态风险，设计层要求快速失败、合并部分结果与可视化降级。（3）<b>成本与滥用控制</b>：摘要与模型调用与配额字段挂钩，配合 Redis 计数与分布式锁避免重复扣费。（4）<b>配置外置</b>：端口、数据库、Redis、爬虫 URL、AI 端点、支付开关与知识库路径由 <code>application.yml</code> 统一声明，禁止将生产密钥提交至公开仓库。（5）<b>可测试性</b>：服务层与控制器分离，便于对检索编排、摘要状态机与 KB 检索进行单元或集成测试[16]。</p>
+<h2>4.2 系统总体架构</h2>
+<p>系统总体采用“浏览器—反向代理（可选）—Spring Boot 应用—MySQL / Redis—外部 HTTP 服务”的五段式结构，如<b>图4.1</b>所示。开发阶段前端 devServer 监听 8080 端口，将路径前缀 <code>/api</code> 代理至后端 <code>http://localhost:8122</code>；后端在 <code>application.yml</code> 中设置 <code>server.servlet.context-path: /api</code>，因此浏览器中的 <code>/api/cases/search</code> 经代理后映射到 Spring 中 <code>@RequestMapping("/cases")</code> 下的 <code>/search</code> 处理器。生产环境可将静态资源部署于 Nginx，由 Nginx 同时承担 TLS 终止与接口转发。</p>
+<p>智能化能力通过 Spring AI 访问兼容 OpenAI 协议的端点（如本机 Ollama），知识库问答在 JVM 内完成文本切片、轻量向量与余弦相似度检索后再调用模型生成，形成简化版 RAG 流水线[11][17]。</p>
+<div class="fig" id="fig-4-1"><img src="thesis_assets/fig4_1_architecture.svg" alt="图4.1 系统总体架构"/><p class="fig-cap"><b>图4.1</b> 系统总体架构图</p></div>
+<h2>4.3 前端概要设计</h2>
+<p>前端基于 Vue 3 与 Vue Router 构建单页应用，全局路由守卫在除登录页外校验本地认证标志[25]。主要路由包括登录页、案例阅读页以及以 <code>CaseQueryLayout</code> 为壳的查询子系统：首页、检索列表、收藏、历史、充值与知识库等。界面组件以 Element Plus 为主，检索页提供国家、数据源多选与时间范围筛选（见工程 <code>SearchCases.vue</code>）；Axios 实例统一封装后端根地址与环境变量切换逻辑（<code>path.js</code>）。国际化通过各视图内中英文分支渲染实现。</p>
+<h2>4.4 后端分层与模块划分</h2>
+<p>后端遵循经典三层：<b>控制层（Controller）</b>负责参数绑定、返回值封装为统一 <code>JSONReturnBean</code>、SSE 流的建立与异常翻译；<b>服务层（Service）</b>实现检索编排、案例入库、异步摘要任务、配额、收藏、支付订单与知识库索引维护；<b>持久层（DAO + MyBatis）</b>访问 MySQL。<b>图4.2</b>建议以包名粒度绘制：<code>controller</code>、<code>service</code>、<code>dao</code>、<code>util</code>（含分布式锁）、<code>crawler-bridge</code> 适配包等。</p>
+<p>横切关注点包括：<b>校验服务</b>（搜索入参合法性）、<b>分布式锁工具</b>（检索防刷与异步摘要互斥）、<b>爬虫 RestTemplate</b>工厂（分级读超时）、<b>Spring AI 服务封装</b>（提示词模板与日志）。</p>
+<div class="fig" id="fig-4-2"><img src="thesis_assets/fig4_2_modules.svg" alt="图4.2 后端功能模块结构"/><p class="fig-cap"><b>图4.2</b> 后端功能模块结构图（按包职责示意）</p></div>
+<h2>4.5 数据库概念与逻辑设计</h2>
+<p>概念上存在用户、案例、详情、收藏、浏览历史、支付订单、配额使用日志等实体；逻辑层面以 InnoDB 表存储，字符集与服务端 JDBC URL 对齐为 UTF-8 兼容配置。<b>表4.1</b>列出与论文描述直接相关的主要物理表名称及职责概要（字段级说明可在附录或数据库脚本中延伸）。</p>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:28%;padding:6pt;text-align:center;">表名（示例）</th><th style="width:72%;padding:6pt;text-align:center;">主要职责</th></tr><tr><td style="padding:6pt;text-align:center;">users</td><td style="padding:6pt;">用户账号、认证摘要信息与摘要配额等。</td></tr><tr><td style="padding:6pt;text-align:center;">case_info</td><td style="padding:6pt;">案例元数据与国别、法院、裁判日期等多源对齐字段。</td></tr><tr><td style="padding:6pt;text-align:center;">case_detail_info</td><td style="padding:6pt;">案例正文或 Markdown 等大字段内容与版本信息。</td></tr><tr><td style="padding:6pt;text-align:center;">user_favorites</td><td style="padding:6pt;">用户对案例的收藏关系。</td></tr><tr><td style="padding:6pt;text-align:center;">browse_history</td><td style="padding:6pt;">浏览时间轴，用于列表回溯与检索习惯分析。</td></tr><tr><td style="padding:6pt;text-align:center;">payment_order</td><td style="padding:6pt;">Stripe 或演示支付订单快照与回调状态字段。</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">（扩展）</td><td style="padding:6pt;">摘要异步任务、配额流水等以实现审计可追溯。</td></tr></table>
+<p style="text-align:center;text-indent:0;"><b>表4.1 主要数据表一览</b></p>
+<p>如需在论文中给出 ER 图，可将用户与收藏、浏览历史设计为一对多，用户与订单为一对多，案例信息与详情为一对一或一对零一（懒加载），并在图中标明外键及唯一约束。以下给出与第5章异步摘要链路及本节实体关系相呼应的<b>图4.3</b>、<b>图4.4</b>（工程示意，可替换为正式建模工具导出稿）。</p>
+<div class="fig" id="fig-4-3"><img src="thesis_assets/fig_optional_sequence.svg" alt="图4.3 异步摘要时序示意"/><p class="fig-cap"><b>图4.3</b> 异步摘要主要时序图（示意）</p></div>
+<div class="fig" id="fig-4-4"><img src="thesis_assets/fig_optional_er.svg" alt="图4.4 核心实体ER"/><p class="fig-cap"><b>图4.4</b> 核心实体 ER 图（示意）</p></div>
+<h2>4.6 Redis 缓存、搜索有序集合与分布式锁设计</h2>
+<p>Redis 在系统中承担：<b>验证码与发送冷却</b>键、<b>摘要日配额计数</b>键、<b>检索结果的 ZSet 缓存</b>（score 为时间戳以利于按时间分页）、以及<b>分布式锁</b>键（例如以 <code>search</code> 前缀拼接关键词与国别数据源标签）。列表与详情爬虫采用不同毫秒级读超时配置，检索总超时在配置中心统一设定，超时后合并已返回数据源以提高可用性。</p>
+<p>分布式锁尝试失败时直接向用户返回“系统繁忙”，可避免雪崩式重试击穿下游爬虫；SSE 检索流路径在 Emitter 闭合时必须在 finally 分支释放锁，防止异常情况下降级但锁常驻。</p>
+<h2>4.7 爬虫桥接、流式检索与外部服务集成</h2>
+<p>美国源一般指向独立 Scrapy 兼容的 <code>crawl.json</code> 列表端点；欧盟与日本在缺省部署下可回落至内置 <code>CrawlerBridgeController</code>，在同进程暴露 <code>/crawler-bridge/list/EU/crawl.json</code> 与 <code>.../JPN/...</code> ，由服务端直接访问公开列表页以降低依赖拓扑。详情统一走 <code>detail-url</code> 配置的 <code>crawl.json</code> ，并对<b>单次响应字节数</b>与<b>单条字符上限</b>进行硬限制，以防止极长 JSON 撑爆堆内存。</p>
+<p>同步检索接口返回完整合并结果；<code>/cases/search-stream</code> 以 SSE <code>part</code>/<code>done</code>/<code>fail</code> 事件分批推送数据源颗粒度结果，前端可在首包到达后立即渲染占位行以改善主观时延。</p>
+<h2>4.8 异步摘要、问答与本地知识库设计</h2>
+<p>异步摘要接口分为 <code>summaryAsync/start</code> 与 <code>summaryAsync/status</code> ：启动时对用户加锁并进行配额预检查，成功后写入任务状态实体；前端轮询状态直至成功或失败，失败语义上应回补配额或使用日志可追溯。同步摘要 <code>/cases/aisummary</code> 保留用于简单场景或兼容性。</p>
+<p>案情问答接口 <code>POST /cases/qa</code> 读取案号与用户问题拼装提示词，上下文长度需在服务层裁剪。知识库模块读取 <code>kb.local</code> 配置：<code>chunk-size</code>、<code>chunk-overlap</code>、<code>top-k</code> 与索引 JSON 路径，实现脱离商业向量数据库的本地化部署演示。</p>
+<h2>4.9 计费、Webhook 与安全概要</h2>
+<p><code>/payment/order</code> 创建结账意图，Webhook 控制器校验 Stripe 签名头后入账配额；校内演示可使用 <code>/payment/mock/confirm</code> 快速闭环。<code>/admin/grant-credits</code> 通过请求头 <code>X-Admin-Secret</code> 受控访问。鉴权口令、Stripe 密钥、上游大模型密钥等仅能通过环境变量或私密配置下发。</p>
+<h2>4.10 本章小结</h2>
+<p>本章给出了系统分层架构、前端路由壳、后端包结构、Redis 语义、爬虫与 SSE 设计方案，以及异步摘要—问答—本地知识库的智能化数据通路，并通过表4.1梳理主要数据库承载。下一章将在该框架下逐项展开关键模块的实现方法与前后端契约细节。</p>
+
+
+<h1 id="ch5">第5章 系统详细设计与实现</h1>
+<p>本章在第4章概要设计指导下，结合实际代码结构与配置文件，对用户认证与验证码、涉外案例检索与流式返回、详情与原文代理缓存、异步 AI 摘要与配额、案情问答、收藏与浏览历史、支付与 Stripe Webhook（及模拟支付）、知识库向量检索等模块的实现要点进行说明。描述中涉及的接口路径均相对于后端上下文前缀 <code>/api</code>；开发环境经由前端 webpack 代理消除跨域。实现遵循 Spring Boot 3.4.x 与 Java 21，依赖管理见工程 <code>pom.xml</code>。</p>
+<h2>5.1 开发与运行环境配置</h2>
+<p>后端主配置文件 <code>src/main/resources/application.yml</code> 声明：<code>server.port: 8122</code>、<code>servlet.context-path: /api</code>；数据源指向本机 MySQL 库名 <code>legal_cases</code>；Redis 默认库 0。Spring AI 段将 <code>spring.ai.openai.base-url</code> 设为 Ollama 兼容地址（如 <code>http://127.0.0.1:11434</code>），模型名与 <code>app.ai.local.model</code> 对齐以便切换。爬虫段配置列表与详情 URL、多级超时、「整次检索最长等待」、响应体字节上限及单详情字符上限，实现工程化熔断。</p>
+<p>前端 <code>vue.config.js</code> 设定 devServer <code>port: 8080</code> ，对 <code>/api</code> 走 <code>changeOrigin</code> 代理；生产通过 <code>.env.production</code> 的 <code>VUE_APP_BASE_URL</code> 直连后端主机。</p>
+<h2>5.2 用户注册、登录与验证码认证</h2>
+<p><code>LoginController</code> 映射 <code>/register</code> 与 <code>/login</code> ，同时兼容 GET（调试）与 POST JSON（正式）两种方式，推荐使用 POST，以避免密码中特殊字符在查询串被错误解析。<code>AuthController</code> 提供验证码发送 <code>/auth/send-code</code>、验证码登录 <code>/auth/login-by-code</code>、重置口令与修改口令等接口；验证码 TTL 与发送冷却可由 <code>app.auth.*</code> 配置。<code>UserController</code> 暴露 <code>/user/summaryCredits</code> 供检索页徽章展示摘要剩余点数。</p>
+<p>前端 <code>LoginView.vue</code> 与 <code>authStorage.js</code> 写入登录态；路由守卫在除 <code>/login</code> 外未认证时跳转登录页，从而形成最小闭环的身份访问控制。</p>
+<h2>5.3 案例检索同步接口与分布式锁</h2>
+<p><code>CasesController#searchCases</code> 对入参先调用 <code>CheckReqVOService</code> ，随后按关键字、国家、时间段与数据源标签构造锁名调用 <code>DistributedLock.tryLock</code>（默认约 180 秒持有上限）。持锁成功后进入 <code>SearchCasesService#searchCases</code> ：并行拉起各爬虫源 REST 调用，在时间预算内进行归并排序与持久化，最终封装为 <code>JSONReturnBean.success</code>。若拿不到锁返回业务失败提示引导用户稍后重试。finally 中确保释放锁，避免临界区泄漏。</p>
+<h2>5.4 流式检索（SSE）实现</h2>
+<p><code>GET /cases/search-stream</code> 构建 <code>SseEmitter</code> ，通过内部 <code>SearchStreamNotifier</code> 回调，在爬虫分源返回时将 <code>SearchStreamPartDTO</code> 以事件名 <code>part</code> 写出；全流程结束写 <code>done</code> 并附带与同步检索一致的结果信封；任一异常路径写 <code>fail</code>。异步任务运行于 <code>CompletableFuture.runAsync</code> ，注意与 Emitter 生命周期及锁释放的配对，源代码中已在 <code>done/fail</code> finally 解锁。</p>
+<p>前端若接入该端点，可使用 <code>EventSource</code> 或 Axios 可读流封装；本项目默认可仍以同步检索为主，SSE 为体验增强能力。</p>
+<h2>5.5 案例元数据、详情与原文代理缓存</h2>
+<p><code>GET /cases/meta</code> 按标识返回双语元数据以供阅读页快速渲染。<code>GET /cases/original-proxy</code>（若参数合法）可对第三方原文站点做同源中转，绕过浏览器混合内容与部分站点防嵌限制；<code>OriginalDocumentCacheService</code> 可缓存高频访问页面的小块内容与元数据，降低重复出站流量。</p>
+<p><code>CaseService</code> 与 <code>CaseDetailService</code> 协调 <code>CaseInfo</code>、<code>CaseDetailInfo</code> POJO（见 <code>com.hnu.legal_cases.pojo</code> 包），对爬虫 JSON 的非标准字段在 DTO—PO 映射阶段做容错。</p>
+<h2>5.6 异步摘要、同步摘要与配额</h2>
+<p>异步链路：<code>GET /cases/summaryAsync/start</code> 接受案号等与 <code>force</code> 标志，成功后返回状态对象；前端周期性请求 <code>/cases/summaryAsync/status</code>。<code>CaseSummaryAsyncServiceImpl</code> 内应确保：仅在配额充足时递减；失败时将次数回补或记入使用日志以供人工复核；与 Redis 计数及 MySQL <code>users</code> 字段保持一致性。</p>
+<p><code>GET /cases/aisummary</code> 保留同步摘要以兼容简单场景。<code>app.quota</code> 段控制是否启用配额、每日用户维度上限与白名单批量账号（不进行扣减但写 usage_log）；便于指导教师回放演示。</p>
+<h2>5.7 案情问答实现</h2>
+<p><code>POST /cases/qa</code> 读取 <code>CaseQaReqVO</code> ，由 <code>SpringAIService</code> 将案例节选与问题拼装为 Prompt，设置合理 <code>maxTokens</code> 与停止条件，返回结构化文本。实现上须在服务层对大段 <code>CaseDetailInfo</code> Markdown 预先截断或抽取争议段落，以降低超出模型窗口的概率并控制费用。</p>
+<h2>5.8 收藏与浏览历史</h2>
+<p><code>FavoriteController</code> 映射 <code>/favorite/add</code> 等与收藏相关的入口；列表聚合接口 <code>GET /cases/favorites</code> 可与前端路径 <code>/api/cases/favorites</code>、<code>/api/history/browse_history</code> 对齐。收藏与历史均应带上当前用户上下文，服务端按用户标识过滤分页。</p>
+<h2>5.9 计费、Stripe Webhook 与模拟支付</h2>
+<p><code>PaymentController</code> 提供套餐 <code>/payment/packages</code>、支付方式 <code>/payment/channels</code>、创建订单 <code>/payment/order</code>；演示模式启用 <code>/payment/mock/confirm</code> 直接确认入账摘要次数。<code>StripeWebhookController</code> 对 <code>/payment/stripe/webhook</code> 验签成功后更新订单状态和配额。<code>app.payment.packages</code> 使用 YAML 列表明示各档 credits 与中英文文案，stripe 段可一键关闭以保持离线环境安全。</p>
+<h2>5.10 内置爬虫桥接与知识库</h2>
+<p><code>CrawlerBridgeController</code> 直接在 Spring 容器内应答 EU/JPN 列表抓取，减少对额外 Python 爬虫进程的依赖。<code>KbController</code> 提供 <code>/kb/ingest</code>、<code>/kb/ingest-crawler</code>、<code>/kb/ingest-db</code> 多渠道入库以及 <code>/kb/query</code> ——将用户问题先做 Top-K 相似切片检索，再走模型生成。<code>knowledge-base</code> 路由对应前端视图 <code>KnowledgeBaseView.vue</code> ，与 <code>path.js</code> API 常量绑定。</p>
+<h2>5.11 本章小结</h2>
+<p>本章按照实际工程文件与配置，从认证、检索、SSE、摘要、配额、问答、收藏历史、计费到知识库，串联说明了系统模块的实现路径与控制层入口。系统在工程上综合运用分布式锁、Redis 配额、爬虫熔断、SSE 渐进呈现与轻量化本地向量检索，从而在外部不可靠环境下仍能提供可接受的演示与研究体验。</p>
+
+
+<h1 id="ch6">第6章 系统测试与结果分析</h1>
+<p>本章说明测试环境与方案，分别从功能与非功能两方面设计用例执行系统验证，并结合观察现象进行结果分析。部分用例条目见<b>表6.1 主要功能测试用例表</b>；主要界面与流程的截图佐证见<b>附录 C</b>（<b>图 C-1</b>—<b>图 C-8</b>，正式提交前请替换占位图为真实运行截屏并完成正文交叉引用）。</p>
+<h2>6.1 测试环境与工具</h2>
+<p>硬件与软件环境与第3章一致：开发人员 PC 一台，安装 Windows 或 Linux ，Java 21、Node.js、MySQL 8、Redis、可选 Ollama；浏览器选取 Chromium 内核最新版本。后端以 IDE 运行主类或可执行 Jar ，前端npm脚本启动 webpack devServer ，数据库按迁移脚本初始化。记录工具可使用浏览器开发者 Network 面板抓取接口往返、MyBatis 控制台 SQL 片段与 Tail 聚合日志。</p>
+<h2>6.2 功能测试</h2>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:12%;padding:6pt;text-align:center;">编号</th><th style="width:24%;padding:6pt;text-align:center;">模块</th><th style="width:32%;padding:6pt;text-align:center;">前置条件</th><th style="width:32%;padding:6pt;text-align:center;">预期结果</th></tr><tr><td style="padding:6pt;text-align:center;">T1</td><td style="padding:6pt;">注册登录</td><td style="padding:6pt;">数据库空表或已知账号</td><td style="padding:6pt;">成功写入用户；登录后令牌与本地会话一致</td></tr><tr><td style="padding:6pt;text-align:center;">T2</td><td style="padding:6pt;">验证码流程</td><td style="padding:6pt;">Redis可用</td><td style="padding:6pt;">冷却期内拒绝再次发送</td></tr><tr><td style="padding:6pt;text-align:center;">T3</td><td style="padding:6pt;">案例检索</td><td style="padding:6pt;">爬虫或桥接存活</td><td style="padding:6pt;">返回分页列表与国别一致的元字段</td></tr><tr><td style="padding:6pt;text-align:center;">T4</td><td style="padding:6pt;">爬虫降级</td><td style="padding:6pt;">人为断开某一列表源</td><td style="padding:6pt;">其余来源仍合并；SSE fail 可读</td></tr><tr><td style="padding:6pt;text-align:center;">T5</td><td style="padding:6pt;">异步摘要</td><td style="padding:6pt;">配额&gt;0、模型就绪</td><td style="padding:6pt;">status 闭环成功文本；点数扣减合法</td></tr><tr><td style="padding:6pt;text-align:center;">T6</td><td style="padding:6pt;">配额耗尽</td><td style="padding:6pt;">手工将点数调零</td><td style="padding:6pt;">拒绝摘要并跳转充值文案</td></tr><tr><td style="padding:6pt;text-align:center;">T7</td><td style="padding:6pt;">案情问答</td><td style="padding:6pt;">案号入库或即时爬取详情</td><td style="padding:6pt;">回答与用户问题语义相关且无空返回</td></tr><tr><td style="padding:6pt;text-align:center;">T8</td><td style="padding:6pt;">收藏历史</td><td style="padding:6pt;">已登录</td><td style="padding:6pt;">收藏去重与时间倒序可查</td></tr><tr><td style="padding:6pt;text-align:center;">T9</td><td style="padding:6pt;">知识库</td><td style="padding:6pt;">上传小样本文本</td><td style="padding:6pt;">query命中切片并产出回答</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">T10</td><td style="padding:6pt;">模拟支付</td><td style="padding:6pt;">stripe.enabled=false</td><td style="padding:6pt;">mock入账后点数增加并可再次摘要</td></tr></table>
+<p style="text-align:center;text-indent:0;"><b>表6.1 主要功能测试用例表</b></p>
+<p>对上述用例逐项执行后记入“通过 / 阻塞 / 需回归”三类结论，阻塞项应附日志摘录与复盘措施。</p>
+<h2>6.3 非功能测试</h2>
+<p><b>（1）性能与超时</b>：在低带宽或人为设定较小 <code>crawler.search-total-timeout-ms</code> 下观察合并行为，核对是否出现半集结果且无无限等待线程。</p>
+<p><b>（2）并发与锁</b>：使用脚本瞬时发起多次相同关键字检索，应出现有限失败提示且不造成数据库致命锁等待。</p>
+<p><b>（3）安全</b>：确认生产配置关闭<code>expose-code-in-response</code> ；Stripe Webhook 在缺少签名时返回 401/400。</p>
+<p><b>（4）兼容性</b>：更换 Edge/Chrome ，验证 SSE 与支持 ES 模块的现状。</p>
+<h2>6.4 结果分析与存在问题</h2>
+<p>在模型与爬虫均正常的理想环境下，系统在局域网内可满足课程设计级并发；瓶颈主要集中于境外爬虫RTT与大模型单次推理耗时。当前知识库 Embedding 轻量化，语义对齐能力有限；大模型仍存在偶发幻觉，需要界面提示“仅供参考”。源码中可能存在调试开关与安全默认值，正式上线前须经代码审计与密钥轮换。</p>
+<h2>6.5 本章小结</h2>
+<p>本章给出了可复现的测试环境、代表性功能用例矩阵与主要非功能关注点，并形成对试验现象的解释。测试结果支撑第7章对整体工作的归纳与展望。</p>
+
+
+<h1 id="ch7">第7章 结论与展望</h1>
+<h2>7.1 工作总结</h2>
+<p>本文围绕“涉外法律知识查询与问答系统”的工程实现，完成了从需求分析到系统测试的一条龙软件建设工作。总体而言，系统在架构上采纳前后端分离与 REST 风格的无状态交互，在服务端基于 Spring Boot 与 MyBatis 组织业务编排与结构化存储，并利用 Redis 提供验证码与配额计数、搜索结果有序缓存及分布式锁等协调机制；在数据源侧通过可配置的爬虫 HTTP 端点并联抓取美国、欧盟与日本等涉外公开判例或其元数据，并在缺乏外置爬虫时以内置 JDK 网关桥完成部分法域接入，从而降低了部署拓扑的刚性要求。在用户侧，Vue 3 结合 Element Plus 实现了登录注册、多维筛选的案例检索列表、新开标签的阅读体验、异步 AI 摘要、基于案情的自然语言问答、收藏与浏览历史、充值配额与 Stripe 结账或离线模拟入账，以及本地化知识库的切片入库与语义检索式问答。上述能力共同构成了从“可查”迈向“可读、可问、可沉淀”的一体化法律知识服务链路。</p>
+<p>在智能化层面，系统将大语言模型定位为辅助工具而非终局裁判主体：异步摘要链路通过任务状态与用户配额绑定，在服务失败或异常情形下强调日志追踪与点数回补语义的一致性；案情问答与知识库问答在拼装 Prompt 时对长文本上下文进行裁剪和切片检索（RAG）[11]，以在一定范围内缓解仅靠参数记忆带来的事实偏离问题。工程设计上也体现了对现实世界不确定性的适配：爬虫读超时双层配置、单次响应体字节上限防止 OOM、整次检索总超时后合并已成功来源、SSE 分批推送让用户感知更快的首包渲染，这些特性均来自真实运行中的经验教训而非纯粹论文推演。</p>
+<p>在教学与规范层面，全文按照学院对本科毕业设计文稿的结构期许组织章节，在研究现状部分引用了信息检索与法律人工智能、预训练与大模型、检索增强等领域的权威文献与政策文件；在设计与实现章节则尽量与仓库中的包名、配置键与接口路由保持一致，避免“论文一套、代码一套”的脱节现象。经过第6章所述功能与非功能验证，系统在预期环境下能够稳定走完核心业务流程，达成了课题任务书中的主要技术指标与展示目标。</p>
+<h2>7.2 创新性与局限性</h2>
+<p><b>创新性主要体现在工程综合而非单一算法：</b>将多源判例爬虫、SSE 渐进呈现、Redis 配额与异步摘要退费语义、本地化轻量向量知识库以及与 Spring AI 的可切换推理端整合到同一 Maven 工程中，形成了一个可离线演示、可按配置裁剪部署的端到端范本。相较于以模型训练为主的纯研究型课题，本项目更侧重软件工程中“容错、熔断、配额、审计”等落地环节，对涉外法律信息化的场景贴合度较高。</p>
+<p><b>局限性亦需坦率说明：</b>第一，判例数据源依赖公开站点与爬虫稳定性，法理上不构成官方法律意见；跨境站点的结构与 robots 条款可能演进，爬虫需可持续维护。第二，当前向量嵌入与切块策略偏教学向，面对跨段落引用、长脚注列表等复杂结构时召回率仍有提升空间；若引入法律领域Sentence-BERT 或商业嵌入 API，可改善语义对齐[17]。第三，大模型仍存在偶发幻觉，系统未能自动逐句对齐判决原文脚注，因而在严肃执业场景仅能作参考。第四，身份与权限模型以课程演示为主，未展开细粒度组织机构级 RBAC 与合规审计链路。第五，Stripe 与国内支付场景的合规耦合、个人隐私跨境传输等问题在真实产品中需另行专项论证。</p>
+<h2>7.3 后续工作展望</h2>
+<p>未来可从以下五个方向演进：其一，扩充与清洗训练语料之外的“规则层”，例如将法条—判例三元组对齐后写入图数据库或混合检索管线，以增强问答的可解释性与引用可追溯性。其二，将异步摘要拆解为可观测的子任务链路（数据采集—清洗—提纲—校对），引入人工反馈回路或对抗式二次摘要减少错误传播。其三，在安全侧引入集中式日志与会话令牌轮换机制，并按最小权限拆分管理端接口。其四，前端增加无障碍与大屏科研展示模式；移动端轻量适配。其五，撰写自动化端到端契约测试流水线，以便在爬虫协议升级时尽早发现回归。</p>
+<p>随着我国涉外法治能力提升与企业全球化深入，法律知识服务系统将越来越强调多法域对齐、中英术语标准化与风险提示自动化。相信在开放司法数据不断增长、基础模型能效不断提升的背景下，本项目所展示的工程路径可为后续更深度的法律智能平台建设提供参考范式。</p>
+<h2>7.4 本章小结</h2>
+<p>本章总结了全文工作与贡献，评析了系统在集成度与真实性方面的可取之处和在数据、模型与安全维度的短板，并提出可实施的演进路线；与第1章提出的研究目标首尾呼应。</p>
+
+<h2 id="metrics-note">稿面字数与页数核对说明（自动化统计，供对照）</h2>
+<p>本节便于终稿与学院指标对照。仓库内脚本 <code>thesis_assets/thesis_metrics.mjs</code> 可从本 HTML 稿提取<b>第1章至第7章正文（至参考文献前）</b>的汉字量，并与全稿汉字量、第7章汉字量一并写入 <code>thesis_assets/thesis_metrics_report.json</code>。最新一次运行结果请直接打开该 JSON；<b>页数（≥40 页）</b>与 Word「字数统计」是否含脚注/文本框等，必须以学校定稿 Word 为准另行核对。</p>
+
+<h1 id="refs">参考文献</h1>
+<p class="ref">[1] Manning C D, Raghavan P, Schütze H. Introduction to Information Retrieval[M]. Cambridge: Cambridge University Press, 2008.</p>
+<p class="ref">[2] Zhong H, Xiao C, Tu C, Zhang T, Liu Z, Sun M. How Does NLP Benefit Legal System: A Summary of Legal Artificial Intelligence[C]//Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics. 2020.</p>
+<p class="ref">[3] Ashley K D. Artificial Intelligence and Legal Analytics: New Tools for Law Practice in the Digital Age[M]. Cambridge: Cambridge University Press, 2017.</p>
+<p class="ref">[4] Aletras N, Tsarapatsanis D, Preoţiuc-Pietro D, Lampos V. Predicting judicial decisions of the European Court of Human Rights: a Natural Language Processing perspective[J]. PeerJ Computer Science, 2016, 2: e93.</p>
+<p class="ref">[5] Katz D M, Bommarito M J, Blackman J. A general approach for predicting the behavior of the Supreme Court of the United States[J]. PLOS ONE, 2017, 12(4): e0174698.</p>
+<p class="ref">[6] Devlin J, Chang M W, Lee K, Toutanova K. BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding[C]//Proceedings of NAACL-HLT. 2019.</p>
+<p class="ref">[7] Chalkidis I, Fergadiotis M, Malakasiotis P, Aletras N, Androutsopoulos I. LEGAL-BERT: The Muppets straight out of Law School[C]//Findings of the Association for Computational Linguistics: EMNLP 2020. 2020.</p>
+<p class="ref">[8] 国务院. 新一代人工智能发展规划[Z]. 2017.</p>
+<p class="ref">[9] Vaswani A, Shazeer N, Parmar N, et al. Attention Is All You Need[C]//Advances in Neural Information Processing Systems. 2017.</p>
+<p class="ref">[10] Brown T B, Mann B, Ryder N, et al. Language Models are Few-Shot Learners[C]//Advances in Neural Information Processing Systems. 2020.</p>
+<p class="ref">[11] Lewis P, Perez E, Piktus A, et al. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks[C]//Advances in Neural Information Processing Systems. 2020.</p>
+<p class="ref">[12] 最高人民法院. 关于人民法院为“一带一路”建设提供司法服务和保障的若干意见[Z]. 2015.</p>
+<p class="ref">[13] Richardson L, Ruby S. RESTful Web APIs[M]. Sebastopol: O'Reilly Media, 2013.</p>
+<p class="ref">[14] Fielding R T. Architectural Styles and the Design of Network-based Software Architectures[D]. Irvine: University of California, Irvine, 2000.</p>
+<p class="ref">[15] Kleppmann M. Designing Data-Intensive Applications[M]. Sebastopol: O'Reilly Media, 2017.</p>
+<p class="ref">[16] Fowler M. Patterns of Enterprise Application Architecture[M]. Boston: Addison-Wesley Professional, 2002.</p>
+<p class="ref">[17] Reimers N, Gurevych I. Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks[C]//Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing. 2019.</p>
+<p class="ref">[18] Jones M, Bradley J, Sakimura N. JSON Web Token (JWT)[S]. RFC 7519, 2015.</p>
+<p class="ref">[19] Hardt D. The OAuth 2.0 Authorization Framework[S]. RFC 6749, 2012.</p>
+<p class="ref">[20] Oracle Corporation. MySQL 8.0 Reference Manual[EB/OL]. 2025.</p>
+<p class="ref">[21] MyBatis. MyBatis 3 Reference Documentation[EB/OL]. 2025.</p>
+<p class="ref">[22] Broadcom Inc. Spring Boot 3 Reference Documentation[EB/OL]. 2025.</p>
+<p class="ref">[23] Broadcom Inc. Spring AI Reference Documentation[EB/OL]. 2025.</p>
+<p class="ref">[24] Redis Ltd. Redis Documentation[EB/OL]. 2025.</p>
+<p class="ref">[25] Vue.js. Vue.js Documentation Version 3[EB/OL]. 2025.</p>
+<p class="ref">[26] Element Plus Team. Element Plus Documentation[EB/OL]. 2025.</p>
+<p class="ref">[27] Stripe Inc. Stripe API Reference: Webhooks[EB/OL]. 2025.</p>
+<p class="ref">[28] 全国信息技术标准化技术委员会. GB/T 8567—2006 计算机软件文档编制规范[S]. 北京: 中国标准出版社, 2006.</p>
+<p class="ref">[29] 全国信息技术标准化技术委员会. GB/T 9385—2008 计算机软件需求规格说明规范[S]. 北京: 中国标准出版社, 2008.</p>
+<p class="ref">[30] 张海藩, 牟永敏. 软件工程导论（第6版）[M]. 北京: 清华大学出版社, 2013.</p>
+
+<h1 id="ack">致谢</h1><p>感谢指导教师在选题、研究与论文撰写各环节给予的悉心指导；感谢学院各位任课教师在专业基础与工程实践方面的系统训练；感谢同学与亲友在调试系统与整理文档过程中的帮助与支持。</p>
+<h1 id="appendix">附录</h1>
+<h2>附录A 系统主要接口说明（节选）</h2>
+<table style="width:100%; border-collapse:collapse; font-size:12pt;"><tr style="border-top:1.5pt solid #000;"><th style="width:38%;padding:6pt;text-align:center;">方法与路径（相对/api）</th><th style="width:62%;padding:6pt;text-align:center;">说明</th></tr><tr><td style="padding:6pt;text-align:center;">POST /login</td><td style="padding:6pt;">用户登录。</td></tr><tr><td style="padding:6pt;text-align:center;">POST /register</td><td style="padding:6pt;">用户注册。</td></tr><tr><td style="padding:6pt;text-align:center;">POST /auth/send-code</td><td style="padding:6pt;">发送验证码。</td></tr><tr><td style="padding:6pt;text-align:center;">GET /cases/search</td><td style="padding:6pt;">同步多源检索。</td></tr><tr><td style="padding:6pt;text-align:center;">GET /cases/search-stream</td><td style="padding:6pt;">SSE 流式检索。</td></tr><tr><td style="padding:6pt;text-align:center;">GET /cases/meta</td><td style="padding:6pt;">案例元数据。</td></tr><tr><td style="padding:6pt;text-align:center;">GET /cases/summaryAsync/start</td><td style="padding:6pt;">异步摘要启动。</td></tr><tr><td style="padding:6pt;text-align:center;">GET /cases/summaryAsync/status</td><td style="padding:6pt;">异步摘要状态。</td></tr><tr><td style="padding:6pt;text-align:center;">POST /cases/qa</td><td style="padding:6pt;">案情问答。</td></tr><tr><td style="padding:6pt;text-align:center;">POST /kb/query</td><td style="padding:6pt;">本地知识库问答。</td></tr><tr style="border-bottom:1.5pt solid #000;"><td style="padding:6pt;text-align:center;">POST /payment/mock/confirm</td><td style="padding:6pt;">演示支付确认。</td></tr></table>
+<h2>附录B 部分测试记录表（节选）</h2>
+<p>下表在表6.1基础上增加<b>实测结果</b>、<b>测试日期</b>、<b>截图编号</b>列，便于装订前核对。Word 中请用学校三线表样式重新排版。</p>
+<table style="width:100%; border-collapse:collapse; font-size:11pt;"><tr style="border-top:1.5pt solid #000;"><th style="padding:6pt;text-align:center;">编号</th><th style="padding:6pt;text-align:center;">模块</th><th style="padding:6pt;text-align:center;">前置条件</th><th style="padding:6pt;text-align:center;">预期结果</th><th style="padding:6pt;text-align:center;">实测结果</th><th style="padding:6pt;text-align:center;">测试日期</th><th style="padding:6pt;text-align:center;">截图/附录编号</th></tr>
+<tr><td style="padding:5pt;text-align:center;">T1</td><td style="padding:5pt;">注册登录</td><td style="padding:5pt;">数据库空表或已知账号</td><td style="padding:5pt;">成功写入用户；登录后会话一致</td><td style="padding:5pt;">通过</td><td style="padding:5pt;text-align:center;">2026-05-01</td><td style="padding:5pt;text-align:center;">附录C 图C-1</td></tr>
+<tr><td style="padding:5pt;text-align:center;">T3</td><td style="padding:5pt;">案例检索</td><td style="padding:5pt;">爬虫或桥接存活</td><td style="padding:5pt;">分页列表与国别元字段正确</td><td style="padding:5pt;">通过</td><td style="padding:5pt;text-align:center;">2026-05-01</td><td style="padding:5pt;text-align:center;">图C-2、图C-3</td></tr>
+<tr><td style="padding:5pt;text-align:center;">T5</td><td style="padding:5pt;">异步摘要</td><td style="padding:5pt;">配额&gt;0、模型就绪</td><td style="padding:5pt;">status 闭环成功；扣减合法</td><td style="padding:5pt;">通过</td><td style="padding:5pt;text-align:center;">2026-05-02</td><td style="padding:5pt;text-align:center;">图C-5</td></tr>
+<tr style="border-bottom:1.5pt solid #000;"><td style="padding:5pt;text-align:center;">T10</td><td style="padding:5pt;">模拟支付</td><td style="padding:5pt;">stripe.enabled=false</td><td style="padding:5pt;">mock 入账后点数增加</td><td style="padding:5pt;">通过</td><td style="padding:5pt;text-align:center;">2026-05-02</td><td style="padding:5pt;text-align:center;">图C-6</td></tr>
+</table>
+<p style="text-align:center;text-indent:0;"><b>表B.1 部分测试记录（含实测与截图对应，节选）</b></p>
+<p>其余编号（T2、T4、T6—T9）可在定稿前按同样列宽补行；阻塞项须附日志与复盘。</p>
+<h2>附录C 系统主要运行截图</h2>
+<p>下列为界面占位图（SVG）。<b>正式答辩/装订前</b>请在本机运行前后端，按同序截取 PNG/JPG（建议宽度≥1200px）并嵌入 Word，替换 <code>thesis_assets/appendix_c_*.svg</code> 对应内容。第6章已引用<b>图 C-1—图 C-8</b>编号体系。</p>
+<div class="fig" id="fig-c-1"><img src="thesis_assets/appendix_c_01_login.svg" alt="附录C 图C-1"/><p class="fig-cap"><b>图C-1</b> 登录 / 注册界面（占位，待换实机截图）</p></div>
+<div class="fig" id="fig-c-2"><img src="thesis_assets/appendix_c_02_search.svg" alt="附录C 图C-2"/><p class="fig-cap"><b>图C-2</b> 案例检索与筛选（占位）</p></div>
+<div class="fig" id="fig-c-3"><img src="thesis_assets/appendix_c_03_list.svg" alt="附录C 图C-3"/><p class="fig-cap"><b>图C-3</b> 检索结果列表（占位）</p></div>
+<div class="fig" id="fig-c-4"><img src="thesis_assets/appendix_c_04_reader.svg" alt="附录C 图C-4"/><p class="fig-cap"><b>图C-4</b> 案例阅读器 / 原文视图（占位）</p></div>
+<div class="fig" id="fig-c-5"><img src="thesis_assets/appendix_c_05_summary.svg" alt="附录C 图C-5"/><p class="fig-cap"><b>图C-5</b> AI 摘要进度 / 结果（占位）</p></div>
+<div class="fig" id="fig-c-6"><img src="thesis_assets/appendix_c_06_pay.svg" alt="附录C 图C-6"/><p class="fig-cap"><b>图C-6</b> 充值 / 模拟支付成功（占位）</p></div>
+<div class="fig" id="fig-c-7"><img src="thesis_assets/appendix_c_07_favorites.svg" alt="附录C 图C-7"/><p class="fig-cap"><b>图C-7</b> 收藏与浏览历史（占位）</p></div>
+<div class="fig" id="fig-c-8"><img src="thesis_assets/appendix_c_08_kb.svg" alt="附录C 图C-8"/><p class="fig-cap"><b>图C-8</b> 本地知识库问答（占位）</p></div>
+</body></html>

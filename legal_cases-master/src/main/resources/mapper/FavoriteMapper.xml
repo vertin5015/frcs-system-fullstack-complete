@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnu.legal_cases.dao.FavoriteMapper">
+    <sql id="Base_Column_List">
+        favorite_id AS favoriteId,
+        user_id AS userId,
+        case_id AS caseId,
+        custom_name AS customName,
+        tags AS tags,
+        favorite_date AS favoriteDate,
+        insert_time AS insertTime,
+        update_time AS updateTime
+    </sql>
+
+    <insert id="addFavorite">
+        insert into user_favorites
+            (user_id, case_id)
+        values (#{userId}, #{caseId})
+    </insert>
+
+    <delete id="delFavorite">
+        delete from user_favorites
+        where user_id = #{userId}
+        and case_id = #{caseId}
+    </delete>
+
+    <select id="getFavoriteCase" resultType="com.hnu.legal_cases.pojo.UserFavorites">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user_favorites
+        WHERE user_id = #{userId}
+        AND case_id = #{caseId}
+    </select>
+
+    <select id="queryFavoriteCases" resultType="com.hnu.legal_cases.pojo.UserFavorites">
+        SELECT <include refid="Base_Column_List"/>
+        from user_favorites
+        where user_id = #{userId}
+    </select>
+
+    <select id="getFavoritedCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM user_favorites
+        WHERE case_id = #{caseId}
+    </select>
+</mapper>

@@ -1,0 +1,23 @@
+@startuml fig4_2_modules
+title 图4.2 后端功能模块结构图（包职责）
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+skinparam rectangle {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+}
+
+rectangle "controller\nREST · SSE" as ctl
+rectangle "service · impl\n检索·摘要·QA·支付·知识库" as svc
+rectangle "dao · mapper\nMyBatis" as dao
+rectangle "util\n分布式锁" as ut
+rectangle "crawler-bridge\nEU·JPN 列表降级" as br
+rectangle "config\nRedis·AI·Payment" as cfg
+rectangle "外部 RestTemplate\ncrawl.json" as ext
+
+ctl --> svc
+svc --> dao
+svc --> ut
+svc --> br
+svc --> ext
+@enduml

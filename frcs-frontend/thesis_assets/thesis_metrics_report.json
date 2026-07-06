@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-05-04T10:14:27.466Z",
+  "sourceFile": "E:\\frcs-frontend\\涉外法律知识查询与问答系统_论文初稿_全文_同步.doc",
+  "note": "汉字为主要指标；不含 Word 页眉页脚、独立封面文本框等。≥40 页请在 Word「打印预览」核对。终稿请以 Word「审阅 → 字数统计」为准（可按学院要求勾选含文本框、脚注）。",
+  "fullDocument": {
+    "chineseChars": 20620,
+    "nonSpaceChars": 34081
+  },
+  "bodyChapter1to7BeforeRefs": {
+    "chineseChars": 18249,
+    "nonSpaceChars": 24915,
+    "thresholdMinZh": 20000,
+    "meetsBodyThreshold": false
+  },
+  "chapter7Section": {
+    "chineseChars": 1664,
+    "thresholdDiscussedMinZh": 1200,
+    "meetsConclusionDiscussedThreshold": true
+  },
+  "wordPagesHint": "页数与纸张、行距、图表有关，HTML 无法等价折算；请在 Word 用「页面布局 → 页边距 + 打印预览」确认 ≥40 页。"
+}

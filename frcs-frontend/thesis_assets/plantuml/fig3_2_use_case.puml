@@ -1,0 +1,28 @@
+@startuml fig3_2_use_case
+title 图3.2 系统用例图
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+left to right direction
+
+rectangle "涉外法律知识查询与问答系统" as sys {
+  usecase "案例检索" as UC1
+  usecase "阅读原文" as UC2
+  usecase "AI 摘要/案情问答" as UC3
+  usecase "收藏/浏览历史" as UC4
+  usecase "知识库问答" as UC5
+  usecase "计费/配额/充值" as UC6
+}
+
+actor "游客" as G
+actor "注册用户" as U
+actor "管理员" as A
+
+G --> UC1 : <<extend>>\n受限
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
+A --> UC6 : 调账/观测
+@enduml

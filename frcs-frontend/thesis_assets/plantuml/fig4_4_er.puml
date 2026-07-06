@@ -1,0 +1,52 @@
+@startuml fig4_4_er
+title 图4.4 核心实体 ER 图（示意）
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+hide circle
+
+entity "users" as u {
+  * id : PK
+  --
+  账号/配额等
+}
+
+entity "case_info" as c {
+  * case_id : PK
+  --
+  元数据/国别/法院
+}
+
+entity "case_detail_info" as d {
+  * case_id : FK
+  --
+  正文/Markdown
+}
+
+entity "user_favorites" as f {
+  * id : PK
+  --
+  user_id : FK
+  case_id : FK
+}
+
+entity "browse_history" as h {
+  * id : PK
+  --
+  user_id : FK
+  case_id : FK
+}
+
+entity "payment_order" as p {
+  * order_id : PK
+  --
+  user_id : FK
+  状态/金额
+}
+
+u ||--o{ f : "1..*"
+u ||--o{ h : "1..*"
+u ||--o{ p : "1..*"
+c ||--|| d : "1..1"
+f }o--|| c
+h }o--|| c
+@enduml

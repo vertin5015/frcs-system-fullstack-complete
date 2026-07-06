@@ -1,0 +1,29 @@
+涉外案例系统 — 爬虫 HTTP 入口清单（当前仅启用 US / EU / JPN）
+================================================================================
+
+一、列表搜索（后端会拼查询参数）
+--------------------------------------------------------------------------------
+  EU   http://127.0.0.1:9002/crawl.json
+  US   http://127.0.0.1:9003/crawl.json
+  JPN  http://127.0.0.1:9004/crawl.json
+
+GET 参数：
+  ?spider_name=<国家代码>
+  &start_requests=true
+  &crawl_args=<JSON 字符串，需 URL 编码>
+
+crawl_args JSON 示例：
+  {"keyword":"你的关键词","year":"可选年份字符串"}
+
+二、案例详情
+--------------------------------------------------------------------------------
+  http://127.0.0.1:9001/crawl.json
+
+GET 参数：
+  ?spider_name=case_details
+  &start_requests=true
+  &crawl_args=<JSON，含 detailUrl>
+
+三、端口自检
+--------------------------------------------------------------------------------
+  powershell -ExecutionPolicy Bypass -File scripts\verify-crawler-ports.ps1

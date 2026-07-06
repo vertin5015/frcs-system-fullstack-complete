@@ -1,0 +1,19 @@
+# DeepSeek（OpenAI 兼容模式，沿用 spring-ai-openai starter）
+#
+# 用法示例（任选其一）：
+# 1）仅启用本 profile：
+#      set SPRING_AI_OPENAI_API_KEY=你在控制台新建的Key
+#      mvn spring-boot:run "-Dspring-boot.run.profiles=deepseek"
+# 2）仍用默认 application.yml，但用环境变量覆盖三项（等价，不必带 profile）。
+#
+spring:
+  config:
+    activate:
+      on-profile: deepseek
+  ai:
+    openai:
+      api-key: ${SPRING_AI_OPENAI_API_KEY}
+      base-url: ${SPRING_AI_OPENAI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:deepseek-chat}

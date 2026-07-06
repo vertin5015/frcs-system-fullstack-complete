@@ -1,0 +1,23 @@
+@startuml fig3_1_business_flow
+title 图3.1 系统业务流程图
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+skinparam ActivityBorderColor #1976D2
+skinparam ActivityBackgroundColor #E3F2FD
+
+start
+:登录/鉴权;
+:案例检索\n(关键词/法域/时间);
+:结果列表分页;
+:阅读器查看原文;
+:异步 AI 摘要与案情问答\n(配额);
+if (配额不足?) then (是)
+  :充值或模拟支付;
+endif
+:收藏、浏览历史、知识库沉淀;
+stop
+
+note right
+  外部：crawl.json、Redis、MySQL、\nOpenAI 兼容端点（Ollama 等）
+end note
+@enduml

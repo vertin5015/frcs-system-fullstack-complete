@@ -1,0 +1,10 @@
+/target/
+.idea/
+*.iml
+
+# 本地密钥与覆盖配置，勿提交
+application-local.yml
+application-local.properties
+.env
+.env.*
+!.env.example

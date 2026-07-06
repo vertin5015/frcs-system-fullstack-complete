@@ -1,0 +1,17 @@
+@startuml fig4_3_sequence_async_summary
+title 图4.3 异步摘要主要时序图（示意）
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+
+actor "浏览器" as B
+participant "Spring Boot\n Cases API" as A
+participant "Redis/DB\n配额与任务" as R
+participant "LLM" as L
+
+B -> A : summaryAsync/start(caseId)
+A -> R : 校验配额/扣减/写任务
+A -> L : 异步生成摘要
+L --> A : 摘要文本
+A -> R : 更新任务状态 OK/\n失败则回补配额
+A --> B : 轮询 status 直至 done/fail
+@enduml

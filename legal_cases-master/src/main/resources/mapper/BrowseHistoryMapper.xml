@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnu.legal_cases.dao.BrowseHistoryMapper">
+    <sql id="Base_Column_List">
+        history_id AS historyId,
+        user_id AS userId,
+        case_id AS caseId,
+        browse_time AS browseTime,
+        insert_time AS insertTime,
+        update_time AS updateTime
+    </sql>
+
+    <insert id="insert" parameterType="com.hnu.legal_cases.pojo.BrowseHistory">
+        INSERT INTO browse_history
+            (user_id, case_id, browse_time)
+        VALUES (#{userId}, #{caseId}, NOW())
+    </insert>
+
+    <update id="update" parameterType="java.lang.Long">
+        UPDATE browse_history
+        SET browse_time = NOW(),
+            update_time = NOW()
+        WHERE history_id = #{historyId}
+    </update>
+
+    <select id="existsByUserIdAndCaseId" resultType="com.hnu.legal_cases.pojo.BrowseHistory">
+        SELECT <include refid="Base_Column_List"/>
+        FROM browse_history
+        WHERE user_id = #{userId}
+          AND case_id = #{caseId}
+    </select>
+
+    <select id="queryBrowseHistory" resultType="com.hnu.legal_cases.pojo.BrowseHistory">
+        SELECT <include refid="Base_Column_List"/>
+        FROM browse_history
+        WHERE user_id = #{userId}
+    </select>
+</mapper>

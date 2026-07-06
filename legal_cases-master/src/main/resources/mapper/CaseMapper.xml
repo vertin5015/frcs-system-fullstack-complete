@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hnu.legal_cases.dao.CaseMapper">
+    <sql id="Base_Column_List">
+        pk AS pk,
+        case_id AS caseId,
+        source_id AS sourceId,
+        case_name AS caseName,
+        judgment_date AS judgmentDate,
+        citation_count AS citationCount,
+        summary AS summary,
+        original_document_url AS originalDocumentUrl,
+        insert_time AS insertTime,
+        update_time AS updateTime
+    </sql>
+
+    <insert id="insertEnCases">
+        INSERT INTO case_en_US
+            (case_id, source_id, case_name, judgment_date, citation_count, summary, original_document_url)
+        VALUES
+            (#{caseId}, #{sourceId}, #{caseName}, #{judgmentDate}, #{citationCount}, #{summary}, #{originalDocumentUrl})
+    </insert>
+
+    <insert id="insertZhCases">
+        INSERT INTO case_zh_CN
+            (case_id, source_id, case_name, judgment_date, citation_count, summary, original_document_url)
+        VALUES
+            (#{caseId}, #{sourceId}, #{caseName}, #{judgmentDate}, #{citationCount}, #{summary}, #{originalDocumentUrl})
+    </insert>
+
+    <select id="queryExistingCaseIds" resultType="java.lang.String">
+        SELECT case_id
+        FROM case_en_US
+        WHERE case_id IN
+        <foreach collection="caseIds" item="caseId" open="(" separator="," close=")">
+            #{caseId}
+        </foreach>
+    </select>
+
+    <select id="queryCases" resultType="com.hnu.legal_cases.pojo.CaseInfo">
+        SELECT <include refid="Base_Column_List"/>
+        FROM
+        <choose>
+            <when test="language == 'en'">case_en_US</when>
+            <otherwise>case_zh_CN</otherwise>
+        </choose>
+        WHERE case_id IN
+        <foreach collection="caseIds" item="caseId" open="(" separator="," close=")">
+            #{caseId}
+        </foreach>
+        ORDER BY judgment_date DESC
+    </select>
+
+    <select id="queryCasesBySourceIdAndDate" resultType="com.hnu.legal_cases.pojo.CaseInfo">
+        SELECT <include refid="Base_Column_List"/>
+        FROM
+        <choose>
+            <when test="language == 'en'">case_en_US</when>
+            <otherwise>case_zh_CN</otherwise>
+        </choose>
+        WHERE case_id IN
+        <foreach collection="caseIds" item="caseId" open="(" separator="," close=")">
+            #{caseId}
+        </foreach>
+        <if test="sourceId != null">
+            AND source_id = #{sourceId}
+        </if>
+        <if test="startDate != null">
+            AND STR_TO_DATE(judgment_date, '%Y/%m/%d') >= STR_TO_DATE(#{startDate}, '%Y/%m/%d')
+        </if>
+    </select>
+
+</mapper>

@@ -1,0 +1,40 @@
+@startuml fig4_1_architecture
+title 图4.1 系统总体架构图
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Microsoft YaHei"
+skinparam componentStyle rectangle
+
+package "客户端" {
+  [浏览器\nVue3 + Element Plus] as web
+}
+
+package "接入层(可选)" {
+  [Nginx / TLS 终止] as nginx
+}
+
+package "应用层" {
+  [Spring Boot /api] as api
+  [Controller / SSE] as ctl
+  [Service 编排] as svc
+  [DAO + MyBatis] as dao
+}
+
+database "MySQL" as db
+database "Redis\nZSet/锁/配额" as redis
+cloud "外部 HTTP\ncrawl.json / 桥接" as crawl
+cloud "LLM\nOpenAI 兼容端点" as llm
+
+web --> nginx : HTTPS
+nginx --> api
+web --> api : devServer 代理 /api
+api -down- ctl
+ctl -down- svc
+svc -down- dao
+dao --> db
+svc --> redis
+svc --> crawl
+svc --> llm
+note bottom of llm
+  知识库：JVM 内切片+\n向量检索+RAG 调用
+end note
+@enduml
