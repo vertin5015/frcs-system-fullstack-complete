@@ -1,0 +1,1 @@
+<view><button size="mini" bindtap="{{b}}">切换至{{a}}登录</button><input placeholder="邮箱" value="{{c}}" bindinput="{{d}}"/><input wx:if="{{e}}" password placeholder="密码" value="{{f}}" bindinput="{{g}}"/><input wx:else placeholder="验证码" value="{{h}}" bindinput="{{i}}"/><button bindtap="{{j}}">登录</button></view>

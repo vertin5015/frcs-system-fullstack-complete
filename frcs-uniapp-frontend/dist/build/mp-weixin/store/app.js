@@ -1,0 +1,1 @@
+"use strict";const e=require("../common/vendor.js"),t=e.defineStore("app",()=>{const t=e.ref("home"),r=e.ref({systemName:"涉外案例查询与法律知识系统"});return{currentPage:t,systemConfig:r,initialize:function(){},setCurrentPage:function(e){t.value=e}}});exports.useAppStore=t;

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "案例检索",
+  "usingComponents": {
+    "search-bar": "../../components/SearchBar",
+    "filter-bar": "../../components/FilterBar",
+    "case-card": "../../components/CaseCard",
+    "empty": "../../components/Empty"
+  }
+}

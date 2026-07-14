@@ -1,0 +1,1 @@
+<view class="law-card data-v-5f7eb5f2" bindtap="{{e}}"><view class="data-v-5f7eb5f2">{{a}}</view><view class="data-v-5f7eb5f2">{{b}} · {{c}}</view><view class="data-v-5f7eb5f2">更新时间：{{d}}</view></view>

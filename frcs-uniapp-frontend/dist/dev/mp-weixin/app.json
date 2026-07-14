@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/login/register",
+    "pages/login/resetPassword",
+    "pages/home/index",
+    "pages/case/list",
+    "pages/case/detail",
+    "pages/law/list",
+    "pages/law/detail",
+    "pages/study/index",
+    "pages/favorite/index",
+    "pages/history/index",
+    "pages/user/index"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F7F8FA"
+  },
+  "usingComponents": {}
+}

@@ -1,0 +1,5 @@
+.filter-bar.data-v-f4672e2a {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 0;
+}

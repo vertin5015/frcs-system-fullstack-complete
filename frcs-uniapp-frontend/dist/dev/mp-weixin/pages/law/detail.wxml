@@ -1,0 +1,1 @@
+<view wx:if="{{a}}" class="page data-v-8a4aee64"><view class="data-v-8a4aee64">{{b}}</view><view class="data-v-8a4aee64">条文原文：{{c}}</view><view class="data-v-8a4aee64">AI 解读：{{d}}</view><view class="data-v-8a4aee64">修订记录：{{e}}</view><view class="data-v-8a4aee64">相关案例：{{f}}</view></view>

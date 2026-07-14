@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "涉外案例查询",
+  "usingComponents": {
+    "search-bar": "../../components/SearchBar",
+    "case-card": "../../components/CaseCard",
+    "bottom-tab-bar": "../../components/BottomTabBar"
+  }
+}

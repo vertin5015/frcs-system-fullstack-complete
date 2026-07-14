@@ -1,0 +1,17 @@
+{
+  "pages": [
+    { "path": "pages/login/login", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/login/register", "style": { "navigationBarTitleText": "注册" } },
+    { "path": "pages/login/resetPassword", "style": { "navigationBarTitleText": "重置密码" } },
+    { "path": "pages/home/index", "style": { "navigationBarTitleText": "涉外案例查询" } },
+    { "path": "pages/case/list", "style": { "navigationBarTitleText": "案例检索" } },
+    { "path": "pages/case/detail", "style": { "navigationBarTitleText": "案例详情" } },
+    { "path": "pages/law/list", "style": { "navigationBarTitleText": "法律条文" } },
+    { "path": "pages/law/detail", "style": { "navigationBarTitleText": "法律详情" } },
+    { "path": "pages/study/index", "style": { "navigationBarTitleText": "海外法律知识" } },
+    { "path": "pages/favorite/index", "style": { "navigationBarTitleText": "我的收藏" } },
+    { "path": "pages/history/index", "style": { "navigationBarTitleText": "浏览记录" } },
+    { "path": "pages/user/index", "style": { "navigationBarTitleText": "个人中心" } }
+  ],
+  "globalStyle": { "navigationBarTextStyle": "black", "navigationBarBackgroundColor": "#FFFFFF", "backgroundColor": "#F7F8FA" }
+}

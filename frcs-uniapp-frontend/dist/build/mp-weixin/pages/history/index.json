@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "浏览记录",
+  "usingComponents": {
+    "case-card": "../../components/CaseCard",
+    "empty": "../../components/Empty"
+  }
+}

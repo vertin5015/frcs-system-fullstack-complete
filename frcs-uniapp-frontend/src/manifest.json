@@ -1,0 +1,12 @@
+{
+  "name": "涉外案例查询与法律知识系统",
+  "appid": "__UNI__FRCS",
+  "description": "涉外案例查询与法律知识微信小程序",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false },
+    "usingComponents": true
+  }
+}

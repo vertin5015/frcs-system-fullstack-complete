@@ -1,0 +1,1 @@
+<view class="page data-v-1d371c2e"><view class="data-v-1d371c2e">收藏案例</view><case-card wx:for="{{a}}" wx:for-item="item" wx:key="a" class="data-v-1d371c2e" u-i="{{item.b}}" bind:__l="__l" u-p="{{item.c}}"/><empty wx:if="{{b}}" class="data-v-1d371c2e" u-i="1d371c2e-1" bind:__l="__l" u-p="{{c}}"/></view>

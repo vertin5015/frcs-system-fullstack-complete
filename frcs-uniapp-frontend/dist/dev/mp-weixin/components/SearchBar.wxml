@@ -1,0 +1,1 @@
+<view class="search-bar data-v-6ab8b910"><input class="data-v-6ab8b910" placeholder="{{a}}" confirm-type="search" bindconfirm="{{b}}" value="{{c}}" bindinput="{{d}}"/><button class="data-v-6ab8b910" size="mini" bindtap="{{e}}">搜索</button></view>

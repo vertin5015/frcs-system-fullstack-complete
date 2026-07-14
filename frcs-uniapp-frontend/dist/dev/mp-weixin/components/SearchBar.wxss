@@ -1,0 +1,10 @@
+.search-bar.data-v-6ab8b910 {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 0;
+}
+input.data-v-6ab8b910 {
+  flex: 1;
+  background: #fff;
+  padding: 16rpx;
+}

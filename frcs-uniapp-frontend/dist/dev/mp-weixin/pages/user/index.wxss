@@ -1,0 +1,8 @@
+.page.data-v-642c545b {
+  padding: 24rpx;
+}
+.avatar.data-v-642c545b {
+  width: 96rpx;
+  height: 96rpx;
+  background: #ddd;
+}
