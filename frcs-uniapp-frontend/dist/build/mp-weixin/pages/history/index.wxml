@@ -1,1 +1,0 @@
-<view class="page data-v-daa78aa5"><view class="data-v-daa78aa5">用户浏览记录</view><case-card wx:for="{{a}}" wx:for-item="item" wx:key="a" class="data-v-daa78aa5" u-i="{{item.b}}" bind:__l="__l" u-p="{{item.c}}"/><empty wx:if="{{b}}" class="data-v-daa78aa5" u-i="daa78aa5-1" bind:__l="__l" u-p="{{c}}"/></view>

@@ -1,1 +1,0 @@
-<view class="filter-bar data-v-f4672e2a"><button class="data-v-f4672e2a" size="mini" bindtap="{{a}}">国家</button><button class="data-v-f4672e2a" size="mini" bindtap="{{b}}">时间</button><button class="data-v-f4672e2a" size="mini" bindtap="{{c}}">数据来源</button></view>

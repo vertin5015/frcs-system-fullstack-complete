@@ -1,1 +1,0 @@
-<view class="bottom-tab-bar data-v-bc66b3f4"><text wx:for="{{a}}" wx:for-item="tab" wx:key="b" class="data-v-bc66b3f4" bindtap="{{tab.c}}">{{tab.a}}</text></view>

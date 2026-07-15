@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "法律条文",
-  "usingComponents": {
-    "law-card": "../../components/LawCard"
-  }
-}

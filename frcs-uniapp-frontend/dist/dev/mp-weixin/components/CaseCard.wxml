@@ -1,1 +1,0 @@
-<view class="case-card data-v-90e3e9b3" bindtap="{{g}}"><view class="data-v-90e3e9b3">{{a}} · {{b}}</view><view class="data-v-90e3e9b3">{{c}}</view><view class="data-v-90e3e9b3">{{d}} · {{e}}</view><view class="data-v-90e3e9b3">AI 摘要：{{f}}</view></view>

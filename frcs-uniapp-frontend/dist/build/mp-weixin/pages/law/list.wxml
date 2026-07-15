@@ -1,1 +1,0 @@
-<view class="page data-v-61c95715"><law-card wx:for="{{a}}" wx:for-item="item" wx:key="a" class="data-v-61c95715" u-i="{{item.b}}" bind:__l="__l" u-p="{{item.c}}"/></view>

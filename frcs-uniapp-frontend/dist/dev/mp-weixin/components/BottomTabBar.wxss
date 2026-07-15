@@ -1,6 +1,0 @@
-.bottom-tab-bar.data-v-e3d80f8d {
-  display: flex;
-  justify-content: space-around;
-  padding: 24rpx 8rpx;
-  background: #fff;
-}
