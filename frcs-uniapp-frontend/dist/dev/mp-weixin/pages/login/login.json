@@ -1,6 +1,4 @@
 {
   "navigationBarTitleText": "登录",
-  "usingComponents": {
-    "login-form": "../../components/LoginForm"
-  }
+  "usingComponents": {}
 }
