@@ -109,12 +109,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-// 注意：请确保您的项目中存在以下两个文件路径，否则运行时会报导入错误。
-// 如果暂时没有，可以先将引入代码注释掉。
 import { useUserStore } from '../../store/user'
 import type { LoginPayload, User } from '../../types/user'
+import { authApi } from '../../api/request'
 
 const userStore = useUserStore()
+const loading = ref(false)
 
 // ================= 【登录模块状态】 =================
 const loginMode = ref<'password' | 'code'>('password')
@@ -156,7 +156,8 @@ const switchMode = (mode: 'password' | 'code') => {
  * 密码加密方法 (前端加密处理)
  */
 const encryptPassword = (pwd: string) => {
-  return btoa(encodeURIComponent(pwd)) // 实际项目可替换为 MD5 或 AES
+  //return btoa(encodeURIComponent(pwd)) // 实际项目可替换为 MD5 或 AES
+  return pwd
 }
 
 /**
@@ -179,28 +180,8 @@ const sendCode = () => {
   }, 1000)
 }
 
-/**
- * 执行登录核心跳转逻辑
- */
-const executeLogin = (payload: any) => {
-  const user: User = { 
-    id: 1, 
-    username: payload.loginType === 'wechat' ? '微信用户' : '法律用户', 
-    email: payload.email || 'guest@example.com', 
-    avatar: '' 
-  }
-  userStore.setLogin('mock-token', user)
-  uni.showToast({ title: '登录成功', icon: 'success' })
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/home/index' })
-  }, 500)
-}
-
 // ================= 【交互事件方法】 =================
-/**
- * 账号/验证码 登录校验
- */
-const handleLogin = () => {
+const handleLogin = async() => {
   if (!isAgreed.value) {
     return uni.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' })
   }
@@ -223,8 +204,31 @@ const handleLogin = () => {
     payload.code = formData.code
     payload.loginType = 'code'
   }
+  
+  loading.value = true
+  try {
+    // 调用 Mock API
+    const res = await authApi.login(formData.email, formData.password)
 
-  executeLogin(payload)
+    userStore.setLogin(res.token, res.user)
+    uni.showToast({ title: '登录成功', icon: 'success' })
+
+    setTimeout(() => {
+      uni.reLaunch({
+        url: '/pages/home/index',
+        fail: (err) => {
+           console.error('跳转首页失败:', err)
+        }
+      })
+    }, 1000)
+  } catch (error: any) {
+    uni.showToast({ 
+      title: error.message || '登录失败', 
+      icon: 'error' 
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 /**
@@ -234,14 +238,34 @@ const handleWechatLogin = () => {
   if (!isAgreed.value) {
     return uni.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' })
   }
+  
+  loading.value = true
   uni.login({
     provider: 'weixin',
-    success: (res) => {
-      console.log('微信登录 code:', res.code)
-      executeLogin({ email: 'wechat_user', loginType: 'wechat', code: res.code })
+    success: async (res) => {
+      try {
+        // [!code ++] 直接调用 Mock API
+        const apiRes = await authApi.wechatLogin(res.code)
+        
+        userStore.setLogin(apiRes.token, apiRes.user)
+        uni.showToast({ title: '微信登录成功', icon: 'success' })
+        
+        setTimeout(() => {
+          uni.reLaunch({ 
+            url: '/pages/home/index',
+            fail: (err) => console.error('微信跳转首页失败:', err)
+          })
+        }, 800)
+      } catch (error) {
+        uni.showToast({ title: '微信登录异常', icon: 'none' })
+      } finally {
+        loading.value = false
+      }
     },
-    fail: () => {
-      uni.showToast({ title: '微信登录失败', icon: 'none' })
+    fail: (err) => {
+      console.error('微信授权失败:', err)
+      uni.showToast({ title: '获取微信授权失败', icon: 'none' })
+      loading.value = false
     }
   })
 }
@@ -249,8 +273,30 @@ const handleWechatLogin = () => {
 /**
  * 游客访问
  */
-const guestAccess = () => {
-  executeLogin({ email: 'guest@example.com', loginType: 'guest' })
+const guestAccess = async () => {
+  if (!isAgreed.value) {
+    return uni.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' })
+  }
+
+  loading.value = true
+  try {
+    // [!code ++] 直接调用 Mock API
+    const apiRes = await authApi.guestLogin()
+    
+    userStore.setLogin(apiRes.token, apiRes.user)
+    uni.showToast({ title: '已作为游客进入', icon: 'success' })
+    
+    setTimeout(() => {
+      uni.reLaunch({ 
+        url: '/pages/home/index',
+        fail: (err) => console.error('游客跳转首页失败:', err)
+      })
+    }, 800)
+  } catch (error) {
+    uni.showToast({ title: '游客访问失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
 }
 
 /**
