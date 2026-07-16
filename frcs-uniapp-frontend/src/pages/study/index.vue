@@ -87,6 +87,13 @@
 import { ref, reactive, onMounted } from 'vue';
 import BottomTabBar from '@/components/BottomTabBar.vue';
 import { fetchLawsMock, type LawItem } from '../../api/mockLaw';
+import { onShow } from '@dcloudio/uni-app'
+
+onShow(() => {
+  uni.hideTabBar({
+    animation: false // 瞬间隐藏，不要动画，避免闪烁
+  })
+})
 
 // ================= 数据定义 =================
 const countries = ['全部国家', '美国', '欧盟', '日本'];
@@ -205,6 +212,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background-color: #F5F7FA;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* 顶部标题区 */

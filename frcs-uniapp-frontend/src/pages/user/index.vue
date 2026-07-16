@@ -25,6 +25,16 @@
         </view>
 
         <view class="menu-list">
+          <view class="menu-item" @tap="goHistory">
+            <view class="item-left">
+              <image class="menu-icon" src="/static/icons/tab-history.png" mode="aspectFit" />
+              <text class="item-text">浏览历史</text>
+            </view>
+            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+          </view>
+          
+          <view class="divider"></view>
+
           <view class="menu-item" @tap="goStudy">
             <view class="item-left">
               <image class="menu-icon" src="/static/icons/book-blue.png" mode="aspectFit" />
@@ -52,11 +62,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app' // 引入 onShow 生命周期
 import { useUserStore } from '../../store/user' // 根据你的实际路径调整
 import BottomTabBar from '../../components/BottomTabBar.vue' // 根据你的实际路径调整
 
 const userStore = useUserStore()
 const user = computed(() => userStore.userInfo)
+
+// ================= 生命周期 =================
+
+// 隐藏原生 tabbar，防止和自定义组件重叠出现“双眼皮”
+onShow(() => {
+  uni.hideTabBar({
+    animation: false
+  })
+})
 
 // ================= 交互方法 =================
 
@@ -64,6 +84,11 @@ const user = computed(() => userStore.userInfo)
 function handleRecharge() {
   uni.showToast({ title: '充值功能待接入', icon: 'none' })
   // 接入后可使用: uni.navigateTo({ url: '/pages/recharge/index' })
+}
+
+// 跳转浏览历史（使用 navigateTo，不要用 switchTab）
+function goHistory() {
+  uni.navigateTo({ url: '/pages/history/index' })
 }
 
 // 跳转海外法律知识

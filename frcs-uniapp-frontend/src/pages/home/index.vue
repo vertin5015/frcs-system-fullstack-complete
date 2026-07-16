@@ -108,7 +108,14 @@
 
 <script setup>
 import { ref } from 'vue'
-import BottomTabBar from '@/components/BottomTabBar.vue'
+import BottomTabBar from '../../components/BottomTabBar.vue'
+import { onShow } from '@dcloudio/uni-app'
+
+onShow(() => {
+  uni.hideTabBar({
+    animation: false // 瞬间隐藏，不要动画，避免闪烁
+  })
+})
 
 // ================= 数据定义 =================
 const bannerList = ref([
@@ -195,6 +202,7 @@ const handleAIChat = () => {
   display: flex;
   flex-direction: column;
   position: relative;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .main-scroll {

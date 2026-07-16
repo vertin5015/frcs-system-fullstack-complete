@@ -121,7 +121,13 @@ import { ref, computed } from 'vue';
 import BottomTabBar from '../../components/BottomTabBar.vue';
 import { fetchCasesMock } from '../../api/mockCase';
 import { fetchLawsMock } from '../../api/mockLaw';
+import { onShow } from '@dcloudio/uni-app'
 
+onShow(() => {
+  uni.hideTabBar({
+    animation: false // 瞬间隐藏，不要动画，避免闪烁
+  })
+})
 // ================= 状态定义 =================
 const searchMode = ref<'case' | 'law'>('case');
 const keyword = ref('');
@@ -265,6 +271,7 @@ const goToDetail = (id: string) => {
   display: flex;
   flex-direction: column;
   background-color: #F5F7FA;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .header-safe-area {
