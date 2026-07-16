@@ -31,5 +31,6 @@ const paths = {
   kbIngest: '/api/kb/ingest',
   kbIngestCrawler: '/api/kb/ingest-crawler',
   kbQuery: '/api/kb/query',
+  agentAsk: '/api/agent/ask',
 };
 export { base, paths };

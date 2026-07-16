@@ -394,6 +394,11 @@ const kbIngestCrawler = async (payload) => {
 const kbQuery = async (payload) => {
   return await instance.post(paths.kbQuery, payload, { timeout: 120000 });
 };
+
+const agentAsk = async (payload) => {
+  return await instance.post(paths.agentAsk, payload, { timeout: 180000 });
+};
+
 const api = {
   login,
   register,
@@ -420,5 +425,6 @@ const api = {
   kbIngest,
   kbIngestCrawler,
   kbQuery,
+  agentAsk,
 };
 export default api;
