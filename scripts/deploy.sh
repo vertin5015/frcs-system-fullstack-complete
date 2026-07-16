@@ -71,6 +71,16 @@ set -a
 source .env
 set +a
 
+if [[ "${CRAWLER_DETAIL_URL:-}" == "http://host.docker.internal:9001/crawl.json" || "${CRAWLER_DETAIL_URL:-}" == "http://127.0.0.1:9001/crawl.json" ]]; then
+  echo "Ignoring legacy CRAWLER_DETAIL_URL=${CRAWLER_DETAIL_URL}; using built-in crawler bridge."
+  unset CRAWLER_DETAIL_URL
+fi
+
+if [[ "${CRAWLER_SEARCH_US_URL:-}" == "http://host.docker.internal:9003/crawl.json" || "${CRAWLER_SEARCH_US_URL:-}" == "http://127.0.0.1:9003/crawl.json" ]]; then
+  echo "Ignoring legacy CRAWLER_SEARCH_US_URL=${CRAWLER_SEARCH_US_URL}; using built-in US crawler bridge."
+  unset CRAWLER_SEARCH_US_URL
+fi
+
 if [[ "$PULL_CODE" == "1" && -d .git ]]; then
   echo "Pulling latest code..."
   git pull --ff-only

@@ -319,6 +319,11 @@ public class SpringAIServiceImpl implements SpringAIService {
         }
         String s = keyword;
         Map<String, String> map = new LinkedHashMap<>();
+        map.put("抢劫罪", "robbery");
+        map.put("抢劫", "robbery");
+        map.put("盗窃罪", "theft");
+        map.put("盗窃", "theft");
+        map.put("故意杀人", "murder");
         map.put("合同纠纷", "contract dispute");
         map.put("合同", "contract");
         map.put("侵权", "tort");
