@@ -1,521 +1,452 @@
-<!-- src/pages/case/list.vue -->
 <template>
-  <view class="search-container">
-    <!-- 顶部状态栏安全区 -->
+  <view class="search-page-container">
     <view class="header-safe-area"></view>
 
-    <!-- ================= 顶部固定：搜索与筛选区域 ================= -->
     <view class="top-fixed-section">
-      <!-- 搜索框行 -->
       <view class="search-bar-row">
-        <!-- 左侧模式切换按钮 -->
         <view class="mode-toggle-btn" @tap="toggleSearchMode">
           <text class="toggle-icon">⇅</text>
           <text class="toggle-text">{{ searchMode === 'case' ? '案例' : '条文' }}</text>
         </view>
         
-        <!-- 分割线 -->
         <view class="vertical-divider"></view>
 
-        <!-- 输入框 -->
         <input 
           class="search-input" 
           v-model="keyword" 
-          :placeholder="searchMode === 'case' ? '请输入你想查询案件的关键词...' : '请输入您想查询法律条文的关键词...'" 
+          :placeholder="searchMode === 'case' ? '输入案件关键词...' : '输入条文关键词...'" 
           placeholder-class="placeholder-style"
           confirm-type="search"
-          @confirm="handleSearch"
+          @confirm="handleSearch(true)"
         />
 
-        <!-- 右侧搜索按钮 (圆形带图标) -->
-        <view class="search-submit-btn" @tap="handleSearch">
-          <image class="search-icon" src="/static/icons/search-white.png" mode="aspectFit" />
+        <view v-if="keyword" class="clear-btn" @tap="clearSearch">×</view>
+        <view class="search-submit-btn" @tap="handleSearch(true)">
+          <image class="search-icon" src="/static/icons/tab-search-active.png" mode="aspectFit" />
         </view>
       </view>
 
-      <!-- 筛选条件行 -->
       <view class="filter-row">
-        <view class="filter-btn" @tap="openFilter('country')">
-          <image class="filter-icon" src="/static/icons/earth.png" mode="aspectFit" />
-          <text class="filter-text">{{ filters.country }}</text>
+        <view class="filter-btn" @tap="openCountrySelect">
+          <text class="filter-text">{{ selectedCountry }}</text>
           <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
         </view>
 
-        <view class="filter-btn" @tap="openFilter('source')">
-          <image class="filter-icon" src="/static/icons/database.png" mode="aspectFit" />
-          <text class="filter-text">{{ filters.source }}</text>
+        <view class="filter-btn" v-if="searchMode === 'case'" @tap="openTimeSelect">
+          <text class="filter-text">{{ selectedTime }}</text>
           <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
         </view>
 
-        <!-- 仅在案例模式下显示判决时间 -->
-        <view class="filter-btn" v-if="searchMode === 'case'" @tap="openFilter('time')">
-          <image class="filter-icon" src="/static/icons/calendar.png" mode="aspectFit" />
-          <text class="filter-text">{{ filters.time }}</text>
+        <view class="filter-btn" @tap="openSourceSelect">
+          <text class="filter-text">{{ selectedSource }}</text>
           <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
         </view>
       </view>
     </view>
 
-    <!-- ================= 滚动内容：结果卡片列表 ================= -->
-    <scroll-view scroll-y class="list-scroll">
+    <scroll-view 
+      scroll-y 
+      class="main-scroll" 
+      @scrolltolower="loadMoreData"
+    >
       <view class="content-wrapper">
         
-        <!-- 案例卡片列表 -->
-        <template v-if="searchMode === 'case'">
-          <view 
-            class="result-card case-card" 
-            v-for="item in caseList" 
-            :key="item.id"
-            @tap="goToDetail(item.id, 'case')"
-          >
-            <view class="card-header">
-              <view class="header-left">
-                <image class="flag-icon" :src="item.flag" mode="aspectFit" />
-                <text class="title">{{ item.title }}</text>
-              </view>
-              <image 
-                class="star-icon" 
-                :src="item.isFavorite ? '/static/icons/star-filled.png' : '/static/icons/star-outline.png'" 
-                mode="aspectFit" 
-                @tap.stop="toggleFavorite(item)"
-              />
-            </view>
-            
-            <view class="sub-info-row">
-              <text class="sub-text">{{ item.court }}</text>
-              <text class="sub-text">{{ item.caseNo }}</text>
-              <text class="sub-text">{{ item.date }}</text>
-            </view>
-
-            <view class="divider-line"></view>
-
-            <view class="summary-box">
-              <text class="summary-text">简要介绍：{{ item.summary }}</text>
-            </view>
-
-            <view class="card-bottom">
-              <image class="nav-arrow" src="/static/icons/arrow-right-blue.png" mode="aspectFit" />
+        <view v-if="!isSearched" class="hot-search-section">
+          <view class="section-title">
+            <text>热门搜索</text>
+          </view>
+          <view class="tags-container">
+            <view 
+              class="hot-tag" 
+              v-for="(tag, index) in currentHotSearches" 
+              :key="index"
+              @tap="clickHotSearch(tag)"
+            >
+              {{ tag }}
             </view>
           </view>
-        </template>
+        </view>
 
-        <!-- 条文卡片列表 -->
-        <template v-else>
-          <view 
-            class="result-card article-card" 
-            v-for="item in articleList" 
-            :key="item.id"
-            @tap="goToDetail(item.id, 'article')"
-          >
-            <view class="card-header">
-              <view class="header-left">
-                <image class="flag-icon" :src="item.flag" mode="aspectFit" />
-                <text class="title">{{ item.title }}</text>
-              </view>
-            </view>
-            
-            <view class="sub-info-row">
-              <text class="sub-text">生效日期：{{ item.effectiveDate }}</text>
-              <text class="sub-text">最新修订：{{ item.revisedDate }}</text>
-            </view>
-
-            <view class="divider-line"></view>
-
-            <view class="summary-box">
-              <text class="summary-text">简要介绍：{{ item.summary }}</text>
-            </view>
-
-            <view class="card-bottom">
-              <image class="nav-arrow" src="/static/icons/arrow-right-blue.png" mode="aspectFit" />
-            </view>
+        <view v-else class="results-section">
+          <view class="result-stats" v-if="!loading || listData.length > 0">
+            为您找到相关{{ searchMode === 'case' ? '案例' : '条文' }}共 <text class="highlight">{{ totalCount }}</text> 条
           </view>
-        </template>
 
-        <!-- 空状态 -->
-        <view class="empty-state" v-if="(searchMode === 'case' && caseList.length === 0) || (searchMode === 'article' && articleList.length === 0)">
-          <text class="empty-text">暂无相关数据</text>
+          <view v-if="listData.length === 0 && !loading" class="empty-state">
+            <text>暂无匹配的搜索结果</text>
+          </view>
+
+          <view class="list-container">
+            <block v-if="searchMode === 'case'">
+              <view class="result-card case-card" v-for="item in listData" :key="item.id" @tap="goToDetail(item.id)">
+                <view class="card-header">
+                  <view class="country-tag">{{ item.country }}</view>
+                  <view class="type-tag">{{ item.type }}</view>
+                </view>
+                <view class="card-title">{{ item.title }}</view>
+                <view class="card-subtitle">{{ item.court }}</view>
+                <view class="card-footer">
+                  <text class="date-text">{{ item.date }}</text>
+                  <text class="ai-status" v-if="item.aiSummaryStatus === 'completed'">AI摘要已就绪</text>
+                </view>
+              </view>
+            </block>
+
+            <block v-else>
+              <view class="result-card law-card" v-for="item in listData" :key="item.id" @tap="goToDetail(item.id)">
+                <view class="card-title">{{ item.title }}</view>
+                <view class="card-footer" style="margin-top: 16rpx;">
+                  <text class="type-tag">{{ item.country }}</text>
+                  <text class="date-text">实施: {{ item.publishDate }}</text>
+                </view>
+              </view>
+            </block>
+          </view>
+
+          <view class="load-more-text">
+            <text v-if="loading">努力加载中...</text>
+            <text v-else-if="!hasMore && listData.length > 0">- 已经到底啦 -</text>
+          </view>
         </view>
 
       </view>
     </scroll-view>
 
-    <!-- ================= 底部导航栏 ================= -->
     <BottomTabBar activeTab="search" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import BottomTabBar from '../../components/BottomTabBar.vue' // 确保使用正确的相对路径
+import { ref, computed } from 'vue';
+import BottomTabBar from '../../components/BottomTabBar.vue';
+import { fetchCasesMock } from '../../api/mockCase';
+import { fetchLawsMock } from '../../api/mockLaw';
 
-// ================= 状态数据 =================
-// 搜索模式: 'case' (案例) | 'article' (条文)
-const searchMode = ref<'case' | 'article'>('case')
-const keyword = ref('')
+// ================= 状态定义 =================
+const searchMode = ref<'case' | 'law'>('case');
+const keyword = ref('');
+const isSearched = ref(false);
 
-// 筛选条件状态
-const filters = reactive({
-  country: '国家',
-  source: '数据源',
-  time: '判决时间'
-})
+// 筛选状态
+const selectedCountry = ref('全部国家');
+const selectedTime = ref('全部时间');
+const selectedSource = ref('全部数据源');
 
-// ================= 模拟数据 =================
-const caseList = ref([
-  {
-    id: 1,
-    flag: '/static/icons/flag-us.png',
-    title: '跨境合同纠纷案件',
-    court: 'XX法院',
-    caseNo: '案号XXXXX',
-    date: '20XX/XX/XX',
-    summary: '本案涉及跨国贸易中的管辖权争议与合同违约责任认定，核心焦点在于国际贸易术语解释通则的适用...',
-    isFavorite: true
-  },
-  {
-    id: 2,
-    flag: '/static/icons/flag-us.png',
-    title: '跨境合同纠纷案件',
-    court: 'XX法院',
-    caseNo: '案号XXXXX',
-    date: '20XX/XX/XX',
-    summary: '针对跨国知识产权技术转让合同的效力纠纷，法院驳回了原告的诉讼请求...',
-    isFavorite: false
-  },
-  {
-    id: 3,
-    flag: '/static/icons/flag-us.png',
-    title: '跨境合同纠纷案件',
-    court: 'XX法院',
-    caseNo: '案号XXXXX',
-    date: '20XX/XX/XX',
-    summary: '双方在跨国并购中的对赌协议触发纠纷，仲裁条款的独立性被重新审查...',
-    isFavorite: false
-  }
-])
+const listData = ref<any[]>([]);
+const page = ref(1);
+const pageSize = 10;
+const totalCount = ref(0);
+const hasMore = ref(true);
+const loading = ref(false);
 
-const articleList = ref([
-  {
-    id: 101,
-    flag: '/static/icons/flag-us.png',
-    title: '《XX法典》第五十一条',
-    effectiveDate: '19XX/XX/XX',
-    revisedDate: '20XX/XX/XX',
-    summary: '本条款规定了在涉外民商事案件中，如何确认涉外合同的准据法以及最密切联系原则的适用标准...'
-  },
-  {
-    id: 102,
-    flag: '/static/icons/flag-us.png',
-    title: '《XX法典》第五十一条',
-    effectiveDate: '19XX/XX/XX',
-    revisedDate: '20XX/XX/XX',
-    summary: '明确了外国法院判决的承认与执行程序，以及拒绝承认的法定例外情形...'
-  },
-  {
-    id: 103,
-    flag: '/static/icons/flag-us.png',
-    title: '《XX法典》第五十一条',
-    effectiveDate: '19XX/XX/XX',
-    revisedDate: '20XX/XX/XX',
-    summary: '对于涉外知识产权侵权的惩罚性赔偿基数计算方法进行了详细补充...'
-  }
-])
+// ================= 热门搜索数据 =================
+const caseHotSearches = ['苹果专利纠纷', 'GDPR数据违规', '跨境电商合同', '反倾销调查', '离岸公司股权'];
+const lawHotSearches = ['美国统一商法典', '欧盟AI法案', '联邦民事诉讼规则', '海外反腐败法'];
 
-// ================= 生命周期 =================
-onLoad((query: any) => {
-  if (query && query.keyword) {
-    keyword.value = decodeURIComponent(query.keyword)
-    handleSearch()
-  }
-})
+const currentHotSearches = computed(() => {
+  return searchMode.value === 'case' ? caseHotSearches : lawHotSearches;
+});
 
-// ================= 交互方法 =================
+// ================= 筛选交互逻辑 =================
 
-// 切换搜索模式 (案例 / 条文)
-const toggleSearchMode = () => {
-  searchMode.value = searchMode.value === 'case' ? 'article' : 'case'
-  // 重置时间筛选（条文不需要判决时间）
-  filters.time = '判决时间'
-  // 可以在这里触发重新请求列表接口的逻辑
-}
-
-// 触发搜索
-const handleSearch = () => {
-  console.log(`执行搜索, 模式:${searchMode.value}, 关键词:${keyword.value}, 筛选:`, filters)
-  uni.showToast({ title: '加载中...', icon: 'loading' })
-  // 这里接入实际的网络请求 caseApi.list(...)
-}
-
-// 打开底部菜单筛选
-const openFilter = (type: 'country' | 'source' | 'time') => {
-  let itemList: string[] = []
-  
-  if (type === 'country') itemList = ['全部国家', '美国', '欧盟', '日本']
-  if (type === 'source') itemList = ['全部数据源', '官方法院库', '学术期刊', '第三方平台']
-  if (type === 'time') itemList = ['判决时间', '近一个月', '近半年', '近一年']
-
+const openCountrySelect = () => {
+  const options = ['全部国家', '美国', '欧盟', '日本'];
   uni.showActionSheet({
-    itemList,
+    itemList: options,
     success: (res) => {
-      filters[type] = itemList[res.tapIndex]
-      handleSearch() // 选择后自动触发刷新
+      if (selectedCountry.value !== options[res.tapIndex]) {
+        selectedCountry.value = options[res.tapIndex];
+        if (isSearched.value) handleSearch(true); 
+      }
     }
-  })
-}
+  });
+};
 
-// 点击星星收藏/取消收藏 (仅案例)
-const toggleFavorite = (item: any) => {
-  item.isFavorite = !item.isFavorite
-  uni.showToast({ 
-    title: item.isFavorite ? '收藏成功' : '已取消收藏', 
-    icon: 'none' 
-  })
-}
+const openTimeSelect = () => {
+  const options = ['全部时间', '最近一周', '最近一月', '最近一年'];
+  uni.showActionSheet({
+    itemList: options,
+    success: (res) => {
+      if (selectedTime.value !== options[res.tapIndex]) {
+        selectedTime.value = options[res.tapIndex];
+        if (isSearched.value) handleSearch(true);
+      }
+    }
+  });
+};
 
-// 跳转详情页
-const goToDetail = (id: number, mode: 'case' | 'article') => {
-  const url = mode === 'case' 
-    ? `/pages/case/detail?id=${id}` 
-    : `/pages/study/detail?id=${id}` // 假设条文详情在 study 目录下
-  uni.navigateTo({ url })
-}
+const openSourceSelect = () => {
+  const options = ['全部数据源', '官方数据库', '公开裁判文书', '商业数据库'];
+  uni.showActionSheet({
+    itemList: options,
+    success: (res) => {
+      if (selectedSource.value !== options[res.tapIndex]) {
+        selectedSource.value = options[res.tapIndex];
+        if (isSearched.value) handleSearch(true);
+      }
+    }
+  });
+};
+
+// ================= 搜索与加载逻辑 =================
+
+const toggleSearchMode = () => {
+  searchMode.value = searchMode.value === 'case' ? 'law' : 'case';
+  // 切换模式时重置所有筛选状态
+  selectedCountry.value = '全部国家';
+  selectedTime.value = '全部时间';
+  selectedSource.value = '全部数据源';
+  clearSearch();
+};
+
+const clickHotSearch = (tag: string) => {
+  keyword.value = tag;
+  handleSearch(true);
+};
+
+const clearSearch = () => {
+  keyword.value = '';
+  isSearched.value = false;
+  listData.value = [];
+  page.value = 1;
+};
+
+const handleSearch = async (isRefresh = false) => {
+  if (isRefresh) {
+    isSearched.value = true;
+    page.value = 1;
+    listData.value = [];
+    hasMore.value = true;
+  }
+
+  if (loading.value || !hasMore.value) return;
+
+  loading.value = true;
+  try {
+    let res;
+    if (searchMode.value === 'case') {
+      res = await fetchCasesMock(keyword.value, page.value, pageSize);
+    } else {
+      res = await fetchLawsMock(selectedCountry.value, '全部', page.value, pageSize);
+    }
+
+    if (isRefresh) {
+      listData.value = res.data;
+      totalCount.value = res.total;
+    } else {
+      listData.value.push(...res.data);
+    }
+    
+    hasMore.value = res.hasMore;
+    if (hasMore.value) page.value++;
+
+  } catch (error) {
+    uni.showToast({ title: '搜索失败', icon: 'none' });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadMoreData = () => {
+  if (isSearched.value) {
+    handleSearch(false);
+  }
+};
+
+const goToDetail = (id: string) => {
+  uni.showToast({ title: '正在开发中', icon: 'none' });
+};
 </script>
 
-<style scoped lang="scss">
-/* ================= 整体页面样式 ================= */
-.search-container {
+<style lang="scss" scoped>
+/* ================= 页面整体 ================= */
+.search-page-container {
   height: 100vh;
-  background-color: #F5F7FA;
   display: flex;
   flex-direction: column;
+  background-color: #F5F7FA;
 }
 
 .header-safe-area {
   padding-top: var(--status-bar-height, 44px);
-  background-color: #F5F7FA;
+  background-color: #ffffff;
 }
 
-/* ================= 顶部固定：搜索与筛选区域 ================= */
+/* ================= 顶部固定区 ================= */
 .top-fixed-section {
   background-color: #ffffff;
-  border-radius: 0 0 32rpx 32rpx;
-  padding: 20rpx 32rpx 30rpx 32rpx;
-  box-shadow: 0 8rpx 20rpx rgba(33, 140, 255, 0.06);
-  z-index: 10;
+  padding: 16rpx 24rpx;
+  border-bottom: 1rpx solid #E4E7ED;
+  z-index: 100;
 }
 
-/* 搜索框行 */
 .search-bar-row {
   display: flex;
   align-items: center;
-  background-color: #F5F7FA;
+  background-color: #F0F2F5;
   border-radius: 40rpx;
   height: 80rpx;
-  padding: 0 10rpx 0 30rpx;
-  margin-bottom: 24rpx;
-  border: 2rpx solid #EBF4FF;
+  padding: 0 20rpx;
+  margin-bottom: 24rpx; 
 }
 
 .mode-toggle-btn {
   display: flex;
   align-items: center;
-  padding-right: 16rpx;
-  
-  .toggle-icon {
-    color: #218CFF;
-    font-size: 28rpx;
-    margin-right: 6rpx;
-  }
-  .toggle-text {
-    color: #218CFF;
-    font-size: 28rpx;
-    font-weight: 500;
-  }
+  padding: 0 10rpx;
+  .toggle-icon { font-size: 24rpx; color: #218CFF; margin-right: 6rpx; }
+  .toggle-text { font-size: 28rpx; font-weight: 500; color: #333333; }
 }
 
 .vertical-divider {
   width: 2rpx;
   height: 30rpx;
   background-color: #DCDFE6;
-  margin-right: 20rpx;
+  margin: 0 20rpx;
 }
 
 .search-input {
   flex: 1;
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #333333;
 }
 
-.placeholder-style {
-  color: #B0B4C1;
-  font-size: 26rpx;
+.placeholder-style { color: #999999; }
+
+.clear-btn {
+  padding: 10rpx;
+  font-size: 36rpx;
+  color: #C0C4CC;
+  line-height: 1;
 }
 
 .search-submit-btn {
-  width: 64rpx;
-  height: 64rpx;
-  background-color: #218CFF;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  
-  &:active {
-    opacity: 0.8;
-  }
-
-  .search-icon {
-    width: 32rpx;
-    height: 32rpx;
-  }
+  width: 60rpx;
+  height: 100%;
+  .search-icon { width: 36rpx; height: 36rpx; }
 }
 
-/* 筛选条件行 */
+/* 筛选栏样式（适配截图：无图标、胶囊形状、平分宽度） */
 .filter-row {
   display: flex;
-  justify-content: flex-start;
-  gap: 20rpx;
+  justify-content: space-between;
+  gap: 16rpx; /* 根据项数自动调整间距 */
 }
 
 .filter-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #F5F7FA;
-  padding: 12rpx 20rpx;
-  border-radius: 12rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 30rpx;
+  flex: 1; /* 保证三个按钮宽度一致 */
+  min-width: 0; /* 防止文本过长撑破 flex */
   
-  &:active {
-    background-color: #EBF4FF;
-  }
-
-  .filter-icon {
-    width: 26rpx;
-    height: 26rpx;
-    margin-right: 8rpx;
-  }
-
   .filter-text {
     font-size: 24rpx;
-    color: #333333;
-    margin-right: 6rpx;
+    color: #606266;
+    margin-right: 8rpx;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-
+  
   .arrow-icon {
     width: 20rpx;
     height: 20rpx;
+    flex-shrink: 0;
+    opacity: 0.6;
   }
 }
 
-/* ================= 滚动内容：结果卡片列表 ================= */
-.list-scroll {
+/* ================= 核心滚动区 ================= */
+.main-scroll {
   flex: 1;
-  height: 0;
-  
-  .content-wrapper {
-    padding: 30rpx 24rpx 140rpx 24rpx; /* 底部留白给 BottomTabBar */
-  }
+  height: 0; 
 }
 
-/* 通用卡片样式 */
-.result-card {
-  background-color: #ffffff;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
-  position: relative;
-  
-  &:active {
-    background-color: #FAFAFA;
-  }
+.content-wrapper {
+  padding: 30rpx 24rpx 140rpx 24rpx; 
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16rpx;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  padding-right: 20rpx;
-  
-  .flag-icon {
-    width: 36rpx;
-    height: 36rpx;
-    border-radius: 50%;
-    margin-right: 16rpx;
-  }
-  
-  .title {
-    font-size: 32rpx;
+/* ================= 热门搜索 ================= */
+.hot-search-section {
+  .section-title {
+    font-size: 30rpx;
     font-weight: 600;
     color: #333333;
-    line-height: 1.4;
+    margin-bottom: 24rpx;
   }
-}
 
-.star-icon {
-  width: 40rpx;
-  height: 40rpx;
-}
-
-.sub-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
-  
-  .sub-text {
-    font-size: 24rpx;
-    color: #999999;
+  .tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20rpx;
   }
-}
 
-.divider-line {
-  height: 1rpx;
-  background-color: #E4E7ED;
-  margin-bottom: 20rpx;
-}
-
-.summary-box {
-  margin-bottom: 20rpx;
-  
-  .summary-text {
+  .hot-tag {
+    background-color: #ffffff;
+    color: #606266;
     font-size: 26rpx;
-    color: #666666;
-    line-height: 1.6;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3; /* 最多显示3行 */
-    overflow: hidden;
+    padding: 12rpx 28rpx;
+    border-radius: 30rpx;
+    border: 1rpx solid #E4E7ED;
+    
+    &:active {
+      background-color: #F0F2F5;
+    }
   }
 }
 
-.card-bottom {
+/* ================= 搜索结果 ================= */
+.result-stats {
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 24rpx;
+  .highlight { color: #218CFF; font-weight: bold; margin: 0 4rpx; }
+}
+
+.list-container {
   display: flex;
-  justify-content: flex-end;
-  
-  .nav-arrow {
-    width: 32rpx;
-    height: 32rpx;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.result-card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.03);
+  &:active { background-color: #FAFAFA; }
+}
+
+.case-card {
+  .card-header { display: flex; margin-bottom: 16rpx; gap: 12rpx; }
+  .country-tag { background: #EBF4FF; color: #218CFF; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
+  .type-tag { background: #F0F2F5; color: #606266; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
+  .card-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 12rpx; line-height: 1.4; }
+  .card-subtitle { font-size: 26rpx; color: #666; margin-bottom: 20rpx; }
+  .card-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1rpx solid #F0F2F5; padding-top: 16rpx;
+    .date-text { font-size: 24rpx; color: #999; }
+    .ai-status { font-size: 22rpx; color: #67C23A; background: #f0f9eb; padding: 4rpx 12rpx; border-radius: 6rpx; }
   }
 }
 
-/* 空状态 */
-.empty-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 100rpx 0;
-  
-  .empty-text {
-    font-size: 28rpx;
-    color: #999999;
+.law-card {
+  .card-title { font-size: 30rpx; font-weight: 500; color: #333; line-height: 1.4; }
+  .card-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    .type-tag { font-size: 24rpx; color: #218CFF; }
+    .date-text { font-size: 24rpx; color: #999; }
   }
 }
+
+.empty-state { text-align: center; padding: 100rpx 0; color: #999; font-size: 28rpx; }
+.load-more-text { text-align: center; padding: 30rpx 0; color: #999; font-size: 24rpx; }
 </style>
