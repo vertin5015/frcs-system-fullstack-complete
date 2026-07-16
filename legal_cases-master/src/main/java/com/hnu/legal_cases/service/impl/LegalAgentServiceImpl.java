@@ -40,13 +40,19 @@ public class LegalAgentServiceImpl implements LegalAgentService {
                 refreshCases ? "refresh cases before KB retrieval" : "query local KB directly"));
 
         if (refreshCases) {
-            SearchCasesResVO searchRes = searchCases(reqVO, question, language);
-            int totalCount = searchRes.getTotalCount() == null ? 0 : searchRes.getTotalCount();
-            List<CaseBaseInfo> cases = searchRes.getCases() == null ? List.of() : searchRes.getCases();
-            res.setSearchTotalCount(totalCount);
-            res.setRelatedCases(limitCases(cases, 5));
-            res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "done",
-                    "matched " + totalCount + " cases"));
+            try {
+                SearchCasesResVO searchRes = searchCases(reqVO, question, language);
+                int totalCount = searchRes.getTotalCount() == null ? 0 : searchRes.getTotalCount();
+                List<CaseBaseInfo> cases = searchRes.getCases() == null ? List.of() : searchRes.getCases();
+                res.setSearchTotalCount(totalCount);
+                res.setRelatedCases(limitCases(cases, 5));
+                res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "done",
+                        "matched " + totalCount + " cases"));
+            } catch (Throwable e) {
+                res.setRoute("search_failed_then_rag");
+                res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "failed",
+                        "case search unavailable, fallback to local KB: " + e.getMessage()));
+            }
         }
 
         KbQueryResVO kbRes = queryKnowledgeBase(question, language, topK);

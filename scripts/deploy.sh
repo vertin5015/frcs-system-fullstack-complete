@@ -94,6 +94,10 @@ fi
 
 docker compose ps
 
+if [[ "${SEED_DEMO_KB:-1}" == "1" ]]; then
+  ./scripts/seed-kb.sh "http://127.0.0.1:${WEB_PORT}"
+fi
+
 cat <<EOF
 
 FRCS stack is running.
