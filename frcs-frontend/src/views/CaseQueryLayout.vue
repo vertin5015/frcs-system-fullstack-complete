@@ -34,6 +34,10 @@
             <el-icon class="kb-menu-icon"><Collection /></el-icon>
             <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "本地知识库" : "Local KB" }}</span>
           </el-menu-item>
+          <el-menu-item index="6">
+            <el-icon class="agent-menu-icon"><ChatDotRound /></el-icon>
+            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">Agent</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -71,13 +75,14 @@
 <script>
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { Collection, Menu } from "@element-plus/icons-vue";
+import { ChatDotRound, Collection, Menu } from "@element-plus/icons-vue";
 import { useStore } from "vuex";
 import { ElNotification } from "element-plus";
 import { getAuth, clearAllAuth } from "../utils/authStorage";
 
 export default {
   components: {
+    ChatDotRound,
     Collection,
     Menu,
   },
@@ -171,6 +176,9 @@ export default {
       } else if (index === "5") {
         activeMenu.value = "5";
         router.push("/case-query/kb");
+      } else if (index === "6") {
+        activeMenu.value = "6";
+        router.push("/case-query/agent");
       }
     };
     const pathToMenu = (path) => {
@@ -178,6 +186,7 @@ export default {
       if (path.includes("/case-query/history")) return "3";
       if (path.includes("/case-query/recharge")) return "4";
       if (path.includes("/case-query/kb")) return "5";
+      if (path.includes("/case-query/agent")) return "6";
       if (path.includes("/case-query/search")) return "1";
       // 首页 /case-query/home：不高亮「搜索案例」，避免误以为已在检索页
       return "";
@@ -266,6 +275,11 @@ export default {
 }
 .kb-menu-icon {
   color: #67c23a;
+  font-size: 22px;
+  margin-left: 2px;
+}
+.agent-menu-icon {
+  color: #409eff;
   font-size: 22px;
   margin-left: 2px;
 }

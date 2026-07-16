@@ -52,6 +52,11 @@ const routes = [
         name: 'knowledge-base',
         component: () => import('../views/KnowledgeBaseView.vue'),
       },
+      {
+        path: '/case-query/agent',
+        name: 'legal-agent',
+        component: () => import('../views/AgentAssistantView.vue'),
+      },
     ]
   }
 ];

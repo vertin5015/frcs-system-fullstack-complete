@@ -1,0 +1,96 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: frcs-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-frcs123456}
+      MYSQL_DATABASE: legal_cases
+      TZ: Asia/Shanghai
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: frcs-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./legal_cases-master
+    image: frcs-backend:latest
+    container_name: frcs-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: 8122
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legal_cases?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-frcs123456}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ""
+      SPRING_AI_OPENAI_API_KEY: ${SPRING_AI_OPENAI_API_KEY:-ollama}
+      SPRING_AI_OPENAI_BASE_URL: ${SPRING_AI_OPENAI_BASE_URL:-http://host.docker.internal:11434}
+      SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:-qwen2.5:7b-instruct}
+      APP_ADMIN_SECRET: ${APP_ADMIN_SECRET:-frcs-admin-change-me}
+      KB_LOCAL_INDEX_FILE: /app/data/kb-index/local-kb.json
+      SPRING_APPLICATION_JSON: >
+        {
+          "crawler": {
+            "detail-url": "${CRAWLER_DETAIL_URL:-http://host.docker.internal:9001/crawl.json}",
+            "search": {
+              "US": "${CRAWLER_SEARCH_US_URL:-http://host.docker.internal:9003/crawl.json}",
+              "EU": "http://backend:8122/api/crawler-bridge/list/EU/crawl.json",
+              "JPN": "http://backend:8122/api/crawler-bridge/list/JPN/crawl.json"
+            }
+          }
+        }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${BACKEND_PORT:-8122}:8122"
+    volumes:
+      - backend-data:/app/data
+      - original-cache:/app/original-cache
+
+  frontend:
+    build:
+      context: ./frcs-frontend
+    image: frcs-frontend:latest
+    container_name: frcs-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_PORT:-80}:80"
+
+volumes:
+  mysql-data:
+  redis-data:
+  backend-data:
+  original-cache:
