@@ -93,14 +93,10 @@ public class CrawlerClient {
             }
 
             // 构建请求URL
-            String requestUrl = UriComponentsBuilder.fromUriString(base)
-                    .queryParam("spider_name", countryEnum.getCode())
-                    .queryParam("start_requests", "true")
-                    .queryParam("crawl_args", crawlArgsJson)
-                    .toUriString();
+            URI requestUri = buildCrawlerRequestUri(base, countryEnum.getCode(), crawlArgsJson);
 
             // 发送HTTP请求
-            ResponseEntity<CrawlerBaseInfoResVO> response = crawlerListRestTemplate.getForEntity(requestUrl, CrawlerBaseInfoResVO.class);
+            ResponseEntity<CrawlerBaseInfoResVO> response = crawlerListRestTemplate.getForEntity(requestUri, CrawlerBaseInfoResVO.class);
             if (response.getBody() != null && "ok".equals(response.getBody().getStatus())) {
                 List<CrawlerBaseInfoItem> items = response.getBody().getItems();
 
@@ -142,16 +138,11 @@ public class CrawlerClient {
             String crawlArgsJson = objectMapper.writeValueAsString(crawlerArgs);
 
             // 构建请求URL
-            String requestUrl = UriComponentsBuilder.fromUriString(detailUrl())
-                    .queryParam("spider_name", "case_details")
-                    .queryParam("start_requests", "true")
-                    .queryParam("crawl_args", crawlArgsJson)
-                    .encode(StandardCharsets.UTF_8)
-                    .toUriString();
+            URI requestUri = buildCrawlerRequestUri(detailUrl(), "case_details", crawlArgsJson);
 
             int maxBytes = Math.max(0, crawlerProperties.getMaxDetailResponseBytes());
             ResponseEntity<byte[]> raw = crawlerDetailRestTemplate.exchange(
-                    URI.create(requestUrl), HttpMethod.GET, null, byte[].class);
+                    requestUri, HttpMethod.GET, null, byte[].class);
             byte[] body = raw.getBody();
             if (body == null) {
                 log.warn("根据url：{}（规范化后 {}）详情响应体为空", url, detailUrlNormalized);
@@ -200,6 +191,16 @@ public class CrawlerClient {
             }
         }
         return u;
+    }
+
+    static URI buildCrawlerRequestUri(String baseUrl, String spiderName, String crawlArgsJson) {
+        return UriComponentsBuilder.fromUriString(baseUrl)
+                .queryParam("spider_name", spiderName)
+                .queryParam("start_requests", "true")
+                .queryParam("crawl_args", crawlArgsJson)
+                .build()
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
     }
 
     private List<String> capDetailItems(List<String> items) {
