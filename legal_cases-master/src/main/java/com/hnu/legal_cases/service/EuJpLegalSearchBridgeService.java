@@ -36,6 +36,7 @@ public class EuJpLegalSearchBridgeService {
 
     /** 日本最高裁英語判例検索（2024 年以降のサイト構造）；旧 /app/hanrei_* はリダイレクトでフォームのみ返ることがある */
     private static final String JP_SC_EN_SEARCH_INDEX = "https://www.courts.go.jp/english/Judgments/search/index.html";
+    private static final String COURT_LISTENER_SEARCH = "https://www.courtlistener.com/";
 
     private static final Duration CONNECT = Duration.ofSeconds(8);
     private static final Duration READ = Duration.ofSeconds(55);
@@ -44,11 +45,44 @@ public class EuJpLegalSearchBridgeService {
     private static final int MAX_ITEMS = 20;
     /** Eur-Lex / Curia URLs 中出现的 CELEX 案号片段 */
     private static final Pattern CELEX_TOKEN = Pattern.compile("(6\\d{4}[A-Z]{1,10}\\d{1,14})");
+    private static final Pattern COURT_LISTENER_OPINION_ID = Pattern.compile("/opinion/(\\d+)/");
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(CONNECT)
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
+
+    public List<CrawlerBaseInfoItem> searchUs(String keyword, String year) {
+        if (keyword == null || keyword.isBlank()) {
+            keyword = "contract";
+        }
+        String enc = URLEncoder.encode(keyword.trim(), StandardCharsets.UTF_8);
+        String filedAfter = "";
+        if (year != null && !year.isBlank()) {
+            try {
+                int years = Math.max(1, Math.min(50, Integer.parseInt(year.trim())));
+                filedAfter = "&filed_after=" + LocalDate.now().minusYears(years).withDayOfYear(1);
+            } catch (NumberFormatException ignored) {
+                filedAfter = "";
+            }
+        }
+        String[] urls = {
+                COURT_LISTENER_SEARCH + "?q=" + enc + "&type=o&order_by=score%20desc&stat_Published=on" + filedAfter,
+                COURT_LISTENER_SEARCH + "?q=" + enc + "&type=o&order_by=score%20desc"
+        };
+        for (String url : urls) {
+            try {
+                String html = get(url);
+                List<CrawlerBaseInfoItem> items = parseCourtListenerSearch(html);
+                if (!items.isEmpty()) {
+                    return items;
+                }
+            } catch (Exception e) {
+                log.warn("US bridge fetch failed url={} : {}", url, e.getMessage());
+            }
+        }
+        return List.of();
+    }
 
     public List<CrawlerBaseInfoItem> searchEu(String keyword) {
         if (keyword == null || keyword.isBlank()) {
@@ -124,7 +158,10 @@ public class EuJpLegalSearchBridgeService {
     private String get(String urlStr) throws IOException, InterruptedException {
         URI uri = URI.create(urlStr);
         String host = uri.getHost();
-        if (host == null || (!host.endsWith("europa.eu") && !host.endsWith("eur-lex.europa.eu") && !host.endsWith("courts.go.jp"))) {
+        if (host == null || (!host.endsWith("europa.eu")
+                && !host.endsWith("eur-lex.europa.eu")
+                && !host.endsWith("courts.go.jp")
+                && !host.endsWith("courtlistener.com"))) {
             throw new IOException("disallowed host");
         }
         HttpRequest req = HttpRequest.newBuilder(uri)
@@ -141,6 +178,115 @@ public class EuJpLegalSearchBridgeService {
             throw new IOException("HTTP " + sc);
         }
         return resp.body();
+    }
+
+    public String fetchDetail(String detailUrl) throws IOException, InterruptedException {
+        if (detailUrl == null || detailUrl.isBlank()) {
+            return "";
+        }
+        String html = get(detailUrl.trim());
+        Document doc = Jsoup.parse(html, detailUrl);
+        doc.select("script,style,noscript,header,footer,nav,form").remove();
+
+        String title = str(doc.title());
+        Element main = firstPresent(doc,
+                ".opinion-content",
+                ".opinion",
+                "#opinion",
+                "article",
+                "main",
+                ".content");
+        String text = main == null ? str(doc.body() == null ? "" : doc.body().text()) : str(main.text());
+        if (text.length() > 120_000) {
+            text = text.substring(0, 120_000);
+        }
+        if (title.isEmpty()) {
+            return text;
+        }
+        return title + "\n\n" + text;
+    }
+
+    private List<CrawlerBaseInfoItem> parseCourtListenerSearch(String html) {
+        Document doc = Jsoup.parse(html, COURT_LISTENER_SEARCH);
+        Set<String> seen = new LinkedHashSet<>();
+        List<CrawlerBaseInfoItem> out = new ArrayList<>();
+        for (Element a : doc.select("a[href*=/opinion/]")) {
+            String href = normalizeCourtListenerUrl(a.absUrl("href"));
+            Matcher idMatcher = COURT_LISTENER_OPINION_ID.matcher(href);
+            if (!idMatcher.find()) {
+                continue;
+            }
+            String opinionId = idMatcher.group(1);
+            if (!seen.add(opinionId)) {
+                continue;
+            }
+            String title = str(a.text());
+            if (title.isEmpty() || title.length() < 4) {
+                Element parent = a.parent();
+                title = parent == null ? "" : str(parent.text());
+            }
+            if (title.length() > 512) {
+                title = title.substring(0, 512);
+            }
+            if (title.isEmpty()) {
+                title = "CourtListener opinion " + opinionId;
+            }
+
+            CrawlerBaseInfoItem it = new CrawlerBaseInfoItem();
+            it.setSourceId(CountryEnum.US.getSourceId());
+            it.setDocketNumber("CL-" + opinionId);
+            it.setTitle(title);
+            it.setUrl(href);
+            it.setCitationCount("0");
+            it.setDateFiled(extractDateNear(a));
+            out.add(it);
+            if (out.size() >= MAX_ITEMS) {
+                break;
+            }
+        }
+        return out;
+    }
+
+    private static String normalizeCourtListenerUrl(String href) {
+        if (href == null) {
+            return "";
+        }
+        int q = href.indexOf('?');
+        if (q > 0) {
+            href = href.substring(0, q);
+        }
+        int hash = href.indexOf('#');
+        if (hash > 0) {
+            href = href.substring(0, hash);
+        }
+        return href;
+    }
+
+    private static String extractDateNear(Element a) {
+        Element cur = a;
+        for (int i = 0; i < 4 && cur != null; i++) {
+            String text = cur.text();
+            Matcher m = Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})").matcher(text);
+            if (m.find()) {
+                return m.group(1) + "-" + m.group(2) + "-" + m.group(3);
+            }
+            m = Pattern.compile("([A-Z][a-z]{2,8})\\s+(\\d{1,2}),\\s+(\\d{4})").matcher(text);
+            if (m.find()) {
+                return m.group(3) + "-01-01";
+            }
+            cur = cur.parent();
+        }
+        return LocalDate.now().withDayOfMonth(1).toString();
+    }
+
+    private static Element firstPresent(Document doc, String... selectors) {
+        for (String selector : selectors) {
+            Element el = doc.selectFirst(selector);
+            if (el != null && !str(el.text()).isEmpty()) {
+                return el;
+            }
+        }
+        return null;
     }
 
     private List<CrawlerBaseInfoItem> parseEurLex(String html) {

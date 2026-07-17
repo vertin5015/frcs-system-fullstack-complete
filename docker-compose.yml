@@ -8,8 +8,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-frcs123456}
       MYSQL_DATABASE: legal_cases
       TZ: Asia/Shanghai
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
@@ -24,8 +22,6 @@ services:
     container_name: frcs-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -62,9 +58,9 @@ services:
       SPRING_APPLICATION_JSON: >
         {
           "crawler": {
-            "detail-url": "${CRAWLER_DETAIL_URL:-http://host.docker.internal:9001/crawl.json}",
+            "detail-url": "${CRAWLER_DETAIL_URL:-http://backend:8122/api/crawler-bridge/detail/crawl.json}",
             "search": {
-              "US": "${CRAWLER_SEARCH_US_URL:-http://host.docker.internal:9003/crawl.json}",
+              "US": "${CRAWLER_SEARCH_US_URL:-http://backend:8122/api/crawler-bridge/list/US/crawl.json}",
               "EU": "http://backend:8122/api/crawler-bridge/list/EU/crawl.json",
               "JPN": "http://backend:8122/api/crawler-bridge/list/JPN/crawl.json"
             }
