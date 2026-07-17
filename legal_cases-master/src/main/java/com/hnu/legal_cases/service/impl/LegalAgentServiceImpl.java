@@ -12,6 +12,7 @@ import com.hnu.legal_cases.service.LegalAgentService;
 import com.hnu.legal_cases.service.LocalKbService;
 import com.hnu.legal_cases.service.SearchCasesService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class LegalAgentServiceImpl implements LegalAgentService {
 
@@ -35,6 +37,8 @@ public class LegalAgentServiceImpl implements LegalAgentService {
 
         AgentAskResVO res = new AgentAskResVO();
         boolean refreshCases = Boolean.TRUE.equals(reqVO.getRefreshCases());
+        log.info("agent ask start question={} language={} country={} sources={} period={} topK={} refreshCases={}",
+                question, language, reqVO.getCountry(), reqVO.getSources(), reqVO.getPeriod(), topK, refreshCases);
         res.setRoute(refreshCases ? "search_then_rag" : "rag_only");
         res.getTrace().add(AgentAskResVO.TraceStep.of("plan", "done",
                 refreshCases ? "refresh cases before KB retrieval" : "query local KB directly"));
@@ -48,10 +52,13 @@ public class LegalAgentServiceImpl implements LegalAgentService {
                 res.setRelatedCases(limitCases(cases, 5));
                 res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "done",
                         "matched " + totalCount + " cases"));
+                log.info("agent case search done question={} totalCount={} returnedCases={}",
+                        question, totalCount, cases.size());
             } catch (Throwable e) {
                 res.setRoute("search_failed_then_rag");
                 res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "failed",
                         "case search unavailable, fallback to local KB: " + e.getMessage()));
+                log.warn("agent case search failed question={} msg={}", question, e.getMessage());
             }
         }
 
@@ -64,6 +71,8 @@ public class LegalAgentServiceImpl implements LegalAgentService {
 
         res.setAnswer(buildAnswer(question, kbRes.getAnswer(), hitCount, res.getSearchTotalCount()));
         res.getTrace().add(AgentAskResVO.TraceStep.of("answer", "done", "returned RAG answer"));
+        log.info("agent ask done question={} route={} kbHits={} caseHits={}",
+                question, res.getRoute(), hitCount, res.getSearchTotalCount());
         return res;
     }
 

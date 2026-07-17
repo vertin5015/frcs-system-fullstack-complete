@@ -23,6 +23,9 @@ public class AgentController {
     @PostMapping("/ask")
     public JSONReturnBean<AgentAskResVO> ask(@RequestBody AgentAskReqVO reqVO) {
         try {
+            log.info("agent ask request question={} refreshCases={}",
+                    reqVO == null ? null : reqVO.getQuestion(),
+                    reqVO == null ? null : reqVO.getRefreshCases());
             return JSONReturnBean.success(legalAgentService.ask(reqVO));
         } catch (ServiceException e) {
             return JSONReturnBean.failed(e.getMessage());

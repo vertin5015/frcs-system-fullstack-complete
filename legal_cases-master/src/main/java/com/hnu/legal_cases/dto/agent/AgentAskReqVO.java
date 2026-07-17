@@ -11,5 +11,5 @@ public class AgentAskReqVO {
     private String sources;
     private Integer period;
     private Integer topK = 5;
-    private Boolean refreshCases = false;
+    private Boolean refreshCases = true;
 }

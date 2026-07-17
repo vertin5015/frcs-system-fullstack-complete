@@ -127,7 +127,7 @@ export default {
       sources: "US,EU,JPN",
       period: null,
       topK: 5,
-      refreshCases: false,
+      refreshCases: true,
     });
 
     const resetForm = () => {
@@ -136,7 +136,7 @@ export default {
       form.sources = "US,EU,JPN";
       form.period = null;
       form.topK = 5;
-      form.refreshCases = false;
+      form.refreshCases = true;
       result.value = null;
     };
 
