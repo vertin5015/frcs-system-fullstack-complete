@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -64,7 +66,7 @@ public class CrawlerBridgeController {
             return vo;
         }
         try {
-            CrawlerBaseArgs args = objectMapper.readValue(crawlArgsJson, CrawlerBaseArgs.class);
+            CrawlerBaseArgs args = objectMapper.readValue(decodeQueryJson(crawlArgsJson), CrawlerBaseArgs.class);
             String kw = args.getKeyword();
             List<CrawlerBaseInfoItem> items = switch (region) {
                 case US -> bridge.searchUs(kw, args.getYear());
@@ -96,7 +98,7 @@ public class CrawlerBridgeController {
             return vo;
         }
         try {
-            CrawlerDetailArgs args = objectMapper.readValue(crawlArgsJson, CrawlerDetailArgs.class);
+            CrawlerDetailArgs args = objectMapper.readValue(decodeQueryJson(crawlArgsJson), CrawlerDetailArgs.class);
             String content = bridge.fetchDetail(args.getDetailUrl());
             vo.setStatus("ok");
             vo.setItems(content == null || content.isBlank() ? List.of() : List.of(content));
@@ -106,5 +108,20 @@ public class CrawlerBridgeController {
             vo.setItems(List.of());
         }
         return vo;
+    }
+
+    private static String decodeQueryJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        String decoded = value;
+        for (int i = 0; i < 2 && decoded.contains("%"); i++) {
+            String next = URLDecoder.decode(decoded, StandardCharsets.UTF_8);
+            if (next.equals(decoded)) {
+                break;
+            }
+            decoded = next;
+        }
+        return decoded;
     }
 }
