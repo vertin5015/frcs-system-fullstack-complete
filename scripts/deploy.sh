@@ -81,6 +81,11 @@ if [[ "${CRAWLER_SEARCH_US_URL:-}" == "http://host.docker.internal:9003/crawl.js
   export CRAWLER_SEARCH_US_URL="http://backend:8122/api/crawler-bridge/list/US/crawl.json"
 fi
 
+if [[ "${SPRING_AI_OPENAI_BASE_URL:-}" == */v1 ]]; then
+  echo "Normalizing SPRING_AI_OPENAI_BASE_URL=${SPRING_AI_OPENAI_BASE_URL}; Spring AI appends /v1/chat/completions automatically."
+  export SPRING_AI_OPENAI_BASE_URL="${SPRING_AI_OPENAI_BASE_URL%/v1}"
+fi
+
 if [[ "$PULL_CODE" == "1" && -d .git ]]; then
   echo "Pulling latest code..."
   git pull --ff-only
