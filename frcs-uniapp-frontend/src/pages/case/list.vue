@@ -260,7 +260,26 @@ const loadMoreData = () => {
 };
 
 const goToDetail = (id: string) => {
-  uni.showToast({ title: '正在开发中', icon: 'none' });
+  let targetUrl = '';
+  
+  // 根据当前的搜索模式判断跳转路径
+  if (searchMode.value === 'case') {
+    targetUrl = `/pages/case/detail?id=${id}`;
+  } else if (searchMode.value === 'law') {
+    // 假设你的条文详情页路径为 /pages/law/detail
+    targetUrl = `/pages/law/detail?id=${id}`;
+  }
+
+  uni.navigateTo({ 
+    url: targetUrl,
+    fail: (err) => {
+      console.error('跳转详情页失败:', err);
+      // 做一个优雅的降级提示
+      if (searchMode.value === 'law') {
+        uni.showToast({ title: '条文详情页正在开发中', icon: 'none' });
+      }
+    }
+  });
 };
 </script>
 

@@ -302,3 +302,16 @@ export const fetchFavoritesMock = async (): Promise<CaseItem[]> => {
 
   return favoriteCases;
 };
+
+export const fetchCaseDetailMock = async (id: number | string) => {
+  return new Promise<CaseItem>((resolve, reject) => {
+    setTimeout(() => {
+      const targetCase = mockCases.find(c => String(c.id) === String(id));
+      if (targetCase) {
+        resolve(targetCase);
+      } else {
+        reject(new Error('未找到对应案例'));
+      }
+    }, 300); // 模拟网络延迟
+  });
+};
