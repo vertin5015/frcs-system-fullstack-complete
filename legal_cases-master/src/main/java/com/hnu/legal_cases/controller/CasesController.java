@@ -136,15 +136,38 @@ public class CasesController {
         final String fnLockName = lockName;
         final String fnLockValue = lockValue;
         final Object sendLock = new Object();
+        final SseStreamGuard streamGuard = new SseStreamGuard();
+        final Runnable releaseLockOnce = () -> {
+            if (streamGuard.tryReleaseLock()) {
+                distributedLock.releaseLock(fnLockName, fnLockValue);
+            }
+        };
+        emitter.onCompletion(() -> {
+            streamGuard.markClientClosed();
+            releaseLockOnce.run();
+        });
+        emitter.onTimeout(() -> {
+            streamGuard.markClientClosed();
+            releaseLockOnce.run();
+        });
+        emitter.onError(error -> {
+            streamGuard.markClientClosed();
+            releaseLockOnce.run();
+        });
 
         SearchStreamNotifier notifier = new SearchStreamNotifier() {
             @Override
             public void part(SearchStreamPartDTO chunk) {
                 synchronized (sendLock) {
+                    if (streamGuard.isClosed()) {
+                        return;
+                    }
                     try {
                         emitter.send(SseEmitter.event().name("part").data(JSON.toJSONString(chunk)));
-                    } catch (IOException e) {
-                        log.warn("sse part send", e);
+                    } catch (IOException | IllegalStateException e) {
+                        streamGuard.markClientClosed();
+                        releaseLockOnce.run();
+                        log.info("sse client disconnected while sending part");
                     }
                 }
             }
@@ -152,13 +175,16 @@ public class CasesController {
             @Override
             public void done(SearchCasesResVO res) {
                 synchronized (sendLock) {
+                    if (streamGuard.isClosed() || !streamGuard.tryTerminate()) {
+                        return;
+                    }
                     try {
                         emitter.send(SseEmitter.event().name("done")
                                 .data(JSON.toJSONString(JSONReturnBean.success(res))));
-                    } catch (IOException e) {
-                        log.warn("sse done send", e);
+                    } catch (IOException | IllegalStateException e) {
+                        log.info("sse client disconnected while sending done");
                     } finally {
-                        distributedLock.releaseLock(fnLockName, fnLockValue);
+                        releaseLockOnce.run();
                         emitter.complete();
                     }
                 }
@@ -167,13 +193,16 @@ public class CasesController {
             @Override
             public void fail(String message) {
                 synchronized (sendLock) {
+                    if (streamGuard.isClosed() || !streamGuard.tryTerminate()) {
+                        return;
+                    }
                     try {
                         emitter.send(SseEmitter.event().name("fail")
                                 .data(JSON.toJSONString(JSONReturnBean.failed(message))));
-                    } catch (IOException e) {
-                        log.warn("sse fail send", e);
+                    } catch (IOException | IllegalStateException e) {
+                        log.info("sse client disconnected while sending fail");
                     } finally {
-                        distributedLock.releaseLock(fnLockName, fnLockValue);
+                        releaseLockOnce.run();
                         emitter.complete();
                     }
                 }

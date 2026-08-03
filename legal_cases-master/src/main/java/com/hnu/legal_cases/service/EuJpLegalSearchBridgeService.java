@@ -156,6 +156,15 @@ public class EuJpLegalSearchBridgeService {
     }
 
     private String get(String urlStr) throws IOException, InterruptedException {
+        HttpResponse<String> resp = request(urlStr);
+        int sc = resp.statusCode();
+        if (sc != 200) {
+            throw new IOException("HTTP " + sc);
+        }
+        return resp.body();
+    }
+
+    private HttpResponse<String> request(String urlStr) throws IOException, InterruptedException {
         URI uri = URI.create(urlStr);
         String host = uri.getHost();
         if (host == null || (!host.endsWith("europa.eu")
@@ -171,20 +180,26 @@ public class EuJpLegalSearchBridgeService {
                 .header("Accept-Language", "en-US,en;q=0.9,ja;q=0.75")
                 .GET()
                 .build();
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        int sc = resp.statusCode();
-        /* AWS WAF 等对脚本返回 202 + 挑战页；爬虫必须拒绝，否则会误当成“无结果”。 */
-        if (sc != 200) {
-            throw new IOException("HTTP " + sc);
-        }
-        return resp.body();
+        return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    static boolean isDeferredResponse(int statusCode) {
+        return statusCode == 202;
     }
 
     public String fetchDetail(String detailUrl) throws IOException, InterruptedException {
         if (detailUrl == null || detailUrl.isBlank()) {
             return "";
         }
-        String html = get(detailUrl.trim());
+        HttpResponse<String> response = requestDetailWithRetry(detailUrl.trim());
+        if (isDeferredResponse(response.statusCode())) {
+            log.warn("CourtListener detail deferred by anti-bot response status={}", response.statusCode());
+            return "";
+        }
+        if (response.statusCode() != 200) {
+            throw new IOException("HTTP " + response.statusCode());
+        }
+        String html = response.body();
         Document doc = Jsoup.parse(html, detailUrl);
         doc.select("script,style,noscript,header,footer,nav,form").remove();
 
@@ -204,6 +219,28 @@ public class EuJpLegalSearchBridgeService {
             return text;
         }
         return title + "\n\n" + text;
+    }
+
+    private HttpResponse<String> requestDetailWithRetry(String detailUrl)
+            throws IOException, InterruptedException {
+        HttpResponse<String> response = request(detailUrl);
+        if (!isDeferredResponse(response.statusCode())) {
+            return response;
+        }
+        long delayMs = response.headers().firstValue("Retry-After")
+                .flatMap(value -> parseRetryAfterMillis(value))
+                .orElse(1_000L);
+        Thread.sleep(Math.min(delayMs, 2_000L));
+        return request(detailUrl);
+    }
+
+    private static java.util.Optional<Long> parseRetryAfterMillis(String value) {
+        try {
+            long seconds = Long.parseLong(value.trim());
+            return java.util.Optional.of(Math.max(0L, seconds * 1_000L));
+        } catch (NumberFormatException ignored) {
+            return java.util.Optional.empty();
+        }
     }
 
     private List<CrawlerBaseInfoItem> parseCourtListenerSearch(String html) {

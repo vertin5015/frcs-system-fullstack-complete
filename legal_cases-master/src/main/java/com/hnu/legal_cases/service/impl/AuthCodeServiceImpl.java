@@ -65,7 +65,7 @@ public class AuthCodeServiceImpl implements AuthCodeService {
         stringRedisTemplate.opsForValue().set(codeKey(purpose, email), code, Duration.ofSeconds(codeTtlSeconds));
         stringRedisTemplate.opsForValue().set(cd, "1", Duration.ofSeconds(cooldownSeconds));
 
-        log.warn("[验证码] email={} purpose={} code={} （生产环境请配置邮件或关闭日志级别）", email.trim(), purpose, code);
+        log.info("auth code generated email={} purpose={}", maskEmail(email), purpose);
 
         SendCodeResVO vo = new SendCodeResVO();
         vo.setCooldownSeconds(cooldownSeconds);
@@ -73,6 +73,26 @@ public class AuthCodeServiceImpl implements AuthCodeService {
             vo.setDevCode(code);
         }
         return vo;
+    }
+
+    static String maskEmail(String email) {
+        if (StringUtils.isBlank(email)) {
+            return "*";
+        }
+        String normalized = email.trim();
+        int at = normalized.indexOf('@');
+        if (at <= 0) {
+            return "*";
+        }
+        String local = normalized.substring(0, at);
+        String domain = normalized.substring(at);
+        if (local.length() <= 1) {
+            return "*" + domain;
+        }
+        if (local.length() <= 4) {
+            return local.charAt(0) + "****" + domain;
+        }
+        return local.substring(0, 3) + "****" + local.substring(local.length() - 3) + domain;
     }
 
     @Override

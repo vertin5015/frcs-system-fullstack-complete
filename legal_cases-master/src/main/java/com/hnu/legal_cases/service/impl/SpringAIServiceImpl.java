@@ -4,6 +4,7 @@ import com.hnu.legal_cases.dto.ai.SpringAIResVO;
 import com.hnu.legal_cases.enums.CountryEnum;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.SpringAIService;
+import com.hnu.legal_cases.service.AiCallRunner;
 import com.alibaba.fastjson.JSON;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,8 @@ public class SpringAIServiceImpl implements SpringAIService {
     private final ChatClient keywordExtractionClient;
 
     private final ChatClient summaryClient;
+
+    private final AiCallRunner aiCallRunner;
 
     /**
      * 提取关键词
@@ -54,10 +57,10 @@ public class SpringAIServiceImpl implements SpringAIService {
                     language
             );
 
-            SpringAIResVO res = keywordExtractionClient.prompt()
+            SpringAIResVO res = aiCallRunner.call(() -> keywordExtractionClient.prompt()
                     .user(extractPrompt)
                     .call()
-                    .entity(SpringAIResVO.class);
+                    .entity(SpringAIResVO.class));
 
             if (res != null && "ok".equals(res.getStatus()) && StringUtils.isNotBlank(res.getResult())) {
                 log.info("ai提取关键词成功：{}", res.getResult());
@@ -98,10 +101,10 @@ public class SpringAIServiceImpl implements SpringAIService {
                     safeContent
             );
 
-            String raw = summaryClient.prompt()
+            String raw = aiCallRunner.call(() -> summaryClient.prompt()
                     .user(summaryPrompt)
                     .call()
-                    .content();
+                    .content());
 
             String result = unwrapAiResult(raw);
             if (StringUtils.isNotBlank(result)) {
@@ -126,10 +129,10 @@ public class SpringAIServiceImpl implements SpringAIService {
                 langLine
         );
         try {
-            String raw = summaryClient.prompt()
+            String raw = aiCallRunner.call(() -> summaryClient.prompt()
                     .user(qaPrompt)
                     .call()
-                    .content();
+                    .content());
             String result = unwrapAiResult(raw);
             if (StringUtils.isNotBlank(result)) {
                 log.info("ai 本案问答成功");
@@ -154,10 +157,10 @@ public class SpringAIServiceImpl implements SpringAIService {
                     targetLanguage != null ? targetLanguage : "Simplified Chinese",
                     trimmed
             );
-            String raw = summaryClient.prompt()
+            String raw = aiCallRunner.call(() -> summaryClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
+                    .content());
             String result = unwrapAiResult(raw);
             if (StringUtils.isNotBlank(result)) {
                 return result.trim();

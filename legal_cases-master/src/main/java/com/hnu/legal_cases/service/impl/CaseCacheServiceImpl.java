@@ -35,7 +35,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
     /**
      * 日期格式化器
      */
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private static final DateTimeFormatter SLASH_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     /**
      * 生成缓存key
@@ -136,16 +136,21 @@ public class CaseCacheServiceImpl implements CaseCacheService {
     /**
      * 将日期字符串转换为score（时间戳）
      */
-    private double parseDateToScore(String dateStr) {
+    static double parseDateToScore(String dateStr) {
         if (StringUtils.isBlank(dateStr)) {
             return 0.0;
         }
 
         try {
-            LocalDate date = LocalDate.parse(dateStr, DATE_FORMATTER);
+            LocalDate date;
+            try {
+                date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (DateTimeParseException ignored) {
+                date = LocalDate.parse(dateStr, SLASH_DATE_FORMATTER);
+            }
             return date.toEpochDay();
         } catch (DateTimeParseException e) {
-            log.warn("判决日期无法按 yyyy/MM/dd 解析，按最旧排序处理: {}", dateStr);
+            log.warn("判决日期无法解析，按最旧排序处理: {}", dateStr);
             return 0.0;
         }
     }

@@ -66,6 +66,7 @@ crawler:
 
 app:
   ai:
+    call-timeout-ms: 15000
     priority: "local-first"
     local:
       enabled: true
@@ -73,10 +74,10 @@ app:
       model: "qwen2.5:7b-instruct"
     # 原有上游 AI 保留，不删除；需要回切时把 spring.ai.openai 改回下面这组即可
     upstream:
-      enabled: true
-      api-key: "sk-sxirc638ikYUw7ZNCfYzGmEw6PLN0ZGrgXOlCoUpVCXc3bvH"
-      base-url: "https://ai.nengyongai.cn"
-      model: "gpt-4o-2024-08-06"
+      enabled: ${SPRING_AI_UPSTREAM_ENABLED:false}
+      api-key: ${SPRING_AI_UPSTREAM_API_KEY:}
+      base-url: ${SPRING_AI_UPSTREAM_BASE_URL:https://ai.nengyongai.cn}
+      model: ${SPRING_AI_UPSTREAM_MODEL:gpt-4o-2024-08-06}
   admin:
     # 管理接口 /api/admin/grant-credits 请求头 X-Admin-Secret；生产环境务必修改
     secret: "frcs-admin-change-me"
@@ -114,7 +115,7 @@ app:
     code-ttl-seconds: 600
     send-cooldown-seconds: 60
     # 无 SMTP 时便于联调；生产务必 false，并配置发信或仅以日志为准
-    expose-code-in-response: true
+    expose-code-in-response: ${APP_AUTH_EXPOSE_CODE_IN_RESPONSE:false}
 
 kb:
   local:

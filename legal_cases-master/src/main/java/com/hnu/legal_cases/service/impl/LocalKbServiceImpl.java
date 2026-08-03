@@ -17,6 +17,7 @@ import com.hnu.legal_cases.service.LocalKbService;
 import com.hnu.legal_cases.service.LocalEmbeddingService;
 import com.hnu.legal_cases.service.CrawlerService;
 import com.hnu.legal_cases.service.SpringAIService;
+import com.hnu.legal_cases.service.AiCallRunner;
 import io.micrometer.common.util.StringUtils;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class LocalKbServiceImpl implements LocalKbService {
     private final KbProperties kbProperties;
     @Qualifier("summaryClient")
     private final ChatClient summaryClient;
+    private final AiCallRunner aiCallRunner;
 
     @Override
     public synchronized int ingest(KbIngestReqVO reqVO) {
@@ -237,7 +239,7 @@ public class LocalKbServiceImpl implements LocalKbService {
         return res;
     }
 
-    private String askOpenAi(String question, String context, String language) {
+    private String askOpenAi(String question, String context, String language) throws Exception {
         String outLang = language.toLowerCase(Locale.ROOT).startsWith("zh") ? "中文" : "English";
         String prompt = """
                 你是法律知识库问答助手。请基于给定的知识片段回答问题，不要编造事实。
@@ -253,7 +255,7 @@ public class LocalKbServiceImpl implements LocalKbService {
                 输出 JSON：
                 {"status":"ok","result":"你的回答"}
                 """.formatted(outLang, question, context);
-        SpringAIResVO vo = summaryClient.prompt().user(prompt).call().entity(SpringAIResVO.class);
+        SpringAIResVO vo = aiCallRunner.call(() -> summaryClient.prompt().user(prompt).call().entity(SpringAIResVO.class));
         if (vo != null && "ok".equals(vo.getStatus()) && StringUtils.isNotBlank(vo.getResult())) {
             return vo.getResult().trim();
         }
