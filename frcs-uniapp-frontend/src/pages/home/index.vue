@@ -62,33 +62,37 @@
             <view 
               class="favorite-card" 
               v-for="caseInfo in favoriteCases" 
-              :key="caseInfo.id"
-              @tap="handleCaseDetail(caseInfo.id)"
+              :key="caseInfo.caseId"
+              @tap="handleCaseDetail(caseInfo.caseId)"
             >
               <view class="card-header">
                 <view class="country-tag">
                   <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
-                  <text>{{ caseInfo.country }}</text>
+                  <text>{{ countryName(caseInfo.country) }}</text>
                 </view>
-                <view class="ai-status" v-if="caseInfo.aiSummary">
+                <view class="ai-status" v-if="caseInfo.tags">
                   <image class="check-icon" src="/static/icons/check-green.png" mode="aspectFit" />
-                  <text class="status-text">AI摘要已生成</text>
+                  <text class="status-text">已收藏</text>
                 </view>
               </view>
 
               <view class="card-body">
                 <view class="text-group">
-                  <text class="title">{{ caseInfo.title }}</text>
-                  <text class="en-title">{{ caseInfo.englishTitle }}</text>
+                  <text class="title">{{ caseInfo.caseName }}</text>
+                  <text class="en-title">{{ caseInfo.tags || '暂无摘要' }}</text>
                 </view>
                 <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
               </view>
 
               <view class="card-footer">
                 <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
-                <text class="time-text">{{ caseInfo.time }}</text>
+                <text class="time-text">{{ caseInfo.judgementDate || '-' }}</text>
               </view>
             </view>
+          </view>
+
+          <view v-if="!loadingFavorites && favoriteCases.length === 0" class="empty-favorites">
+            <text>{{ userStore.isGuest ? '游客模式不提供收藏，请登录查看' : '暂无收藏案件' }}</text>
           </view>
         </view>
 
@@ -106,15 +110,20 @@
   </view>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import BottomTabBar from '../../components/BottomTabBar.vue'
 import { onShow } from '@dcloudio/uni-app'
+import api from '../../api'
+import { useUserStore } from '../../store/user'
+
+const userStore = useUserStore()
 
 onShow(() => {
   uni.hideTabBar({
     animation: false // 瞬间隐藏，不要动画，避免闪烁
   })
+  loadRecentFavorites()
 })
 
 // ================= 数据定义 =================
@@ -131,16 +140,43 @@ const keyword = ref('')
 const selectedCountry = ref('全部国家')
 const selectedTime = ref('全部时间')
 
-const favoriteCases = ref([
-  {
-    id: 1,
-    country: '美国',
-    title: '跨境合同纠纷案件',
-    englishTitle: 'Contract Dispute Case',
-    time: '2026-7-9 2小时前',
-    aiSummary: true
+const favoriteCases = ref<any[]>([])
+const loadingFavorites = ref(false)
+
+const countryName = (code?: string) => {
+  if (code === 'US') return '美国'
+  if (code === 'EU') return '欧盟'
+  if (code === 'JPN') return '日本'
+  return code || ''
+}
+
+const loadRecentFavorites = async () => {
+  if (userStore.isGuest) {
+    favoriteCases.value = []
+    return
   }
-])
+  loadingFavorites.value = true
+  try {
+    const res = await api.getFavoriteCases({
+      userId: userStore.userId,
+      language: 'zh',
+      country: '',
+      period: '',
+      pagenum: 1,
+      pagesize: 10,
+    })
+    if (res.code === 200) {
+      favoriteCases.value = res.data?.favoriteInfoList || []
+    } else {
+      favoriteCases.value = []
+    }
+  } catch (e) {
+    console.error('加载最近收藏失败:', e)
+    favoriteCases.value = []
+  } finally {
+    loadingFavorites.value = false
+  }
+}
 
 // ================= 交互方法 =================
 const handleBannerClick = () => {
@@ -159,9 +195,9 @@ const openCountrySelect = () => {
 
 const openTimeSelect = () => {
   uni.showActionSheet({
-    itemList: ['全部时间', '最近一周', '最近一月', '最近一年'],
+    itemList: ['全部时间', '最近一年', '最近三年', '最近五年', '最近十年'],
     success: (res) => {
-      const options = ['全部时间', '最近一周', '最近一月', '最近一年']
+      const options = ['全部时间', '最近一年', '最近三年', '最近五年', '最近十年']
       selectedTime.value = options[res.tapIndex]
     }
   })
@@ -172,8 +208,10 @@ const handleSearch = () => {
     uni.showToast({ title: '请输入关键词', icon: 'none' })
     return
   }
+  const countryMap: Record<string, string> = { '全部国家': '', '美国': 'US', '欧盟': 'EU', '日本': 'JPN' }
+  const timeMap: Record<string, string> = { '全部时间': '', '最近一年': '1', '最近三年': '3', '最近五年': '5', '最近十年': '10' }
   uni.navigateTo({
-    url: `/pages/case/list?keyword=${encodeURIComponent(keyword.value)}&country=${selectedCountry.value}&time=${selectedTime.value}`
+    url: `/pages/case/list?keyword=${encodeURIComponent(keyword.value)}&country=${countryMap[selectedCountry.value] || ''}&period=${timeMap[selectedTime.value] || ''}`
   })
 }
 
@@ -185,12 +223,12 @@ const handleViewAllFavorites = () => {
   })
 }
 
-const handleCaseDetail = (caseId) => {
+const handleCaseDetail = (caseId: string) => {
   uni.navigateTo({ url: `/pages/case/detail?id=${caseId}` })
 }
 
 const handleAIChat = () => {
-  uni.navigateTo({ url: '/pages/ai/chat' })
+  uni.navigateTo({ url: '/pages/agent/index' })
 }
 </script>
 
@@ -366,6 +404,13 @@ const handleAIChat = () => {
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+}
+
+.empty-favorites {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #999;
+  font-size: 26rpx;
 }
 
 .favorite-card {

@@ -5,7 +5,7 @@
     <!-- 顶部状态栏占位 -->
     <view class="header-safe-area"></view>
 
-    <scroll-view scroll-y class="main-scroll">
+    <scroll-view scroll-y class="main-scroll" @scrolltolower="loadMore">
       <view class="content-wrapper">
         
         <!-- ================= 顶部搜索与筛选卡片 ================= -->
@@ -50,37 +50,41 @@
             <view 
               class="favorite-card" 
               v-for="caseInfo in filteredFavorites" 
-              :key="caseInfo.id"
-              @tap="handleCardClick(caseInfo.id)"
+              :key="caseInfo.caseId"
+              @tap="handleCardClick(caseInfo.caseId)"
             >
               <view class="card-header">
                 <view class="country-tag">
                   <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
-                  <text>{{ caseInfo.country }}</text>
+                  <text>{{ countryName(caseInfo.country) }}</text>
                 </view>
-                <view class="ai-status" v-if="caseInfo.aiSummaryStatus === 'completed'">
-                  <image class="check-icon" src="/static/icons/check-green.png" mode="aspectFit" />
-                  <text class="status-text">ai摘要已生成</text>
+                <view class="star-btn" @tap.stop="handleUnfavorite(caseInfo.caseId)">
+                  <text class="star-text">★ 取消收藏</text>
                 </view>
               </view>
 
               <view class="card-body">
                 <view class="text-group">
-                  <text class="title">{{ caseInfo.title }}</text>
-                  <text class="en-title">{{ caseInfo.englishTitle }}</text>
+                  <text class="title">{{ caseInfo.caseName }}</text>
+                  <text class="en-title">{{ caseInfo.tags || '暂无摘要' }}</text>
                 </view>
                 <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
               </view>
 
               <view class="card-footer">
                 <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
-                <text class="time-text">{{ caseInfo.date }}</text>
+                <text class="time-text">{{ caseInfo.judgementDate || '-' }}</text>
               </view>
             </view>
           </template>
 
           <view class="empty-state" v-else>
-            <text class="empty-text">未找到符合条件的收藏案例</text>
+            <text class="empty-text">{{ userStore.isGuest ? '游客用户无法访问收藏夹，请登录后重试' : '未找到符合条件的收藏案例' }}</text>
+          </view>
+
+          <view v-if="favoritesList.length > 0" class="load-more-text">
+            <text v-if="loading">正在加载更多…</text>
+            <text v-else-if="!hasMore">- 已经到底啦 -</text>
           </view>
         </view>
 
@@ -93,32 +97,100 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import BottomTabBar from '../../components/BottomTabBar.vue'
-import { fetchFavoritesMock } from '../../api/mockCase'
-import type { CaseItem } from '../../api/mockCase'
+import api from '../../api'
+import { useUserStore } from '../../store/user'
 import { onShow } from '@dcloudio/uni-app'
+import type { FavoriteInfo } from '../../types/case'
 
 onShow(() => {
   uni.hideTabBar({
     animation: false // 瞬间隐藏，不要动画，避免闪烁
   })
+  fetchFavorites(true)
 })
+
+const userStore = useUserStore()
 // ================= 状态定义 =================
-const favoritesList = ref<CaseItem[]>([])
+const favoritesList = ref<FavoriteInfo[]>([])
+const loading = ref(false)
+const page = ref(1)
+const pageSize = 10
+const totalCount = ref(0)
+const hasMore = ref(true)
 
 // 筛选条件
 const searchQuery = ref('')
-const selectedCountry = ref('国家')
-const selectedSource = ref('数据源')
-const selectedTime = ref('判决时间')
+const selectedCountry = ref('全部')
+const selectedSource = ref('全部')
+const selectedTime = ref('全部')
 
-// 初始化获取数据
-onMounted(async () => {
-  uni.showLoading({ title: '加载中...' })
-  favoritesList.value = await fetchFavoritesMock()
-  uni.hideLoading()
-})
+const countryName = (code?: string) => {
+  if (code === 'US') return '美国'
+  if (code === 'EU') return '欧盟'
+  if (code === 'JPN') return '日本'
+  return code || ''
+}
+
+const countryCode = (label: string) => {
+  if (label === '美国') return 'US'
+  if (label === '欧盟') return 'EU'
+  if (label === '日本') return 'JPN'
+  return ''
+}
+
+const periodValue = (label: string) => {
+  const map: Record<string, number> = { '最近一年': 1, '最近三年': 3, '最近五年': 5, '最近十年': 10 }
+  return map[label] ?? 0
+}
+
+const fetchFavorites = async (isRefresh = false) => {
+  if (userStore.isGuest) {
+    favoritesList.value = []
+    return
+  }
+  if (loading.value) return
+  if (!isRefresh && !hasMore.value) return
+  if (isRefresh) {
+    page.value = 1
+    favoritesList.value = []
+    hasMore.value = true
+  }
+
+  loading.value = true
+  try {
+    const res = await api.getFavoriteCases({
+      userId: userStore.userId,
+      language: 'zh',
+      country: countryCode(selectedCountry.value),
+      period: periodValue(selectedTime.value) || '',
+      pagenum: page.value,
+      pagesize: pageSize,
+    })
+    if (res.code !== 200) {
+      uni.showToast({ title: res.message || '加载失败', icon: 'none' })
+      return
+    }
+    const list = res.data?.favoriteInfoList || []
+    totalCount.value = res.data?.totalCount || 0
+    if (isRefresh) {
+      favoritesList.value = list
+    } else {
+      favoritesList.value.push(...list)
+    }
+    hasMore.value = favoritesList.value.length < totalCount.value
+    if (hasMore.value) page.value++
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadMore = () => {
+  fetchFavorites(false)
+}
 
 // ================= 计算属性：本地交叉筛选逻辑 =================
 const filteredFavorites = computed(() => {
@@ -126,23 +198,32 @@ const filteredFavorites = computed(() => {
     // 1. 关键词筛选
     const kw = searchQuery.value.trim().toLowerCase()
     const matchKeyword = !kw || 
-      item.title.toLowerCase().includes(kw) || 
-      item.englishTitle.toLowerCase().includes(kw)
+      (item.caseName || '').toLowerCase().includes(kw) ||
+      (item.tags || '').toLowerCase().includes(kw)
 
     // 2. 国家筛选
-    const matchCountry = selectedCountry.value === '国家' || selectedCountry.value === '全部' || item.country === selectedCountry.value
+    const matchCountry = selectedCountry.value === '全部' || countryCode(selectedCountry.value) === item.country
 
     // 3. 数据源筛选
-    const matchSource = selectedSource.value === '数据源' || selectedSource.value === '全部' || item.dataSource === selectedSource.value
+    const matchSource = selectedSource.value === '全部' || countryCode(selectedSource.value) === item.country
 
     // 4. 时间筛选 (这里使用简单的字符串包含或前缀匹配模拟)
     let matchTime = true
-    if (selectedTime.value !== '判决时间' && selectedTime.value !== '全部') {
-      const year = item.date.substring(0, 4)
+    if (selectedTime.value !== '全部') {
+      const year = (item.judgementDate || '').substring(0, 4)
+      const py = parseInt(year, 10)
       if (selectedTime.value === '2023年及以后' && parseInt(year) >= 2023) matchTime = true
       else if (selectedTime.value === '2022年' && year === '2022') matchTime = true
       else if (selectedTime.value === '2021年及以前' && parseInt(year) <= 2021) matchTime = true
-      else matchTime = false
+      else {
+        // 最近一年/三年/五年/十年 按当前年份回推
+        const now = new Date().getFullYear()
+        if (selectedTime.value === '最近一年' && py >= now - 1) matchTime = true
+        else if (selectedTime.value === '最近三年' && py >= now - 3) matchTime = true
+        else if (selectedTime.value === '最近五年' && py >= now - 5) matchTime = true
+        else if (selectedTime.value === '最近十年' && py >= now - 10) matchTime = true
+        else matchTime = false
+      }
     }
 
     return matchKeyword && matchCountry && matchSource && matchTime
@@ -161,37 +242,56 @@ const openCountrySelect = () => {
   uni.showActionSheet({
     itemList: options,
     success: (res) => {
-      selectedCountry.value = options[res.tapIndex]
+      if (selectedCountry.value !== options[res.tapIndex]) {
+        selectedCountry.value = options[res.tapIndex]
+        fetchFavorites(true)
+      }
     }
   })
 }
 
 const openSourceSelect = () => {
-  const options = ['全部', 'Westlaw', 'LexisNexis', '裁判文书网', 'HUDOC', '官方公报']
+  const options = ['全部', '美国', '欧盟', '日本']
   uni.showActionSheet({
     itemList: options,
     success: (res) => {
-      selectedSource.value = options[res.tapIndex]
+      if (selectedSource.value !== options[res.tapIndex]) {
+        selectedSource.value = options[res.tapIndex]
+      }
     }
   })
 }
 
 const openTimeSelect = () => {
-  const options = ['全部', '2023年及以后', '2022年', '2021年及以前']
+  const options = ['全部', '最近一年', '最近三年', '最近五年', '最近十年']
   uni.showActionSheet({
     itemList: options,
     success: (res) => {
-      selectedTime.value = options[res.tapIndex]
+      if (selectedTime.value !== options[res.tapIndex]) {
+        selectedTime.value = options[res.tapIndex]
+        fetchFavorites(true)
+      }
     }
   })
 }
 
 const handleCardClick = (id: string) => {
-  uni.showToast({ 
-    title: '正在开发中', 
-    icon: 'none',
-    duration: 2000
-  })
+  uni.navigateTo({ url: `/pages/case/detail?id=${encodeURIComponent(id)}` })
+}
+
+const handleUnfavorite = async (caseId: string) => {
+  if (userStore.isGuest) return
+  try {
+    const res = await api.cancelFavoriteCase(caseId, userStore.userId)
+    if (res.code !== 200) {
+      uni.showToast({ title: res.message || '取消收藏失败', icon: 'none' })
+      return
+    }
+    favoritesList.value = favoritesList.value.filter((item) => item.caseId !== caseId)
+    uni.showToast({ title: '已取消收藏', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '操作失败', icon: 'none' })
+  }
 }
 </script>
 
@@ -433,6 +533,23 @@ const handleCardClick = (id: string) => {
   .empty-text {
     font-size: 28rpx;
     color: #999999;
+  }
+}
+
+.load-more-text {
+  text-align: center;
+  padding: 24rpx 0;
+  color: #999999;
+  font-size: 24rpx;
+}
+
+.star-btn {
+  background: #f0f9eb;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  .star-text {
+    font-size: 22rpx;
+    color: #67c23a;
   }
 }
 </style>

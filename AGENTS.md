@@ -45,12 +45,12 @@
 │   ├── src/utils/authStorage.js # 登录态（sessionStorage + localStorage 双写）
 │   ├── src/router/index.js      # 路由
 │   └── nginx.conf / Dockerfile  # 生产部署
-├── frcs-uniapp-frontend/        # 微信小程序端（uni-app + Vue3 + TS + Pinia）
+├── frcs-uniapp-frontend/        # 微信小程序端（uni-app + Vue3 + TS + Pinia，已对接后端）
 │   └── src/
-│       ├── pages/               # 登录/首页/案例/法条/学法/收藏/历史/我的
-│       ├── api/                 # request.ts + mockCase/mockLaw（当前为 Mock，未接真实后端）
-│       ├── store/               # Pinia（user/app）
-│       ├── types/               # TS 类型
+│       ├── pages/               # 登录/首页/案例/条文/学法/收藏/历史/我的/Agent/充值
+│       ├── api/                 # config.ts（后端地址）+ request.ts（uni.request 封装）+ index.ts（全部接口，与网页端 api/index.js 对齐）
+│       ├── store/               # Pinia（user/app，登录态对齐网页端 authStorage）
+│       ├── types/               # TS 类型（对齐后端 DTO）
 │       └── pages.json           # 页面与自定义 tabBar 配置
 ├── docker/                      # docker/mysql/init/01-init.sql（MySQL 初始化）
 ├── docker-compose.yml           # mysql + redis + backend + frontend 一键编排
@@ -102,7 +102,12 @@ npm install
 npm run dev:mp-weixin   # 产物在 dist/dev/mp-weixin，用微信开发者工具导入
 ```
 
-小程序端当前全部使用 Mock 数据（`src/api/mockCase.ts`、`mockLaw.ts`、`request.ts`），尚未接入真实后端接口。
+小程序端已接入真实后端（默认 `http://120.26.60.104/api`，见 `src/api/config.ts` 与 `.env.*`）：
+
+- 检索：`/api/cases/search`；详情：`/api/cases/meta` + 异步摘要轮询 + `/api/cases/qa`；
+- 收藏 `/api/cases/favorites`、历史 `/api/history/browse_history`、额度 `/api/user/summaryCredits`；
+- 学法页走 `/api/kb/query`，AI 助手走 `/api/agent/ask`，充值走 `/api/payment/*`（Mock 支付）；
+- 原文经 `/api/cases/original-proxy` 用 web-view 展示；上线需配置微信合法域名（https）。
 
 ### 4.4 Docker 一键部署
 
@@ -207,7 +212,7 @@ cp .env.example .env   # 按需改模型 key / 密码
 ## 9. 已知边界与注意事项
 
 - 韩国（KOR）数据源未实现，`CountryEnum` 仅 US/EU/JPN；需求文档中韩国站点异常需做容错，属待办；
-- 小程序端仍是 Mock 数据，未接入 `/api/agent/ask` 等真实接口；
+- 小程序端已接入真实接口；微信 `web-view`/request 在生产环境需配置合法业务域名（当前开发工具 urlCheck=false）；
 - KB 为本地 JSON + 哈希 embedding，非生产级向量库；升级方向是向量数据库 + 独立 `kb_document/kb_chunk/embedding` 表；
 - `frcs-frontend/.env.development`、`.env.production` 当前指向服务器地址且工作区有未提交改动，改本机联调配置时注意不要提交误伤；
 - `application-local.yml`、`.env` 含本机/服务器配置，不得提交 Git；

@@ -78,26 +78,26 @@
 
           <view class="list-container">
             <block v-if="searchMode === 'case'">
-              <view class="result-card case-card" v-for="item in listData" :key="item.id" @tap="goToDetail(item.id)">
+              <view class="result-card case-card" v-for="item in listData" :key="item.case_id" @tap="goToDetail(item.case_id)">
                 <view class="card-header">
-                  <view class="country-tag">{{ item.country }}</view>
-                  <view class="type-tag">{{ item.type }}</view>
+                  <view class="country-tag">{{ countryName(item.country) }}</view>
+                  <view class="type-tag">{{ item.citationCount != null ? `引用 ${item.citationCount}` : '涉外案例' }}</view>
                 </view>
-                <view class="card-title">{{ item.title }}</view>
-                <view class="card-subtitle">{{ item.court }}</view>
+                <view class="card-title">{{ item.case_name }}</view>
+                <view class="card-subtitle">{{ item.tags || '暂无摘要' }}</view>
                 <view class="card-footer">
-                  <text class="date-text">{{ item.date }}</text>
-                  <text class="ai-status" v-if="item.aiSummaryStatus === 'completed'">AI摘要已就绪</text>
+                  <text class="date-text">{{ item.judgement_date || '-' }}</text>
+                  <text class="ai-status" v-if="item.isfavored">已收藏</text>
                 </view>
               </view>
             </block>
 
             <block v-else>
-              <view class="result-card law-card" v-for="item in listData" :key="item.id" @tap="goToDetail(item.id)">
+              <view class="result-card law-card" v-for="item in listData" :key="item.chunkId" @tap="goToLawDetail(item)">
                 <view class="card-title">{{ item.title }}</view>
                 <view class="card-footer" style="margin-top: 16rpx;">
-                  <text class="type-tag">{{ item.country }}</text>
-                  <text class="date-text">实施: {{ item.publishDate }}</text>
+                  <text class="type-tag">{{ item.sourceId }}</text>
+                  <text class="date-text">{{ item.preview ? item.preview.slice(0, 30) + '…' : '暂无摘要' }}</text>
                 </view>
               </view>
             </block>
@@ -119,15 +119,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import BottomTabBar from '../../components/BottomTabBar.vue';
-import { fetchCasesMock } from '../../api/mockCase';
-import { fetchLawsMock } from '../../api/mockLaw';
-import { onShow } from '@dcloudio/uni-app'
+import api from '../../api';
+import { useUserStore } from '../../store/user';
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import type { KbHit } from '../../types/case'
 
 onShow(() => {
   uni.hideTabBar({
     animation: false // 瞬间隐藏，不要动画，避免闪烁
   })
 })
+
+const userStore = useUserStore()
 // ================= 状态定义 =================
 const searchMode = ref<'case' | 'law'>('case');
 const keyword = ref('');
@@ -138,12 +141,45 @@ const selectedCountry = ref('全部国家');
 const selectedTime = ref('全部时间');
 const selectedSource = ref('全部数据源');
 
+// 案例与条文两种形态复用同一个列表
 const listData = ref<any[]>([]);
 const page = ref(1);
 const pageSize = 10;
 const totalCount = ref(0);
 const hasMore = ref(true);
 const loading = ref(false);
+
+const countryName = (code?: string) => {
+  if (code === 'US') return '美国'
+  if (code === 'EU') return '欧盟'
+  if (code === 'JPN') return '日本'
+  return code || ''
+}
+
+const safeDecode = (v?: string) => {
+  if (!v) return ''
+  try {
+    return decodeURIComponent(v)
+  } catch {
+    return v
+  }
+}
+
+// 从首页/搜索入口携带参数进入
+onLoad((query) => {
+  if (query?.keyword) keyword.value = safeDecode(String(query.keyword))
+  const countryMap: Record<string, string> = { US: '美国', EU: '欧盟', JPN: '日本' }
+  const timeMap: Record<string, string> = { '1': '最近一年', '3': '最近三年', '5': '最近五年', '10': '最近十年' }
+  const country = safeDecode(String(query?.country || ''))
+  const period = safeDecode(String(query?.period || ''))
+  if (country && countryMap[country]) {
+    selectedCountry.value = countryMap[country]
+  }
+  if (period && timeMap[period]) {
+    selectedTime.value = timeMap[period]
+  }
+  if (keyword.value) handleSearch(true)
+})
 
 // ================= 热门搜索数据 =================
 const caseHotSearches = ['苹果专利纠纷', 'GDPR数据违规', '跨境电商合同', '反倾销调查', '离岸公司股权'];
@@ -169,7 +205,7 @@ const openCountrySelect = () => {
 };
 
 const openTimeSelect = () => {
-  const options = ['全部时间', '最近一周', '最近一月', '最近一年'];
+  const options = ['全部时间', '最近一年', '最近三年', '最近五年', '最近十年'];
   uni.showActionSheet({
     itemList: options,
     success: (res) => {
@@ -182,7 +218,7 @@ const openTimeSelect = () => {
 };
 
 const openSourceSelect = () => {
-  const options = ['全部数据源', '官方数据库', '公开裁判文书', '商业数据库'];
+  const options = ['全部数据源', '美国', '欧盟', '日本'];
   uni.showActionSheet({
     itemList: options,
     success: (res) => {
@@ -229,24 +265,47 @@ const handleSearch = async (isRefresh = false) => {
 
   loading.value = true;
   try {
-    let res;
     if (searchMode.value === 'case') {
-      res = await fetchCasesMock(keyword.value, page.value, pageSize);
+      const countryMap: Record<string, string> = { '全部国家': '', '美国': 'US', '欧盟': 'EU', '日本': 'JPN' }
+      const timeMap: Record<string, string> = { '全部时间': '', '最近一年': '1', '最近三年': '3', '最近五年': '5', '最近十年': '10' }
+      const sourceMap: Record<string, string> = { '全部数据源': '', '美国': 'US', '欧盟': 'EU', '日本': 'JPN' }
+      const params: Record<string, unknown> = {
+        keyword: keyword.value.trim(),
+        language: 'zh',
+        country: countryMap[selectedCountry.value] || '',
+        period: timeMap[selectedTime.value] ? Number(timeMap[selectedTime.value]) : '',
+        sources: sourceMap[selectedSource.value] || '',
+        pagenum: page.value,
+        pagesize: pageSize,
+        userId: userStore.userId,
+      }
+      const res = await api.searchCases(params)
+      if (res.code !== 200) {
+        uni.showToast({ title: res.message || '搜索失败', icon: 'none' })
+        return
+      }
+      if (isRefresh) {
+        listData.value = res.data?.cases || []
+        totalCount.value = res.data?.totalCount || 0
+      } else {
+        listData.value.push(...(res.data?.cases || []))
+      }
+      hasMore.value = (listData.value.length < totalCount.value)
+      if (hasMore.value) page.value++
     } else {
-      res = await fetchLawsMock(selectedCountry.value, '全部', page.value, pageSize);
+      // 条文模式：后端无独立法律列表接口，通过知识库检索命中展示
+      const res = await api.kbQuery({ question: keyword.value.trim() || '涉外法律', language: 'zh', topK: 20 })
+      if (res.code !== 200) {
+        uni.showToast({ title: res.message || '查询失败', icon: 'none' })
+        return
+      }
+      listData.value = res.data?.hits || []
+      totalCount.value = listData.value.length
+      hasMore.value = false
     }
-
-    if (isRefresh) {
-      listData.value = res.data;
-      totalCount.value = res.total;
-    } else {
-      listData.value.push(...res.data);
-    }
-    
-    hasMore.value = res.hasMore;
-    if (hasMore.value) page.value++;
 
   } catch (error) {
+    console.error('搜索失败:', error)
     uni.showToast({ title: '搜索失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -254,32 +313,19 @@ const handleSearch = async (isRefresh = false) => {
 };
 
 const loadMoreData = () => {
-  if (isSearched.value) {
+  if (isSearched.value && searchMode.value === 'case') {
     handleSearch(false);
   }
 };
 
 const goToDetail = (id: string) => {
-  let targetUrl = '';
-  
-  // 根据当前的搜索模式判断跳转路径
-  if (searchMode.value === 'case') {
-    targetUrl = `/pages/case/detail?id=${id}`;
-  } else if (searchMode.value === 'law') {
-    // 假设你的条文详情页路径为 /pages/law/detail
-    targetUrl = `/pages/law/detail?id=${id}`;
-  }
+  uni.navigateTo({ url: `/pages/case/detail?id=${encodeURIComponent(id)}` })
+}
 
-  uni.navigateTo({ 
-    url: targetUrl,
-    fail: (err) => {
-      console.error('跳转详情页失败:', err);
-      // 做一个优雅的降级提示
-      if (searchMode.value === 'law') {
-        uni.showToast({ title: '条文详情页正在开发中', icon: 'none' });
-      }
-    }
-  });
+const goToLawDetail = (item: KbHit) => {
+  uni.navigateTo({
+    url: `/pages/law/detail?sourceId=${encodeURIComponent(item.sourceId || '')}&title=${encodeURIComponent(item.title || '')}&preview=${encodeURIComponent(item.preview || '')}&score=${item.score ?? ''}`
+  })
 };
 </script>
 

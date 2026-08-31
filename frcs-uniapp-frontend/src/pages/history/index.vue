@@ -3,7 +3,7 @@
     
     <view class="header-safe-area"></view>
 
-    <scroll-view scroll-y class="main-scroll" v-if="records.length > 0">
+    <scroll-view scroll-y class="main-scroll" v-if="records.length > 0" @scrolltolower="loadMore">
       <view class="content-wrapper">
         
         <view class="records-card">
@@ -16,29 +16,29 @@
             <view 
               class="case-item recent-item" 
               v-for="item in recentRecords" 
-              :key="item.id"
-              @tap="handleCardClick"
+              :key="item.caseId"
+              @tap="handleCardClick(item.caseId)"
             >
               <view class="card-header">
                 <view class="country-tag">
                   <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
-                  <text>{{ item.country }}</text>
+                  <text>{{ countryName(item.country) }}</text>
                 </view>
-                <view class="ai-status" v-if="item.aiSummaryStatus === 'completed'">
+                <view class="ai-status" v-if="item.tags">
                   <image class="check-icon" src="/static/icons/check-green.png" mode="aspectFit" />
-                  <text class="status-text">AI摘要已生成</text>
+                  <text class="status-text">有摘要</text>
                 </view>
               </view>
 
               <view class="card-body">
-                <text class="title">{{ item.title }}</text>
-                <text class="en-title">{{ item.englishTitle }}</text>
+                <text class="title">{{ item.caseName }}</text>
+                <text class="en-title">{{ item.tags || '暂无摘要' }}</text>
               </view>
 
               <view class="card-footer">
                 <view class="time-box">
                   <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
-                  <text class="time-text">{{ formatTime(item.viewTime) }}</text>
+                  <text class="time-text">{{ formatTime(item.browseTime) }}</text>
                 </view>
                 <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
               </view>
@@ -53,17 +53,17 @@
             <view 
               class="case-item earlier-item" 
               v-for="(item, index) in earlierRecords" 
-              :key="item.id"
+              :key="item.caseId"
               :class="{ 'no-border': index === earlierRecords.length - 1 }"
-              @tap="handleCardClick"
+              @tap="handleCardClick(item.caseId)"
             >
               <view class="earlier-left">
                 <view class="country-tag">
                   <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
-                  <text>{{ item.country }}</text>
+                  <text>{{ countryName(item.country) }}</text>
                 </view>
-                <text class="title">{{ item.title }}</text>
-                <text class="en-title">{{ item.englishTitle }}</text>
+                <text class="title">{{ item.caseName }}</text>
+                <text class="en-title">{{ item.tags || '暂无摘要' }}</text>
               </view>
               
               <view class="earlier-right">
@@ -73,6 +73,10 @@
             </view>
           </template>
 
+        </view>
+        <view class="load-more-text">
+          <text v-if="loading">正在加载更多…</text>
+          <text v-else-if="!hasMore">- 已经到底啦 -</text>
         </view>
       </view>
     </scroll-view>
@@ -87,64 +91,110 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import BottomTabBar from '../../components/BottomTabBar.vue'
-// 从你的 mockCase 文件中引入数据和真实类型
-import { mockCases } from '../../api/mockCase'
-import type { CaseItem } from '../../api/mockCase'
+import api from '../../api'
+import { useUserStore } from '../../store/user'
+import { onShow } from '@dcloudio/uni-app'
+import type { BrowseHistoryInfo } from '../../types/case'
 
-// 定义页面专属的历史记录类型：在 CaseItem 基础上扩展前端 UI 渲染需要的 viewTime
-interface HistoryRecord extends CaseItem {
-  viewTime: number;
+const records = ref<BrowseHistoryInfo[]>([])
+const loading = ref(false)
+const page = ref(1)
+const pageSize = 20
+const totalCount = ref(0)
+const hasMore = ref(true)
+
+const userStore = useUserStore()
+
+onShow(() => {
+  uni.hideTabBar({ animation: false })
+  if (userStore.isGuest) {
+    records.value = []
+    return
+  }
+  fetchHistory(true)
+})
+
+const countryName = (code?: string) => {
+  if (code === 'US') return '美国'
+  if (code === 'EU') return '欧盟'
+  if (code === 'JPN') return '日本'
+  return code || ''
 }
 
-// 初始状态列表为空
-const records = ref<HistoryRecord[]>([])
-
-// 获取记录并处理
-onMounted(() => {
-  /* 因为你提到：“对于用户浏览时刻为离开其详情页才进行计算，暂时无需在此实现”。
-    所以为了能展示并测试“一周内/一周外”的滑动 UI 效果，我们直接在这里使用 mockCases 
-    手动拼装几条带有模拟 viewTime 的数据进行渲染测试。
-    等后期详情页记录逻辑写好后，此处直接替换为读取 storage 或 API 即可。
-  */
-  const now = new Date('2026-07-16T16:47:00+09:00').getTime() 
-  
-  // 截取前6条 mock 数据，前3条作为一周内，后3条作为一周外
-  if (mockCases && mockCases.length > 0) {
-    records.value = mockCases.slice(0, 6).map((item, index) => ({
-      ...item,
-      // index < 3 算在一周内，其他算在 10 天前（一周外）
-      viewTime: index < 3 ? now - index * 86400000 : now - 10 * 86400000
-    })).sort((a, b) => b.viewTime - a.viewTime) // 按时间倒序
+const fetchHistory = async (isRefresh = false) => {
+  if (loading.value) return
+  if (!isRefresh && !hasMore.value) return
+  if (isRefresh) {
+    page.value = 1
+    records.value = []
+    hasMore.value = true
   }
-})
+  loading.value = true
+  try {
+    const res = await api.getHistoryCases({
+      userId: userStore.userId,
+      language: 'zh',
+      country: '',
+      period: '',
+      pagenum: page.value,
+      pagesize: pageSize,
+    })
+    if (res.code !== 200) {
+      uni.showToast({ title: res.message || '加载失败', icon: 'none' })
+      return
+    }
+    const list = res.data?.browseHistoryInfoList || []
+    totalCount.value = res.data?.totalCount || 0
+    if (isRefresh) {
+      records.value = list
+    } else {
+      records.value.push(...list)
+    }
+    hasMore.value = records.value.length < totalCount.value
+    if (hasMore.value) page.value++
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadMore = () => fetchHistory(false)
+
+const viewTime = (browseTime?: string) => {
+  if (!browseTime) return 0
+  const t = new Date(browseTime.replace(/-/g, '/')).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
 
 // 计算属性：一周内的数据
 const recentRecords = computed(() => {
-  const oneWeekAgo = new Date('2026-07-16T16:47:00+09:00').getTime() - 7 * 24 * 3600 * 1000
-  return records.value.filter(item => item.viewTime >= oneWeekAgo)
+  const oneWeekAgo = Date.now() - 7 * 24 * 3600 * 1000
+  return records.value
+    .filter(item => viewTime(item.browseTime) >= oneWeekAgo)
+    .sort((a, b) => viewTime(b.browseTime) - viewTime(a.browseTime))
 })
 
 // 计算属性：一周外的数据
 const earlierRecords = computed(() => {
-  const oneWeekAgo = new Date('2026-07-16T16:47:00+09:00').getTime() - 7 * 24 * 3600 * 1000
-  return records.value.filter(item => item.viewTime < oneWeekAgo)
+  const oneWeekAgo = Date.now() - 7 * 24 * 3600 * 1000
+  return records.value
+    .filter(item => viewTime(item.browseTime) < oneWeekAgo)
+    .sort((a, b) => viewTime(b.browseTime) - viewTime(a.browseTime))
 })
 
 // 时间格式化：输出 2026/7/16
-const formatTime = (timestamp: number) => {
-  const d = new Date(timestamp)
+const formatTime = (browseTime?: string) => {
+  if (!browseTime) return '-'
+  const d = new Date(browseTime.replace(/-/g, '/'))
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
 
 // 点击卡片反馈
-const handleCardClick = () => {
-  uni.showToast({
-    title: '正在开发中',
-    icon: 'none',
-    duration: 2000
-  })
+const handleCardClick = (caseId: string) => {
+  uni.navigateTo({ url: `/pages/case/detail?id=${encodeURIComponent(caseId)}` })
 }
 </script>
 
@@ -339,5 +389,12 @@ const handleCardClick = () => {
     font-size: 28rpx;
     color: #999999;
   }
+}
+
+.load-more-text {
+  text-align: center;
+  padding: 30rpx 0;
+  color: #999999;
+  font-size: 24rpx;
 }
 </style>

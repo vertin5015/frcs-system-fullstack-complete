@@ -19,22 +19,12 @@
         <view class="balance-card">
           <view class="balance-left">
             <image class="icon-wallet" src="/static/icons/wallet.png" mode="aspectFit" />
-            <text class="balance-text">当前余额：<text class="num">{{ user?.balance || '0' }}</text></text>
+            <text class="balance-text">AI 摘要剩余：<text class="num">{{ credits !== null ? credits : '—' }}</text> 次</text>
           </view>
           <button class="recharge-btn" @tap="handleRecharge">充值</button>
         </view>
 
         <view class="menu-list">
-          <view class="menu-item" @tap="goHistory">
-            <view class="item-left">
-              <image class="menu-icon" src="/static/icons/tab-history.png" mode="aspectFit" />
-              <text class="item-text">浏览历史</text>
-            </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
-          </view>
-          
-          <view class="divider"></view>
-
           <view class="menu-item" @tap="goStudy">
             <view class="item-left">
               <image class="menu-icon" src="/static/icons/book-blue.png" mode="aspectFit" />
@@ -45,7 +35,44 @@
 
           <view class="divider"></view>
 
-          <view class="menu-item logout-item" @tap="handleLogout">
+          <view class="menu-item" @tap="goHistory">
+            <view class="item-left">
+              <image class="menu-icon" src="/static/icons/tab-history.png" mode="aspectFit" />
+              <text class="item-text">浏览历史</text>
+            </view>
+            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+          </view>
+          
+          <view class="divider"></view>
+
+          <view class="menu-item" @tap="handleRecharge">
+            <view class="item-left">
+              <image class="menu-icon" src="/static/icons/wallet.png" mode="aspectFit" />
+              <text class="item-text">购买摘要次数</text>
+            </view>
+            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+          </view>
+
+          <view class="divider"></view>
+
+          <view class="menu-item" @tap="goAgent">
+            <view class="item-left">
+              <image class="menu-icon" src="/static/icons/ai-chat.png" mode="aspectFit" />
+              <text class="item-text">AI 法律助手</text>
+            </view>
+            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+          </view>
+
+          <view class="divider"></view>
+
+          <view class="menu-item" v-if="userStore.isGuest" @tap="goLogin">
+            <view class="item-left">
+              <image class="menu-icon" src="/static/icons/logout.png" mode="aspectFit" />
+              <text class="item-text login-text">去登录</text>
+            </view>
+          </view>
+
+          <view class="menu-item logout-item" v-else @tap="handleLogout">
             <view class="item-left">
               <image class="menu-icon" src="/static/icons/logout.png" mode="aspectFit" />
               <text class="item-text logout-text">退出账号</text>
@@ -61,13 +88,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app' // 引入 onShow 生命周期
 import { useUserStore } from '../../store/user' // 根据你的实际路径调整
 import BottomTabBar from '../../components/BottomTabBar.vue' // 根据你的实际路径调整
+import api from '../../api'
 
 const userStore = useUserStore()
 const user = computed(() => userStore.userInfo)
+const credits = ref<number | null>(userStore.getCredits())
 
 // ================= 生命周期 =================
 
@@ -76,14 +105,32 @@ onShow(() => {
   uni.hideTabBar({
     animation: false
   })
+  credits.value = userStore.getCredits()
+  refreshCredits()
 })
+
+const refreshCredits = async () => {
+  if (userStore.isGuest) return
+  try {
+    const res = await api.getUserSummaryCredits(userStore.userId)
+    if (res.code === 200 && res.data != null) {
+      credits.value = res.data
+      userStore.updateCredits(res.data)
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 // ================= 交互方法 =================
 
 // 充值
 function handleRecharge() {
-  uni.showToast({ title: '充值功能待接入', icon: 'none' })
-  // 接入后可使用: uni.navigateTo({ url: '/pages/recharge/index' })
+  if (userStore.isGuest) {
+    uni.showToast({ title: '请先登录后再购买次数', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: '/pages/recharge/index' })
 }
 
 // 跳转浏览历史（使用 navigateTo，不要用 switchTab）
@@ -94,6 +141,14 @@ function goHistory() {
 // 跳转海外法律知识
 function goStudy() {
   uni.navigateTo({ url: '/pages/study/index' })
+}
+
+function goAgent() {
+  uni.navigateTo({ url: '/pages/agent/index' })
+}
+
+function goLogin() {
+  uni.reLaunch({ url: '/pages/login/login' })
 }
 
 // 退出登录
@@ -283,6 +338,10 @@ function handleLogout() {
   }
   .item-left .logout-text {
     color: #F56C6C; /* 退出使用红色警示色 */
+  }
+  .item-left .login-text {
+    color: #218CFF;
+    font-weight: 600;
   }
 }
 </style>

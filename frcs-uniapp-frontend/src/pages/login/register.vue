@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import api from '../../api'
 
 const loading = ref(false)
 
@@ -72,8 +73,10 @@ const handleRegister = async () => {
 
   loading.value = true
   try {
-    // 模拟注册网络请求延迟（后续可替换为真实的 authApi.register(...)）
-    await new Promise(resolve => setTimeout(resolve, 600))
+    const res = await api.register(formData.username.trim(), formData.email.trim(), formData.password)
+    if (res.code !== 200) {
+      return uni.showToast({ title: res.message || '注册失败', icon: 'none' })
+    }
 
     uni.showToast({ title: '注册成功', icon: 'success' })
 
@@ -87,7 +90,7 @@ const handleRegister = async () => {
       })
     }, 1000)
   } catch (error: any) {
-    uni.showToast({ title: error.message || '注册失败', icon: 'none' })
+    uni.showToast({ title: error.serverMessage || error.message || '注册失败', icon: 'none' })
   } finally {
     loading.value = false
   }

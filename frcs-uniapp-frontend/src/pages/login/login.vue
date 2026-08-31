@@ -42,6 +42,7 @@
 
       <view class="action-links">
         <text class="link-gray" @click="showResetModal = true">忘记密码？</text>
+        <text class="link-gray" @click="showChangeModal = true">修改密码</text>
         <navigator url="/pages/login/register" hover-class="none" class="link-gray">还没有账号？</navigator>
       </view>
 
@@ -104,14 +105,47 @@
         </view>
       </view>
     </view>
+
+    <view class="modal-overlay" v-if="showChangeModal">
+      <view class="modal-card">
+        <view class="modal-header">
+          <text class="modal-title">修改密码</text>
+          <view class="close-btn" @click="closeChangeModal">
+            <text class="close-icon">×</text>
+          </view>
+        </view>
+
+        <view class="form-area">
+          <view class="input-box">
+            <text class="icon-placeholder">✉</text>
+            <input class="input-field" v-model="changeForm.email" type="text" placeholder="邮箱" placeholder-class="ph-color" />
+          </view>
+          <view class="input-box">
+            <text class="icon-placeholder">🔒</text>
+            <input class="input-field" v-model="changeForm.oldPassword" password placeholder="当前密码" placeholder-class="ph-color" />
+          </view>
+          <view class="input-box">
+            <text class="icon-placeholder">🔒</text>
+            <input class="input-field" v-model="changeForm.newPassword" password placeholder="新密码（至少8位含字母和数字）" placeholder-class="ph-color" />
+          </view>
+          <view class="input-box">
+            <text class="icon-placeholder">🔒</text>
+            <input class="input-field" v-model="changeForm.confirm" password placeholder="确认新密码" placeholder-class="ph-color" />
+          </view>
+        </view>
+
+        <view class="modal-footer">
+          <button class="submit-btn reset-confirm-btn" :loading="changeLoading" @click="handleChangePassword">确认修改</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useUserStore } from '../../store/user'
-import type { LoginPayload, User } from '../../types/user'
-import { authApi } from '../../api/request'
+import api from '../../api'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -136,10 +170,24 @@ let resetTimer: number | null = null
 const resetForm = reactive({
   email: '',
   code: '',
-  newPassword: ''
+  newPassword: '',
+  confirm: ''
+})
+
+// ================= 【修改密码模块状态】 =================
+const showChangeModal = ref(false)
+const changeLoading = ref(false)
+const changeForm = reactive({
+  email: '',
+  oldPassword: '',
+  newPassword: '',
+  confirm: ''
 })
 
 // ================= 【基础工具方法】 =================
+const emailValid = (v: string) => /^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(v)
+const passwordValid = (v: string) => /^(?=.*[A-Za-z])(?=.*\d)[\w!@#$%^&*()_+\-=.]{8,}$/.test(v)
+
 /**
  * 切换登录模式并清空数据
  */
@@ -153,31 +201,37 @@ const switchMode = (mode: 'password' | 'code') => {
 }
 
 /**
- * 密码加密方法 (前端加密处理)
+ * 获取登录验证码（对接 /api/auth/send-code，purpose=LOGIN）
  */
-const encryptPassword = (pwd: string) => {
-  //return btoa(encodeURIComponent(pwd)) // 实际项目可替换为 MD5 或 AES
-  return pwd
-}
-
-/**
- * 获取登录验证码
- */
-const sendCode = () => {
+const sendCode = async () => {
   if (!formData.email) {
     return uni.showToast({ title: '请先填写邮箱', icon: 'none' })
   }
+  if (!emailValid(formData.email)) {
+    return uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+  }
   if (countdown.value > 0) return
-  
-  uni.showToast({ title: '验证码已发送', icon: 'success' })
-  countdown.value = 59
-  timer = setInterval(() => {
-    if (countdown.value > 0) {
-      countdown.value--
-    } else {
-      if (timer) clearInterval(timer)
+
+  try {
+    const res = await api.sendAuthCode(formData.email, 'LOGIN')
+    if (res.code !== 200) {
+      return uni.showToast({ title: res.message || '发送失败', icon: 'none' })
     }
-  }, 1000)
+    countdown.value = res.data?.cooldownSeconds || 60
+    timer = setInterval(() => {
+      if (countdown.value > 0) {
+        countdown.value--
+      } else {
+        if (timer) clearInterval(timer)
+      }
+    }, 1000)
+    if (res.data?.devCode) {
+      uni.showModal({ title: '开发模式验证码', content: `验证码：${res.data.devCode}` })
+    }
+    uni.showToast({ title: '验证码已发送', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '发送失败', icon: 'none' })
+  }
 }
 
 // ================= 【交互事件方法】 =================
@@ -189,28 +243,28 @@ const handleLogin = async() => {
     return uni.showToast({ title: '请输入邮箱', icon: 'none' })
   }
 
-  const payload: any = { email: formData.email }
-
-  if (loginMode.value === 'password') {
-    if (!formData.password) {
-      return uni.showToast({ title: '请输入密码', icon: 'none' })
-    }
-    payload.password = encryptPassword(formData.password)
-    payload.loginType = 'password'
-  } else {
-    if (!formData.code) {
-      return uni.showToast({ title: '请输入验证码', icon: 'none' })
-    }
-    payload.code = formData.code
-    payload.loginType = 'code'
-  }
-  
   loading.value = true
   try {
-    // 调用 Mock API
-    const res = await authApi.login(formData.email, formData.password)
+    let res
+    if (loginMode.value === 'password') {
+      if (!formData.password) {
+        loading.value = false
+        return uni.showToast({ title: '请输入密码', icon: 'none' })
+      }
+      res = await api.login(formData.email, formData.password)
+    } else {
+      if (!formData.code) {
+        loading.value = false
+        return uni.showToast({ title: '请输入验证码', icon: 'none' })
+      }
+      res = await api.loginByCode(formData.email, formData.code.trim())
+    }
 
-    userStore.setLogin(res.token, res.user)
+    if (res.code !== 200) {
+      return uni.showToast({ title: res.message || '登录失败', icon: 'none' })
+    }
+    // 与网页端一致：token 存字符串 "true"，并保存 userId/username/summaryCredits
+    userStore.setLogin(res.data, formData.email)
     uni.showToast({ title: '登录成功', icon: 'success' })
 
     setTimeout(() => {
@@ -223,7 +277,7 @@ const handleLogin = async() => {
     }, 1000)
   } catch (error: any) {
     uni.showToast({ 
-      title: error.message || '登录失败', 
+      title: error.serverMessage || error.message || '登录失败', 
       icon: 'error' 
     })
   } finally {
@@ -238,34 +292,21 @@ const handleWechatLogin = () => {
   if (!isAgreed.value) {
     return uni.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' })
   }
-  
-  loading.value = true
+
+  // 后端当前未提供微信登录接口，先获取 code 后提示，引导使用邮箱登录
   uni.login({
     provider: 'weixin',
     success: async (res) => {
-      try {
-        // [!code ++] 直接调用 Mock API
-        const apiRes = await authApi.wechatLogin(res.code)
-        
-        userStore.setLogin(apiRes.token, apiRes.user)
-        uni.showToast({ title: '微信登录成功', icon: 'success' })
-        
-        setTimeout(() => {
-          uni.reLaunch({ 
-            url: '/pages/home/index',
-            fail: (err) => console.error('微信跳转首页失败:', err)
-          })
-        }, 800)
-      } catch (error) {
-        uni.showToast({ title: '微信登录异常', icon: 'none' })
-      } finally {
-        loading.value = false
-      }
+      console.log('微信 code 已获取，但后端暂未实现微信登录:', res.code)
+      uni.showModal({
+        title: '提示',
+        content: '服务端暂未提供微信登录接口，请使用邮箱密码或验证码登录。',
+        showCancel: false,
+      })
     },
     fail: (err) => {
       console.error('微信授权失败:', err)
       uni.showToast({ title: '获取微信授权失败', icon: 'none' })
-      loading.value = false
     }
   })
 }
@@ -280,10 +321,8 @@ const guestAccess = async () => {
 
   loading.value = true
   try {
-    // [!code ++] 直接调用 Mock API
-    const apiRes = await authApi.guestLogin()
-    
-    userStore.setLogin(apiRes.token, apiRes.user)
+    // 与网页端一致：游客为本地登录态（userId=0）
+    userStore.guestLogin()
     uni.showToast({ title: '已作为游客进入', icon: 'success' })
     
     setTimeout(() => {
@@ -318,34 +357,98 @@ const sendResetCode = () => {
   if (!resetForm.email) {
     return uni.showToast({ title: '请先填写邮箱', icon: 'none' })
   }
+  if (!emailValid(resetForm.email)) {
+    return uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+  }
   if (resetCountdown.value > 0) return
-  
-  uni.showToast({ title: '验证码已发送', icon: 'success' })
-  resetCountdown.value = 59
-  resetTimer = setInterval(() => {
-    if (resetCountdown.value > 0) {
-      resetCountdown.value--
-    } else {
-      if (resetTimer) clearInterval(resetTimer)
-    }
-  }, 1000)
+
+  api.sendAuthCode(resetForm.email, 'RESET')
+    .then((res) => {
+      if (res.code !== 200) {
+        return uni.showToast({ title: res.message || '发送失败', icon: 'none' })
+      }
+      resetCountdown.value = res.data?.cooldownSeconds || 60
+      resetTimer = setInterval(() => {
+        if (resetCountdown.value > 0) {
+          resetCountdown.value--
+        } else {
+          if (resetTimer) clearInterval(resetTimer)
+        }
+      }, 1000)
+      if (res.data?.devCode) {
+        uni.showModal({ title: '开发模式验证码', content: `验证码：${res.data.devCode}` })
+      }
+      uni.showToast({ title: '验证码已发送', icon: 'success' })
+    })
+    .catch((e: any) => {
+      uni.showToast({ title: e.serverMessage || '发送失败', icon: 'none' })
+    })
 }
 
 /**
  * 提交重置密码
  */
-const handleResetPassword = () => {
+const handleResetPassword = async () => {
   if (!resetForm.email || !resetForm.code || !resetForm.newPassword) {
     return uni.showToast({ title: '请填写完整信息', icon: 'none' })
   }
-  
-  const encryptedNewPwd = encryptPassword(resetForm.newPassword)
-  console.log('提交重置:', resetForm.email, resetForm.code, encryptedNewPwd)
-  
-  uni.showToast({ title: '密码重置成功', icon: 'success' })
-  setTimeout(() => {
-    closeResetModal()
-  }, 1000)
+  if (resetForm.newPassword !== resetForm.confirm) {
+    return uni.showToast({ title: '两次输入的新密码不一致', icon: 'none' })
+  }
+  if (!passwordValid(resetForm.newPassword)) {
+    return uni.showToast({ title: '密码需至少8位且包含字母和数字', icon: 'none' })
+  }
+
+  try {
+    const res = await api.resetPasswordByCode(resetForm.email, resetForm.code.trim(), resetForm.newPassword)
+    if (res.code !== 200) {
+      return uni.showToast({ title: res.message || '重置失败', icon: 'none' })
+    }
+    uni.showToast({ title: '密码重置成功', icon: 'success' })
+    setTimeout(() => {
+      closeResetModal()
+    }, 1000)
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '重置失败', icon: 'none' })
+  }
+}
+
+// ================= 【修改密码交互】 =================
+const closeChangeModal = () => {
+  showChangeModal.value = false
+  changeForm.email = ''
+  changeForm.oldPassword = ''
+  changeForm.newPassword = ''
+  changeForm.confirm = ''
+}
+
+const handleChangePassword = async () => {
+  if (!changeForm.email || !changeForm.oldPassword || !changeForm.newPassword || !changeForm.confirm) {
+    return uni.showToast({ title: '请填写完整信息', icon: 'none' })
+  }
+  if (!emailValid(changeForm.email)) {
+    return uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+  }
+  if (changeForm.newPassword !== changeForm.confirm) {
+    return uni.showToast({ title: '两次输入的新密码不一致', icon: 'none' })
+  }
+  if (!passwordValid(changeForm.newPassword)) {
+    return uni.showToast({ title: '密码需至少8位且包含字母和数字', icon: 'none' })
+  }
+
+  changeLoading.value = true
+  try {
+    const res = await api.changePasswordApi(changeForm.email, changeForm.oldPassword, changeForm.newPassword)
+    if (res.code !== 200) {
+      return uni.showToast({ title: res.message || '修改失败', icon: 'none' })
+    }
+    uni.showToast({ title: '密码已修改，请使用新密码登录', icon: 'success' })
+    setTimeout(() => closeChangeModal(), 1000)
+  } catch (e: any) {
+    uni.showToast({ title: e.serverMessage || '修改失败', icon: 'none' })
+  } finally {
+    changeLoading.value = false
+  }
 }
 </script>
 
