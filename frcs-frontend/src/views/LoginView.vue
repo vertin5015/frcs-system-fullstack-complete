@@ -18,23 +18,23 @@
         <h2 class="welcome">{{ isLogin ? text.welcome : text.registerTitle }}</h2>
 
         <!-- 登录 -->
-        <el-form v-if="isLogin" :model="form" class="login-form">
+        <el-form v-if="isLogin" :model="form" class="login-form" novalidate @submit.prevent="onPrimaryLogin">
           <el-radio-group v-model="loginMode" size="small" class="login-mode-row">
             <el-radio-button label="password">{{ text.modePassword }}</el-radio-button>
             <el-radio-button label="code">{{ text.modeCode }}</el-radio-button>
           </el-radio-group>
           <el-form-item>
-            <el-input v-model="form.email" :placeholder="text.emailShort" clearable />
+            <el-input v-model="form.email" name="email" type="email" autocomplete="username" :placeholder="text.emailShort" clearable />
           </el-form-item>
           <template v-if="loginMode === 'password'">
             <el-form-item>
-              <el-input v-model="form.password" :placeholder="text.password" show-password clearable />
+              <el-input v-model="form.password" name="password" autocomplete="current-password" :placeholder="text.password" show-password clearable />
             </el-form-item>
           </template>
           <template v-else>
             <el-form-item>
               <div class="code-row">
-                <el-input v-model="form.code" :placeholder="text.codePlaceholder" maxlength="6" clearable />
+                <el-input v-model="form.code" name="code" autocomplete="one-time-code" :placeholder="text.codePlaceholder" maxlength="6" clearable />
                 <el-button type="primary" plain :disabled="cooldownLogin > 0 || !form.email" @click="handleSendLoginCode">
                   {{ cooldownLogin > 0 ? text.resendAfter(cooldownLogin) : text.sendCode }}
                 </el-button>
@@ -42,7 +42,7 @@
             </el-form-item>
           </template>
           <el-form-item>
-            <el-button type="primary" class="login-btn" @click="onPrimaryLogin">{{ text.login }}</el-button>
+            <el-button type="primary" class="login-btn" native-type="submit">{{ text.login }}</el-button>
           </el-form-item>
           <div class="extra-links">
             <a class="signup-link" href="#" @click.prevent="openForgot">{{ text.forgot }}</a>
@@ -52,32 +52,32 @@
         </el-form>
 
         <!-- 注册 -->
-        <el-form v-else :model="form" class="login-form">
+        <el-form v-else :model="form" class="login-form" novalidate @submit.prevent="onRegister">
           <el-form-item>
-            <el-input v-model="form.username" :placeholder="text.username" clearable maxlength="8" show-word-limit />
+            <el-input v-model="form.username" name="username" autocomplete="username" :placeholder="text.username" clearable maxlength="8" show-word-limit />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="form.email" :placeholder="text.email" clearable />
+            <el-input v-model="form.email" name="email" type="email" autocomplete="email" :placeholder="text.email" clearable />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="form.password" :placeholder="text.password" show-password clearable />
+            <el-input v-model="form.password" name="new-password" autocomplete="new-password" :placeholder="text.password" show-password clearable />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="form.confirm" :placeholder="text.confirm" show-password clearable />
+            <el-input v-model="form.confirm" name="confirm-password" autocomplete="new-password" :placeholder="text.confirm" show-password clearable />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" class="login-btn" @click="onRegister">{{ text.register }}</el-button>
+            <el-button type="primary" class="login-btn" native-type="submit">{{ text.register }}</el-button>
           </el-form-item>
         </el-form>
 
         <div class="signup-tip">
           <span v-if="isLogin">
             {{ text.noAccount }}
-            <a class="signup-link" @click="isLogin = false">{{ text.toRegister }}</a>
+            <a class="signup-link" @click="switchMode(false)">{{ text.toRegister }}</a>
           </span>
           <span v-else>
             {{ text.hasAccount }}
-            <a class="signup-link" @click="isLogin = true">{{ text.toLogin }}</a>
+            <a class="signup-link" @click="switchMode(true)">{{ text.toLogin }}</a>
           </span>
         </div>
       </div>
@@ -86,21 +86,21 @@
     <el-dialog v-model="showForgot" :title="text.forgotTitle" width="420px" destroy-on-close @closed="resetForgot">
       <el-form label-position="top">
         <el-form-item :label="text.emailShort">
-          <el-input v-model="forgot.email" clearable />
+          <el-input v-model="forgot.email" name="email" type="email" autocomplete="email" clearable />
         </el-form-item>
         <el-form-item :label="text.verifyCode">
           <div class="code-row">
-            <el-input v-model="forgot.code" maxlength="6" clearable />
+            <el-input v-model="forgot.code" name="code" autocomplete="one-time-code" maxlength="6" clearable />
             <el-button type="primary" plain :disabled="cooldownForgot > 0 || !forgot.email" @click="handleSendResetCode">
               {{ cooldownForgot > 0 ? text.resendAfter(cooldownForgot) : text.sendCode }}
             </el-button>
           </div>
         </el-form-item>
         <el-form-item :label="text.newPassword">
-          <el-input v-model="forgot.newPassword" show-password clearable />
+          <el-input v-model="forgot.newPassword" name="new-password" autocomplete="new-password" show-password clearable />
         </el-form-item>
         <el-form-item :label="text.confirmNew">
-          <el-input v-model="forgot.confirm" show-password clearable />
+          <el-input v-model="forgot.confirm" name="confirm-password" autocomplete="new-password" show-password clearable />
         </el-form-item>
         <el-button type="primary" class="login-btn" @click="submitForgot">{{ text.submitReset }}</el-button>
       </el-form>
@@ -109,16 +109,16 @@
     <el-dialog v-model="showChange" :title="text.changeTitle" width="420px" destroy-on-close @closed="resetChange">
       <el-form label-position="top">
         <el-form-item :label="text.emailShort">
-          <el-input v-model="changeForm.email" clearable />
+          <el-input v-model="changeForm.email" name="email" type="email" autocomplete="email" clearable />
         </el-form-item>
         <el-form-item :label="text.oldPassword">
-          <el-input v-model="changeForm.oldPassword" show-password clearable />
+          <el-input v-model="changeForm.oldPassword" name="current-password" autocomplete="current-password" show-password clearable />
         </el-form-item>
         <el-form-item :label="text.newPassword">
-          <el-input v-model="changeForm.newPassword" show-password clearable />
+          <el-input v-model="changeForm.newPassword" name="new-password" autocomplete="new-password" show-password clearable />
         </el-form-item>
         <el-form-item :label="text.confirmNew">
-          <el-input v-model="changeForm.confirm" show-password clearable />
+          <el-input v-model="changeForm.confirm" name="confirm-password" autocomplete="new-password" show-password clearable />
         </el-form-item>
         <el-button type="primary" class="login-btn" @click="submitChange">{{ text.submitChange }}</el-button>
       </el-form>
@@ -182,6 +182,16 @@ export default {
       confirm: "",
       code: "",
     });
+
+    const switchMode = (toLogin) => {
+      isLogin.value = toLogin;
+      loginMode.value = "password";
+      form.value.username = "";
+      form.value.password = "";
+      form.value.confirm = "";
+      form.value.code = "";
+    };
+
     const showForgot = ref(false);
     const showChange = ref(false);
     const forgot = ref({ email: "", code: "", newPassword: "", confirm: "" });
@@ -443,11 +453,9 @@ export default {
       const r = await api.resetPasswordByCode(forgot.value.email, forgot.value.code.trim(), forgot.value.newPassword);
       if (r.code === 200) {
         ElMessage.success(text.value.resetOk);
-        showForgot.value = false;
-        isLogin.value = true;
-        loginMode.value = "password";
+        switchMode(true);
         form.value.email = forgot.value.email;
-        form.value.password = "";
+        showForgot.value = false;
       }
     };
 
@@ -471,9 +479,9 @@ export default {
       const r = await api.changePasswordApi(changeForm.value.email, changeForm.value.oldPassword, changeForm.value.newPassword);
       if (r.code === 200) {
         ElMessage.success(text.value.changeOk);
-        showChange.value = false;
+        switchMode(true);
         form.value.email = changeForm.value.email;
-        form.value.password = "";
+        showChange.value = false;
       }
     };
 
@@ -537,6 +545,7 @@ export default {
       isLogin,
       loginMode,
       form,
+      switchMode,
       showForgot,
       showChange,
       forgot,
