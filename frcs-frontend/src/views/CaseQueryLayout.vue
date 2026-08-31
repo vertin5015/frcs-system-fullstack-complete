@@ -36,7 +36,7 @@
           </el-menu-item>
           <el-menu-item index="6">
             <el-icon class="agent-menu-icon"><ChatDotRound /></el-icon>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">Agent</span>
+            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "智能问答" : "Agent" }}</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
