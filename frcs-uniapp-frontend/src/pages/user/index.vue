@@ -5,7 +5,9 @@
       <view class="header-safe-area"></view>
       
       <view class="user-info-box">
-        <image class="avatar" :src="user?.avatar || '/static/default-avatar.png'" mode="aspectFill" />
+        <view class="avatar">
+          <text class="avatar-text">{{ avatarText }}</text>
+        </view>
         <view class="info-text">
           <text class="nickname">{{ user?.username || '未登录用户' }}</text>
           <text class="email">邮箱：{{ user?.email || '-' }}</text>
@@ -18,7 +20,9 @@
         
         <view class="balance-card">
           <view class="balance-left">
-            <image class="icon-wallet" src="/static/icons/wallet.png" mode="aspectFit" />
+            <view class="icon-wallet-wrap">
+              <text class="icon-wallet">⚡</text>
+            </view>
             <text class="balance-text">AI 摘要剩余：<text class="num">{{ credits !== null ? credits : '—' }}</text> 次</text>
           </view>
           <button class="recharge-btn" @tap="handleRecharge">充值</button>
@@ -27,54 +31,54 @@
         <view class="menu-list">
           <view class="menu-item" @tap="goStudy">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/book-blue.png" mode="aspectFit" />
+              <text class="menu-icon">📘</text>
               <text class="item-text">海外法律知识</text>
             </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+            <text class="arrow-icon">›</text>
           </view>
 
           <view class="divider"></view>
 
           <view class="menu-item" @tap="goHistory">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/tab-history.png" mode="aspectFit" />
+              <text class="menu-icon">🕐</text>
               <text class="item-text">浏览历史</text>
             </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+            <text class="arrow-icon">›</text>
           </view>
           
           <view class="divider"></view>
 
           <view class="menu-item" @tap="handleRecharge">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/wallet.png" mode="aspectFit" />
+              <text class="menu-icon">⚡</text>
               <text class="item-text">购买摘要次数</text>
             </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+            <text class="arrow-icon">›</text>
           </view>
 
           <view class="divider"></view>
 
           <view class="menu-item" @tap="goAgent">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/ai-chat.png" mode="aspectFit" />
+              <text class="menu-icon">🤖</text>
               <text class="item-text">AI 法律助手</text>
             </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+            <text class="arrow-icon">›</text>
           </view>
 
           <view class="divider"></view>
 
           <view class="menu-item" v-if="userStore.isGuest" @tap="goLogin">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/logout.png" mode="aspectFit" />
+              <text class="menu-icon">↩</text>
               <text class="item-text login-text">去登录</text>
             </view>
           </view>
 
           <view class="menu-item logout-item" v-else @tap="handleLogout">
             <view class="item-left">
-              <image class="menu-icon" src="/static/icons/logout.png" mode="aspectFit" />
+              <text class="menu-icon">↩</text>
               <text class="item-text logout-text">退出账号</text>
             </view>
           </view>
@@ -97,6 +101,11 @@ import api from '../../api'
 const userStore = useUserStore()
 const user = computed(() => userStore.userInfo)
 const credits = ref<number | null>(userStore.getCredits())
+const avatarText = computed(() => {
+  const name = user.value?.username?.trim()
+  if (!name || name === '游客') return '👤'
+  return name.charAt(0).toUpperCase()
+})
 
 // ================= 生命周期 =================
 
@@ -199,9 +208,19 @@ function handleLogout() {
     width: 120rpx;
     height: 120rpx;
     border-radius: 50%;
-    background-color: #EBF4FF;
+    background: rgba(255, 255, 255, 0.25);
     border: 4rpx solid rgba(255, 255, 255, 0.5);
     margin-right: 30rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .avatar-text {
+      font-size: 52rpx;
+      font-weight: bold;
+      color: #FFFFFF;
+      line-height: 1;
+    }
   }
   
   .info-text {
@@ -250,11 +269,21 @@ function handleLogout() {
   .balance-left {
     display: flex;
     align-items: center;
-    
-    .icon-wallet {
-      width: 40rpx;
-      height: 40rpx;
+
+    .icon-wallet-wrap {
+      width: 64rpx;
+      height: 64rpx;
+      border-radius: 18rpx;
+      background: #FFF4E6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin-right: 16rpx;
+    }
+
+    .icon-wallet {
+      font-size: 32rpx;
+      line-height: 1;
     }
     
     .balance-text {
@@ -306,10 +335,10 @@ function handleLogout() {
   .item-left {
     display: flex;
     align-items: center;
-    
+
     .menu-icon {
-      width: 40rpx;
-      height: 40rpx;
+      font-size: 36rpx;
+      line-height: 1;
       margin-right: 24rpx;
     }
     
@@ -320,9 +349,9 @@ function handleLogout() {
   }
   
   .arrow-icon {
-    width: 32rpx;
-    height: 32rpx;
-    opacity: 0.3;
+    font-size: 40rpx;
+    line-height: 1;
+    color: #C0C4CC;
   }
 }
 

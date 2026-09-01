@@ -22,24 +22,24 @@
 
         <view v-if="keyword" class="clear-btn" @tap="clearSearch">×</view>
         <view class="search-submit-btn" @tap="handleSearch(true)">
-          <image class="search-icon" src="/static/icons/tab-search-active.png" mode="aspectFit" />
+          <text class="search-icon">🔍</text>
         </view>
       </view>
 
       <view class="filter-row">
         <view class="filter-btn" @tap="openCountrySelect">
           <text class="filter-text">{{ selectedCountry }}</text>
-          <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
+          <text class="arrow-icon">▾</text>
         </view>
 
         <view class="filter-btn" v-if="searchMode === 'case'" @tap="openTimeSelect">
           <text class="filter-text">{{ selectedTime }}</text>
-          <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
+          <text class="arrow-icon">▾</text>
         </view>
 
         <view class="filter-btn" @tap="openSourceSelect">
           <text class="filter-text">{{ selectedSource }}</text>
-          <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
+          <text class="arrow-icon">▾</text>
         </view>
       </view>
     </view>
@@ -73,7 +73,8 @@
           </view>
 
           <view v-if="listData.length === 0 && !loading" class="empty-state">
-            <text>暂无匹配的搜索结果</text>
+            <text class="empty-icon">🔍</text>
+            <text class="empty-text">暂无匹配的搜索结果</text>
           </view>
 
           <view class="list-container">
@@ -83,8 +84,8 @@
                   <view class="country-tag">{{ countryName(item.country) }}</view>
                   <view class="type-tag">{{ item.citationCount != null ? `引用 ${item.citationCount}` : '涉外案例' }}</view>
                 </view>
-                <view class="card-title">{{ item.case_name }}</view>
-                <view class="card-subtitle">{{ item.tags || '暂无摘要' }}</view>
+                <view class="card-title clamp-2">{{ item.case_name }}</view>
+                <view class="card-subtitle clamp-2">{{ item.tags || '暂无摘要' }}</view>
                 <view class="card-footer">
                   <text class="date-text">{{ item.judgement_date || '-' }}</text>
                   <text class="ai-status" v-if="item.isfavored">已收藏</text>
@@ -94,8 +95,8 @@
 
             <block v-else>
               <view class="result-card law-card" v-for="item in listData" :key="item.chunkId" @tap="goToLawDetail(item)">
-                <view class="card-title">{{ item.title }}</view>
-                <view class="card-footer" style="margin-top: 16rpx;">
+                <view class="card-title clamp-2">{{ item.title }}</view>
+                <view class="law-card-footer">
                   <text class="type-tag">{{ item.sourceId }}</text>
                   <text class="date-text">{{ item.preview ? item.preview.slice(0, 30) + '…' : '暂无摘要' }}</text>
                 </view>
@@ -398,14 +399,17 @@ const goToLawDetail = (item: KbHit) => {
   justify-content: center;
   width: 60rpx;
   height: 100%;
-  .search-icon { width: 36rpx; height: 36rpx; }
+  .search-icon { font-size: 34rpx; line-height: 1; }
 }
 
 /* 筛选栏样式（适配截图：无图标、胶囊形状、平分宽度） */
 .filter-row {
   display: flex;
   justify-content: space-between;
-  gap: 16rpx; /* 根据项数自动调整间距 */
+
+  .filter-btn + .filter-btn {
+    margin-left: 16rpx;
+  }
 }
 
 .filter-btn {
@@ -428,10 +432,10 @@ const goToLawDetail = (item: KbHit) => {
   }
   
   .arrow-icon {
-    width: 20rpx;
-    height: 20rpx;
+    font-size: 20rpx;
+    line-height: 1;
     flex-shrink: 0;
-    opacity: 0.6;
+    color: #999999;
   }
 }
 
@@ -454,11 +458,15 @@ const goToLawDetail = (item: KbHit) => {
     margin-bottom: 24rpx;
   }
 
-  .tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20rpx;
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -4rpx;
+
+  .hot-tag {
+    margin: 4rpx;
   }
+}
 
   .hot-tag {
     background-color: #ffffff;
@@ -485,7 +493,10 @@ const goToLawDetail = (item: KbHit) => {
 .list-container {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+
+  .result-card + .result-card {
+    margin-top: 24rpx;
+  }
 }
 
 .result-card {
@@ -497,11 +508,11 @@ const goToLawDetail = (item: KbHit) => {
 }
 
 .case-card {
-  .card-header { display: flex; margin-bottom: 16rpx; gap: 12rpx; }
+  .card-header { display: flex; margin-bottom: 16rpx; }
   .country-tag { background: #EBF4FF; color: #218CFF; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
   .type-tag { background: #F0F2F5; color: #606266; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
-  .card-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 12rpx; line-height: 1.4; }
-  .card-subtitle { font-size: 26rpx; color: #666; margin-bottom: 20rpx; }
+  .card-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 12rpx; line-height: 1.4; word-break: break-word; }
+  .card-subtitle { font-size: 26rpx; color: #666; margin-bottom: 20rpx; line-height: 1.5; word-break: break-word; }
   .card-footer {
     display: flex; justify-content: space-between; align-items: center;
     border-top: 1rpx solid #F0F2F5; padding-top: 16rpx;
@@ -512,13 +523,26 @@ const goToLawDetail = (item: KbHit) => {
 
 .law-card {
   .card-title { font-size: 30rpx; font-weight: 500; color: #333; line-height: 1.4; }
-  .card-footer {
-    display: flex; justify-content: space-between; align-items: center;
-    .type-tag { font-size: 24rpx; color: #218CFF; }
-    .date-text { font-size: 24rpx; color: #999; }
+  .law-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16rpx;
+
+    .type-tag { font-size: 24rpx; color: #218CFF; margin-right: 12rpx; }
+    .date-text { font-size: 24rpx; color: #999; flex: 1; text-align: right; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   }
 }
 
-.empty-state { text-align: center; padding: 100rpx 0; color: #999; font-size: 28rpx; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 110rpx 0;
+
+  .empty-icon { font-size: 72rpx; line-height: 1; margin-bottom: 20rpx; opacity: 0.6; }
+  .empty-text { color: #999; font-size: 28rpx; }
+}
 .load-more-text { text-align: center; padding: 30rpx 0; color: #999; font-size: 24rpx; }
 </style>

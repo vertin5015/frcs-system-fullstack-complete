@@ -14,7 +14,10 @@
     <scroll-view scroll-y class="main-scroll">
       <view class="content-wrapper">
         <view v-if="loading" class="loading-state">正在检索知识库…</view>
-        <view v-else-if="hits.length === 0" class="empty-state">暂无匹配条文</view>
+        <view v-else-if="hits.length === 0" class="empty-state">
+          <text class="empty-icon">📖</text>
+          <text class="empty-text">暂无匹配条文</text>
+        </view>
         <view
           v-else
           class="law-card"
@@ -91,13 +94,13 @@ const goDetail = (hit: KbHit) => {
 .search-box {
   display: flex;
   align-items: center;
-  gap: 16rpx;
   padding: 20rpx 24rpx;
   background: #fff;
   border-bottom: 1rpx solid #e4e7ed;
 
   input {
     flex: 1;
+    margin-right: 16rpx;
     background: #f0f2f5;
     border-radius: 36rpx;
     height: 72rpx;
@@ -138,10 +141,21 @@ const goDetail = (hit: KbHit) => {
   }
 }
 
-.loading-state, .empty-state {
+.loading-state {
   text-align: center;
   padding: 100rpx 0;
   color: #999;
   font-size: 28rpx;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 110rpx 0;
+
+  .empty-icon { font-size: 72rpx; line-height: 1; margin-bottom: 20rpx; opacity: 0.6; }
+  .empty-text { color: #999; font-size: 28rpx; }
 }
 </style>

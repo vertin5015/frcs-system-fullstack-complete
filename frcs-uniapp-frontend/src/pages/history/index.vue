@@ -21,26 +21,26 @@
             >
               <view class="card-header">
                 <view class="country-tag">
-                  <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
+                  <view class="country-dot"></view>
                   <text>{{ countryName(item.country) }}</text>
                 </view>
                 <view class="ai-status" v-if="item.tags">
-                  <image class="check-icon" src="/static/icons/check-green.png" mode="aspectFit" />
+                  <text class="check-icon">✓</text>
                   <text class="status-text">有摘要</text>
                 </view>
               </view>
 
               <view class="card-body">
                 <text class="title">{{ item.caseName }}</text>
-                <text class="en-title">{{ item.tags || '暂无摘要' }}</text>
+                <text class="en-title clamp-2">{{ item.tags || '暂无摘要' }}</text>
               </view>
 
               <view class="card-footer">
                 <view class="time-box">
-                  <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
+                  <text class="time-icon">🕐</text>
                   <text class="time-text">{{ formatTime(item.browseTime) }}</text>
                 </view>
-                <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
+                <text class="nav-arrow">›</text>
               </view>
             </view>
           </template>
@@ -59,16 +59,16 @@
             >
               <view class="earlier-left">
                 <view class="country-tag">
-                  <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
+                  <view class="country-dot"></view>
                   <text>{{ countryName(item.country) }}</text>
                 </view>
                 <text class="title">{{ item.caseName }}</text>
-                <text class="en-title">{{ item.tags || '暂无摘要' }}</text>
+                <text class="en-title clamp-2">{{ item.tags || '暂无摘要' }}</text>
               </view>
               
               <view class="earlier-right">
-                <image class="star-icon" src="/static/icons/tab-star.png" mode="aspectFit" />
-                <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
+                <text class="star-icon">⭐</text>
+                <text class="nav-arrow">›</text>
               </view>
             </view>
           </template>
@@ -82,7 +82,9 @@
     </scroll-view>
 
     <view class="empty-state" v-else>
-      <image class="empty-icon" src="/static/icons/empty.png" mode="aspectFit" />
+      <view class="empty-icon-wrap">
+        <text class="empty-icon">📭</text>
+      </view>
       <text class="empty-text">暂无浏览记录</text>
     </view>
 
@@ -276,8 +278,14 @@ const handleCardClick = (caseId: string) => {
   border-radius: 8rpx;
   font-size: 24rpx;
   margin-bottom: 16rpx;
-  
-  .country-icon { width: 24rpx; height: 24rpx; margin-right: 8rpx; }
+
+  .country-dot {
+    width: 12rpx;
+    height: 12rpx;
+    border-radius: 50%;
+    background: #218CFF;
+    margin-right: 8rpx;
+  }
 }
 
 .title {
@@ -291,17 +299,10 @@ const handleCardClick = (caseId: string) => {
 .en-title {
   font-size: 24rpx;
   color: #999999;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
 }
 
-.nav-arrow {
-  width: 32rpx;
-  height: 32rpx;
-  opacity: 0.4;
-}
+.nav-arrow { font-size: 40rpx; line-height: 1; color: #C0C4CC; }
 
 /* ================= 一周内样式 ================= */
 .recent-item {
@@ -316,8 +317,14 @@ const handleCardClick = (caseId: string) => {
       background-color: #F0F9EB;
       padding: 4rpx 12rpx;
       border-radius: 8rpx;
-      
-      .check-icon { width: 20rpx; height: 20rpx; margin-right: 6rpx; }
+
+      .check-icon {
+        font-size: 20rpx;
+        line-height: 1;
+        color: #67C23A;
+        font-weight: bold;
+        margin-right: 6rpx;
+      }
       .status-text { font-size: 20rpx; color: #67C23A; }
     }
   }
@@ -330,12 +337,12 @@ const handleCardClick = (caseId: string) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    
+
     .time-box {
       display: flex;
       align-items: center;
-      
-      .time-icon { width: 24rpx; height: 24rpx; margin-right: 8rpx; }
+
+      .time-icon { font-size: 24rpx; line-height: 1; margin-right: 8rpx; }
       .time-text { font-size: 24rpx; color: #999999; }
     }
   }
@@ -359,12 +366,13 @@ const handleCardClick = (caseId: string) => {
     flex-direction: column;
     align-items: flex-end;
     justify-content: space-between;
-    height: 100rpx;
-    
+    min-height: 100rpx;
+    padding-left: 20rpx;
+
     .star-icon {
-      width: 36rpx;
-      height: 36rpx;
-      opacity: 0.5;
+      font-size: 30rpx;
+      line-height: 1;
+      opacity: 0.7;
     }
   }
 }
@@ -377,12 +385,23 @@ const handleCardClick = (caseId: string) => {
   justify-content: center;
   align-items: center;
   padding-bottom: 200rpx;
-  
-  .empty-icon {
-    width: 200rpx;
-    height: 200rpx;
-    margin-bottom: 20rpx;
-    opacity: 0.5;
+
+  .empty-icon-wrap {
+    width: 160rpx;
+    height: 160rpx;
+    border-radius: 50%;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 28rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+
+    .empty-icon {
+      font-size: 76rpx;
+      line-height: 1;
+      opacity: 0.7;
+    }
   }
   
   .empty-text {

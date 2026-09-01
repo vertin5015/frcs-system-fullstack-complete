@@ -272,7 +272,8 @@ onLoad(() => {
   padding: 16rpx 24rpx;
   border-bottom: 1rpx solid #e4e7ed;
 
-  .filters { display: flex; gap: 16rpx; }
+  .filters { display: flex; }
+  .filter-btn + .filter-btn { margin-left: 16rpx; }
   .filter-btn {
     display: flex;
     align-items: center;
@@ -388,7 +389,6 @@ onLoad(() => {
 .input-bar {
   display: flex;
   align-items: center;
-  gap: 16rpx;
   padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background: #fff;
@@ -396,6 +396,7 @@ onLoad(() => {
 
   .chat-input {
     flex: 1;
+    margin-right: 16rpx;
     background: #f0f2f5;
     border-radius: 36rpx;
     height: 76rpx;

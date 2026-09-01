@@ -11,8 +11,8 @@
       :class="{ active: activeTab === item.id }"
       @click="handleSwitchTab(item)"
     >
-      <!-- 图标：假设你使用的是 iconfont -->
-      <text class="iconfont" :class="[item.icon, activeTab === item.id ? 'active-icon' : '']"></text>
+      <!-- 图标：使用 Emoji 文本，不依赖本地图片资源 -->
+      <text class="tab-icon">{{ item.icon }}</text>
       <!-- 文字 -->
       <text class="tab-text">{{ item.text }}</text>
     </view>
@@ -33,11 +33,11 @@ const props = defineProps({
 // 底部导航栏配置数据（已移除“浏览历史”，保留核心的 5 个）
 // 注意：这里的 path 必须与 pages.json 中 tabBar.list 里的 pagePath 完全对应
 const tabList = [
-  { id: 'home', text: '首页', icon: 'icon-home', path: '/pages/home/index' },
-  { id: 'search', text: '检索', icon: 'icon-search', path: '/pages/case/list' },
-  { id: 'study', text: '学法', icon: 'icon-study', path: '/pages/study/index' },
-  { id: 'favorite', text: '收藏', icon: 'icon-star', path: '/pages/favorite/index' },
-  { id: 'user', text: '我的', icon: 'icon-user', path: '/pages/user/index' }
+  { id: 'home', text: '首页', icon: '🏠', path: '/pages/home/index' },
+  { id: 'search', text: '检索', icon: '🔍', path: '/pages/case/list' },
+  { id: 'study', text: '学法', icon: '📖', path: '/pages/study/index' },
+  { id: 'favorite', text: '收藏', icon: '⭐', path: '/pages/favorite/index' },
+  { id: 'user', text: '我的', icon: '👤', path: '/pages/user/index' }
 ]
 
 // 处理 Tab 切换逻辑
@@ -95,8 +95,9 @@ const handleSwitchTab = (item) => {
 }
 
 /* 图标样式设定 */
-.iconfont {
-  font-size: 40rpx;
+.tab-icon {
+  font-size: 42rpx;
+  line-height: 1;
   margin-bottom: 6rpx;
 }
 
@@ -106,9 +107,12 @@ const handleSwitchTab = (item) => {
 }
 
 /* 激活状态样式 */
-.tab-item.active .tab-text,
-.tab-item.active .active-icon {
-  color: #007AFF; /* 激活时的主题色，可根据你的项目 UI 调整 */
+.tab-item.active .tab-text {
+  color: #218CFF; /* 保持主题色 */
   font-weight: bold;
+}
+
+.tab-item.active {
+  background: linear-gradient(180deg, rgba(33, 140, 255, 0.08) 0%, rgba(33, 140, 255, 0) 100%);
 }
 </style>

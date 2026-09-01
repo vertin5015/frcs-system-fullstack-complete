@@ -401,11 +401,18 @@ onUnload(() => {
 }
 
 .meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20rpx 10rpx;
+  display: flex;
+  flex-wrap: wrap;
   padding: 0 10rpx;
-  .meta-item { font-size: 26rpx; color: #666666; }
+
+  .meta-item {
+    width: 50%;
+    font-size: 26rpx;
+    color: #666666;
+    word-break: break-all;
+    line-height: 1.6;
+    margin-bottom: 20rpx;
+  }
 }
 
 .dashed-divider {
@@ -459,6 +466,9 @@ onUnload(() => {
 
 .summary-actions {
   margin-top: 24rpx;
+  display: flex;
+  justify-content: flex-start;
+
   .summary-btn {
     width: 240rpx;
     height: 72rpx;
@@ -475,14 +485,16 @@ onUnload(() => {
 .qa-messages {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
   margin-bottom: 20rpx;
   max-height: 360rpx;
   overflow-y: auto;
 
+  .qa-bubble + .qa-bubble {
+    margin-top: 16rpx;
+  }
+
   .qa-bubble {
     display: flex;
-    gap: 12rpx;
     font-size: 26rpx;
     line-height: 1.6;
     &.user .qa-text { color: #333; }
@@ -491,6 +503,7 @@ onUnload(() => {
       font-weight: 600;
       color: #218CFF;
       flex-shrink: 0;
+      margin-right: 12rpx;
     }
   }
 }
@@ -498,10 +511,10 @@ onUnload(() => {
 .qa-input-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
 
   .qa-input {
     flex: 1;
+    margin-right: 16rpx;
     background: #F5F7FA;
     border-radius: 36rpx;
     height: 72rpx;
@@ -549,6 +562,8 @@ onUnload(() => {
     &::after { border: none; }
   }
   .favorite-btn {
+    line-height: 80rpx;
+    padding: 0;
     background-color: #ffffff;
     color: #218CFF;
     border: 2rpx solid #218CFF;
@@ -557,6 +572,8 @@ onUnload(() => {
   }
   .is-favorited { background-color: #F0F8FF; }
   .original-btn {
+    line-height: 80rpx;
+    padding: 0;
     background-color: #218CFF;
     color: #ffffff;
     margin-left: 20rpx;

@@ -78,7 +78,6 @@ const openExternal = () => {
 
 .bottom-bar {
   display: flex;
-  gap: 16rpx;
   padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background: #fff;
@@ -100,6 +99,10 @@ const openExternal = () => {
       color: #fff;
       border: none;
     }
+  }
+
+  .action-btn + .action-btn {
+    margin-left: 16rpx;
   }
 }
 

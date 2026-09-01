@@ -11,7 +11,11 @@
                   <text class="banner-title">{{ item.title }}</text>
                   <text class="banner-subtitle">{{ item.subtitle }}</text>
                 </view>
-                <image class="banner-image" :src="item.image" mode="aspectFill" />
+                <view class="banner-deco">
+                  <view class="deco-circle circle-1"></view>
+                  <view class="deco-circle circle-2"></view>
+                  <text class="deco-symbol">⚖️</text>
+                </view>
               </view>
             </swiper-item>
           </swiper>
@@ -20,15 +24,15 @@
         <view class="search-card">
           <view class="filter-row">
             <view class="filter-btn" @tap="openCountrySelect">
-              <image class="filter-icon" src="/static/icons/earth.png" mode="aspectFit" />
+              <text class="filter-icon">🌍</text>
               <text class="filter-text">{{ selectedCountry }}</text>
-              <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
+              <text class="arrow-icon">▾</text>
             </view>
 
             <view class="filter-btn" @tap="openTimeSelect">
-              <image class="filter-icon" src="/static/icons/calendar.png" mode="aspectFit" />
+              <text class="filter-icon">📅</text>
               <text class="filter-text">{{ selectedTime }}</text>
-              <image class="arrow-icon" src="/static/icons/arrow-down.png" mode="aspectFit" />
+              <text class="arrow-icon">▾</text>
             </view>
           </view>
 
@@ -49,7 +53,7 @@
         <view class="favorites-section">
           <view class="section-header">
             <view class="header-left">
-              <image class="title-icon" src="/static/icons/bookmark.png" mode="aspectFit" />
+              <text class="title-icon">⭐</text>
               <text class="title-text">最近收藏</text>
             </view>
             <view class="header-right" @tap="handleViewAllFavorites">
@@ -67,32 +71,33 @@
             >
               <view class="card-header">
                 <view class="country-tag">
-                  <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
+                  <view class="country-dot"></view>
                   <text>{{ countryName(caseInfo.country) }}</text>
                 </view>
                 <view class="ai-status" v-if="caseInfo.tags">
-                  <image class="check-icon" src="/static/icons/check-green.png" mode="aspectFit" />
+                  <text class="check-icon">✓</text>
                   <text class="status-text">已收藏</text>
                 </view>
               </view>
 
               <view class="card-body">
                 <view class="text-group">
-                  <text class="title">{{ caseInfo.caseName }}</text>
-                  <text class="en-title">{{ caseInfo.tags || '暂无摘要' }}</text>
+                  <text class="title clamp-2">{{ caseInfo.caseName }}</text>
+                  <text class="en-title clamp-2">{{ caseInfo.tags || '暂无摘要' }}</text>
                 </view>
-                <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
+                <text class="nav-arrow">›</text>
               </view>
 
               <view class="card-footer">
-                <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
+                <text class="time-icon">🕐</text>
                 <text class="time-text">{{ caseInfo.judgementDate || '-' }}</text>
               </view>
             </view>
           </view>
 
           <view v-if="!loadingFavorites && favoriteCases.length === 0" class="empty-favorites">
-            <text>{{ userStore.isGuest ? '游客模式不提供收藏，请登录查看' : '暂无收藏案件' }}</text>
+            <text class="empty-icon">📌</text>
+            <text class="empty-text">{{ userStore.isGuest ? '游客模式不提供收藏，请登录查看' : '暂无收藏案件' }}</text>
           </view>
         </view>
 
@@ -101,7 +106,7 @@
 
     <view class="floating-ai-btn" @tap="handleAIChat">
       <view class="ai-content">
-        <image class="ai-icon" src="/static/icons/ai-chat.png" mode="aspectFit" />
+        <text class="ai-icon">🤖</text>
         <text class="ai-text">问AI</text>
       </view>
     </view>
@@ -132,7 +137,6 @@ const bannerList = ref([
     id: 1,
     title: '涉外案例查询分析',
     subtitle: '检索美国、欧盟、日本相关案例，\n查看原文、AI摘要、收藏与历史记录。',
-    image: '/static/images/banner_bg.png' 
   }
 ])
 
@@ -180,7 +184,7 @@ const loadRecentFavorites = async () => {
 
 // ================= 交互方法 =================
 const handleBannerClick = () => {
-  uni.navigateTo({ url: '/pages/intro/index' })
+  uni.navigateTo({ url: '/pages/case/list' })
 }
 
 const openCountrySelect = () => {
@@ -297,14 +301,32 @@ const handleAIChat = () => {
   white-space: pre-line;
 }
 
-.banner-image {
+.banner-deco {
   position: absolute;
   right: -20rpx;
   bottom: -20rpx;
   width: 240rpx;
   height: 240rpx;
-  opacity: 0.8;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+
+    &.circle-1 { width: 240rpx; height: 240rpx; }
+    &.circle-2 { width: 150rpx; height: 150rpx; background: rgba(255, 255, 255, 0.22); }
+  }
+
+  .deco-symbol {
+    position: relative;
+    z-index: 2;
+    font-size: 88rpx;
+    opacity: 0.95;
+  }
 }
 
 /* ================= 搜索区域样式 ================= */
@@ -334,9 +356,9 @@ const handleAIChat = () => {
   &:first-child { margin-left: 0; }
   &:last-child { margin-right: 0; }
 
-  .filter-icon { width: 32rpx; height: 32rpx; margin-right: 12rpx; }
+  .filter-icon { font-size: 30rpx; line-height: 1; margin-right: 10rpx; }
   .filter-text { flex: 1; font-size: 28rpx; color: #333333; }
-  .arrow-icon { width: 24rpx; height: 24rpx; }
+  .arrow-icon { font-size: 22rpx; line-height: 1; color: #999999; margin-left: 6rpx; }
 }
 
 .textarea-wrapper {
@@ -372,7 +394,7 @@ const handleAIChat = () => {
 
 /* ================= 收藏区域及卡片样式 ================= */
 .favorites-section {
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: #FFFFFF;
   border-radius: 24rpx;
   padding: 30rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
@@ -388,7 +410,7 @@ const handleAIChat = () => {
 .header-left {
   display: flex;
   align-items: center;
-  .title-icon { width: 36rpx; height: 36rpx; margin-right: 12rpx; }
+  .title-icon { font-size: 30rpx; line-height: 1; margin-right: 10rpx; }
   .title-text { font-size: 32rpx; font-weight: 600; color: #333333; }
 }
 
@@ -403,14 +425,22 @@ const handleAIChat = () => {
 .favorites-list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+
+  .favorite-card + .favorite-card {
+    margin-top: 24rpx;
+  }
 }
 
 .empty-favorites {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 60rpx 0;
-  color: #999;
-  font-size: 26rpx;
+  padding: 70rpx 0;
+
+  .empty-icon { font-size: 64rpx; line-height: 1; margin-bottom: 16rpx; opacity: 0.7; }
+  .empty-text { color: #999999; font-size: 26rpx; }
 }
 
 .favorite-card {
@@ -437,13 +467,25 @@ const handleAIChat = () => {
   padding: 6rpx 16rpx;
   border-radius: 8rpx;
   font-size: 24rpx;
-  .country-icon { width: 24rpx; height: 24rpx; margin-right: 8rpx; }
+  .country-dot {
+    width: 12rpx;
+    height: 12rpx;
+    border-radius: 50%;
+    background: #218CFF;
+    margin-right: 8rpx;
+  }
 }
 
 .ai-status {
   display: flex;
   align-items: center;
-  .check-icon { width: 24rpx; height: 24rpx; margin-right: 8rpx; }
+  .check-icon {
+    font-size: 22rpx;
+    line-height: 1;
+    color: #67C23A;
+    font-weight: bold;
+    margin-right: 6rpx;
+  }
   .status-text { font-size: 22rpx; color: #67C23A; }
 }
 
@@ -463,12 +505,12 @@ const handleAIChat = () => {
   .en-title { font-size: 24rpx; color: #999999; }
 }
 
-.nav-arrow { width: 32rpx; height: 32rpx; opacity: 0.5; }
+.nav-arrow { font-size: 40rpx; line-height: 1; color: #C0C4CC; }
 
 .card-footer {
   display: flex;
   align-items: center;
-  .time-icon { width: 24rpx; height: 24rpx; margin-right: 8rpx; }
+  .time-icon { font-size: 24rpx; line-height: 1; margin-right: 8rpx; }
   .time-text { font-size: 24rpx; color: #999999; }
 }
 
@@ -498,7 +540,7 @@ const handleAIChat = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  .ai-icon { width: 44rpx; height: 44rpx; margin-bottom: 4rpx; }
+  .ai-icon { font-size: 44rpx; line-height: 1; margin-bottom: 4rpx; }
   .ai-text { font-size: 20rpx; color: #218CFF; font-weight: 600; }
 }
 </style>

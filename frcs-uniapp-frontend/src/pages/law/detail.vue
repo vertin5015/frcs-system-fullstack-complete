@@ -110,7 +110,8 @@ const interpret = async () => {
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
 
   .law-title { font-size: 36rpx; font-weight: 600; color: #333; line-height: 1.4; margin-bottom: 16rpx; }
-  .law-meta { display: flex; flex-wrap: wrap; gap: 20rpx; margin-bottom: 10rpx; }
+  .law-meta { display: flex; flex-wrap: wrap; margin-bottom: 10rpx; }
+  .meta-item + .meta-item { margin-left: 20rpx; }
   .meta-item { font-size: 24rpx; color: #218cff; background: #ebf4ff; padding: 6rpx 16rpx; border-radius: 20rpx; }
   .divider { height: 1px; background: #f0f2f5; margin: 30rpx 0; }
   .section-title { font-size: 30rpx; font-weight: 600; color: #333; margin-bottom: 20rpx; }

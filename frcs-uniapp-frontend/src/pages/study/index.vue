@@ -56,7 +56,9 @@
             @tap="goLawDetail(hit)"
           >
             <view class="card-left">
-              <image class="law-icon" src="/static/icons/tab-book.png" mode="aspectFit" />
+              <view class="law-icon-wrap">
+                <text class="law-icon">📖</text>
+              </view>
               <view class="law-info">
                 <text class="law-title">{{ hit.title }}</text>
                 <view class="law-tags">
@@ -66,12 +68,13 @@
                 <text class="law-preview">{{ hit.preview || '暂无片段' }}</text>
               </view>
             </view>
-            <image class="arrow-icon" src="/static/icons/arrow-right.png" mode="aspectFit" />
+            <text class="arrow-icon">›</text>
           </view>
         </view>
 
         <view v-if="!loading && !answer && hits.length === 0" class="empty-state">
-          <text>输入问题或点击上方热门问题开始查询</text>
+          <text class="empty-icon">📖</text>
+          <text class="empty-text">输入问题或点击上方热门问题开始查询</text>
         </view>
       </view>
     </scroll-view>
@@ -182,7 +185,8 @@ const goLawDetail = (hit: KbHit) => {
 }
 
 .hot-scroll { white-space: nowrap; }
-.hot-tags { display: inline-flex; gap: 16rpx; padding: 4rpx 0; }
+.hot-tags { display: inline-flex; padding: 4rpx 0; }
+.hot-tag + .hot-tag { margin-left: 16rpx; }
 .hot-tag {
   background: #f5f7fa;
   color: #606266;
@@ -230,10 +234,26 @@ const goLawDetail = (hit: KbHit) => {
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
 
   .card-left { display: flex; align-items: flex-start; flex: 1; padding-right: 20rpx; }
-  .law-icon { width: 40rpx; height: 40rpx; margin-right: 20rpx; margin-top: 4rpx; opacity: 0.8; }
+  .law-icon-wrap {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    background: #EBF4FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 20rpx;
+    flex-shrink: 0;
+
+    .law-icon {
+      font-size: 32rpx;
+      line-height: 1;
+    }
+  }
   .law-info { flex: 1; display: flex; flex-direction: column; }
   .law-title { font-size: 30rpx; color: #333; font-weight: 500; line-height: 1.4; margin-bottom: 12rpx; }
-  .law-tags { display: flex; gap: 12rpx; margin-bottom: 12rpx; }
+  .law-tags { display: flex; margin-bottom: 12rpx; }
+  .tag + .tag { margin-left: 12rpx; }
   .tag { font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
   .source-tag { background: #ebf4ff; color: #218cff; }
   .score-tag { background: #f0f2f5; color: #606266; }
@@ -246,13 +266,18 @@ const goLawDetail = (hit: KbHit) => {
     -webkit-line-clamp: 2;
     overflow: hidden;
   }
-  .arrow-icon { width: 32rpx; height: 32rpx; opacity: 0.4; }
+  .arrow-icon { font-size: 40rpx; line-height: 1; color: #C0C4CC; flex-shrink: 0; }
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 100rpx 0;
-  color: #999;
-  font-size: 26rpx;
+
+  .empty-icon { font-size: 72rpx; line-height: 1; margin-bottom: 20rpx; opacity: 0.6; }
+  .empty-text { color: #999; font-size: 26rpx; }
 }
 </style>

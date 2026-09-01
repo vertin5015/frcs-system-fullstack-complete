@@ -107,8 +107,8 @@ async function submit() {
   .icon-placeholder { font-size: 32rpx; color: #b3b3b3; margin-right: 20rpx; }
   input { flex: 1; height: 100%; font-size: 28rpx; color: #333; }
 }
-.input-box-group { display: flex; align-items: center; gap: 20rpx; margin-bottom: 30rpx;
-  .code-input { flex: 1; margin-bottom: 0; }
+.input-box-group { display: flex; align-items: center; margin-bottom: 30rpx;
+  .code-input { flex: 1; margin-bottom: 0; margin-right: 20rpx; }
   .get-code-btn { width: 220rpx; height: 96rpx; line-height: 96rpx; background: #218cff; color: #fff; font-size: 26rpx; border-radius: 48rpx; margin: 0; padding: 0;
     &::after { border: none; }
     &[disabled] { background: #a0cfff; }

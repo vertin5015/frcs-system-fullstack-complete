@@ -20,26 +20,26 @@
               @confirm="handleSearch"
             />
             <view class="search-btn-circle" @tap="handleSearch">
-              <image class="search-icon-white" src="/static/icons/tab-search-active.png" mode="aspectFit" />
+              <text class="search-icon">🔍</text>
             </view>
           </view>
 
           <!-- 筛选栏 -->
           <view class="filter-row">
             <view class="filter-item" @tap="openCountrySelect">
-              <image class="filter-icon" src="/static/icons/earth-blue.png" mode="aspectFit" />
+              <text class="filter-icon">🌍</text>
               <text class="filter-text">{{ selectedCountry }}</text>
-              <image class="arrow-icon" src="/static/icons/arrow-down-blue.png" mode="aspectFit" />
+              <text class="arrow-icon">▾</text>
             </view>
             <view class="filter-item" @tap="openSourceSelect">
-              <image class="filter-icon" src="/static/icons/database-blue.png" mode="aspectFit" />
+              <text class="filter-icon">🗄</text>
               <text class="filter-text">{{ selectedSource }}</text>
-              <image class="arrow-icon" src="/static/icons/arrow-down-blue.png" mode="aspectFit" />
+              <text class="arrow-icon">▾</text>
             </view>
             <view class="filter-item" @tap="openTimeSelect">
-              <image class="filter-icon" src="/static/icons/calendar-blue.png" mode="aspectFit" />
+              <text class="filter-icon">📅</text>
               <text class="filter-text">{{ selectedTime }}</text>
-              <image class="arrow-icon" src="/static/icons/arrow-down-blue.png" mode="aspectFit" />
+              <text class="arrow-icon">▾</text>
             </view>
           </view>
         </view>
@@ -55,7 +55,7 @@
             >
               <view class="card-header">
                 <view class="country-tag">
-                  <image class="country-icon" src="/static/icons/flag.png" mode="aspectFit" />
+                  <view class="country-dot"></view>
                   <text>{{ countryName(caseInfo.country) }}</text>
                 </view>
                 <view class="star-btn" @tap.stop="handleUnfavorite(caseInfo.caseId)">
@@ -65,20 +65,21 @@
 
               <view class="card-body">
                 <view class="text-group">
-                  <text class="title">{{ caseInfo.caseName }}</text>
-                  <text class="en-title">{{ caseInfo.tags || '暂无摘要' }}</text>
+                  <text class="title clamp-2">{{ caseInfo.caseName }}</text>
+                  <text class="en-title clamp-2">{{ caseInfo.tags || '暂无摘要' }}</text>
                 </view>
-                <image class="nav-arrow" src="/static/icons/arrow-right.png" mode="aspectFit" />
+                <text class="nav-arrow">›</text>
               </view>
 
               <view class="card-footer">
-                <image class="time-icon" src="/static/icons/time.png" mode="aspectFit" />
+                <text class="time-icon">🕐</text>
                 <text class="time-text">{{ caseInfo.judgementDate || '-' }}</text>
               </view>
             </view>
           </template>
 
           <view class="empty-state" v-else>
+            <text class="empty-icon">🗂</text>
             <text class="empty-text">{{ userStore.isGuest ? '游客用户无法访问收藏夹，请登录后重试' : '未找到符合条件的收藏案例' }}</text>
           </view>
 
@@ -352,16 +353,16 @@ const handleUnfavorite = async (caseId: string) => {
   .search-btn-circle {
     width: 64rpx;
     height: 64rpx;
-    background-color: #4A90E2;
+    background-color: #218CFF;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    
-    .search-icon-white {
-      width: 32rpx;
-      height: 32rpx;
-      filter: brightness(0) invert(1);
+
+    .search-icon {
+      font-size: 30rpx;
+      line-height: 1;
+      color: #FFFFFF;
     }
     
     &:active {
@@ -390,14 +391,14 @@ const handleUnfavorite = async (caseId: string) => {
   &:last-child { margin-right: 0; }
 
   .filter-icon {
-    width: 28rpx;
-    height: 28rpx;
+    font-size: 26rpx;
+    line-height: 1;
     margin-right: 8rpx;
   }
   
   .filter-text {
     font-size: 24rpx;
-    color: #4A90E2; /* 主题蓝 */
+    color: #218CFF; /* 主题蓝 */
     flex: 1;
     text-align: center;
     overflow: hidden;
@@ -406,9 +407,10 @@ const handleUnfavorite = async (caseId: string) => {
   }
   
   .arrow-icon {
-    width: 20rpx;
-    height: 20rpx;
+    font-size: 20rpx;
+    line-height: 1;
     margin-left: 4rpx;
+    color: #218CFF;
   }
 }
 
@@ -420,7 +422,10 @@ const handleUnfavorite = async (caseId: string) => {
   box-shadow: 0 4rpx 16rpx rgba(33, 140, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+
+  .favorite-card + .favorite-card {
+    margin-top: 20rpx;
+  }
 }
 
 .favorite-card {
@@ -449,10 +454,12 @@ const handleUnfavorite = async (caseId: string) => {
   font-weight: bold;
   color: #333333;
   
-  .country-icon {
-    width: 36rpx;
-    height: 36rpx;
-    margin-right: 12rpx;
+  .country-dot {
+    width: 12rpx;
+    height: 12rpx;
+    border-radius: 50%;
+    background: #218CFF;
+    margin-right: 8rpx;
   }
 }
 
@@ -499,23 +506,20 @@ const handleUnfavorite = async (caseId: string) => {
   .en-title {
     font-size: 24rpx;
     color: #999999;
+    line-height: 1.5;
   }
 }
 
-.nav-arrow {
-  width: 32rpx;
-  height: 32rpx;
-}
+.nav-arrow { font-size: 40rpx; line-height: 1; color: #C0C4CC; }
 
 .card-footer {
   display: flex;
   align-items: center;
   
   .time-icon {
-    width: 24rpx;
-    height: 24rpx;
+    font-size: 24rpx;
+    line-height: 1;
     margin-right: 8rpx;
-    opacity: 0.6;
   }
   
   .time-text {
@@ -526,9 +530,17 @@ const handleUnfavorite = async (caseId: string) => {
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 100rpx 0;
+  padding: 110rpx 0;
+
+  .empty-icon {
+    font-size: 72rpx;
+    line-height: 1;
+    margin-bottom: 20rpx;
+    opacity: 0.6;
+  }
   
   .empty-text {
     font-size: 28rpx;

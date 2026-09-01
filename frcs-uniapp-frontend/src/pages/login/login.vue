@@ -1,7 +1,7 @@
 <template>
   <view class="page-container">
     <view class="header">
-      <image class="logo" src="/static/logo.png" mode="aspectFit" />
+      <view class="logo"><text class="logo-text">法</text></view>
       <view class="title">涉外案例查询分析系统</view>
       <view class="subtitle">Foreign-related Case Analysis</view>
     </view>
@@ -41,8 +41,11 @@
       </view>
 
       <view class="action-links">
-        <text class="link-gray" @click="showResetModal = true">忘记密码？</text>
-        <text class="link-gray" @click="showChangeModal = true">修改密码</text>
+        <view class="links-left">
+          <text class="link-gray" @click="showResetModal = true">忘记密码</text>
+          <text class="link-sep">|</text>
+          <text class="link-gray" @click="showChangeModal = true">修改密码</text>
+        </view>
         <navigator url="/pages/login/register" hover-class="none" class="link-gray">还没有账号？</navigator>
       </view>
 
@@ -476,6 +479,17 @@ const handleChangePassword = async () => {
     border-radius: 50%;
     background-color: #218cff;
     margin-bottom: 30rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12rpx 32rpx rgba(33, 140, 255, 0.35);
+
+    .logo-text {
+      font-size: 64rpx;
+      font-weight: bold;
+      color: #ffffff;
+      line-height: 1;
+    }
   }
   
   .title {
@@ -533,8 +547,11 @@ const handleChangePassword = async () => {
 .login-tabs {
   display: flex;
   justify-content: center;
-  gap: 80rpx;
   margin-bottom: 50rpx;
+
+  .tab-item + .tab-item {
+    margin-left: 80rpx;
+  }
   
   .tab-item {
     display: flex;
@@ -557,7 +574,14 @@ const handleChangePassword = async () => {
 .form-area {
   display: flex;
   flex-direction: column;
-  gap: 30rpx;
+
+  & > view {
+    margin-bottom: 30rpx;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 
   .input-box {
     display: flex;
@@ -584,10 +608,10 @@ const handleChangePassword = async () => {
   .input-box-group {
     display: flex;
     align-items: center;
-    gap: 20rpx;
     
     .code-input {
       flex: 1;
+      margin-right: 20rpx;
     }
     
     .get-code-btn {
@@ -619,7 +643,21 @@ const handleChangePassword = async () => {
   margin-top: 30rpx;
   margin-bottom: 50rpx;
   padding: 0 10rpx;
-  
+
+  .links-left {
+    display: flex;
+    align-items: center;
+
+    & > text + text {
+      margin-left: 16rpx;
+    }
+  }
+
+  .link-sep {
+    font-size: 24rpx;
+    color: #cccccc;
+  }
+
   .link-gray {
     font-size: 24rpx;
     color: #999999;

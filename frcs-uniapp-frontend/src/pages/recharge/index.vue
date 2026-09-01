@@ -206,15 +206,17 @@ onLoad(async () => {
 }
 
 .pkg-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
 .pkg-card {
+  width: calc(50% - 12rpx);
   background: #fff;
   border-radius: 20rpx;
   padding: 36rpx 24rpx;
+  margin-bottom: 24rpx;
   text-align: center;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
@@ -279,8 +281,12 @@ onLoad(async () => {
 
   .modal-footer {
     display: flex;
-    gap: 24rpx;
     margin-top: 40rpx;
+
+    .cancel-btn {
+      margin-right: 24rpx;
+    }
+
     button {
       flex: 1; height: 80rpx; line-height: 80rpx;
       border-radius: 40rpx; font-size: 28rpx;
