@@ -1,43 +1,18 @@
 <template>
   <div class="common-layout">
     <el-container>
-      <el-aside :width="collapsed ? '64px' : '160px'" class="aside-bar">
-        <div class="menu-toggle" @click="collapsed = !collapsed">
-          <el-icon><Menu /></el-icon>
-        </div>
-        <el-menu
-          :default-active="activeMenu || undefined"
-          class="el-menu-vertical-demo"
-          background-color="#F5F7FA"
-          text-color="#909399"
-          active-text-color="#409EFF"
-          :collapse="collapsed"
-          @select="handleMenuSelect"
-        >
-          <el-menu-item index="1">
-            <i class="iconfont icon-sousuo2" style="font-size: 26px"></i>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "搜索案例" : "Search Cases" }}</span>
-          </el-menu-item>
-          <el-menu-item index="2"  :disabled="username === '游客'">
-            <i class="iconfont icon-shoucang_shixin" style="font-size: 25px"></i>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "收藏案件" : "Favorites" }}</span>
-          </el-menu-item>
-          <el-menu-item index="3"  :disabled="username === '游客'">
-            <i class="iconfont icon-lishixiao1" style="font-size: 20px; margin-left: 1px"></i>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "历史记录" : "History" }}</span>
-          </el-menu-item>
-          <el-menu-item index="4" :disabled="username === '游客'">
-            <i class="iconfont icon-falvfagui" style="font-size: 22px; color: #409eff; margin-left: 2px"></i>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "购买次数" : "Buy credits" }}</span>
-          </el-menu-item>
-          <el-menu-item index="5">
-            <el-icon class="kb-menu-icon"><Collection /></el-icon>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "本地知识库" : "Local KB" }}</span>
-          </el-menu-item>
-          <el-menu-item index="6">
-            <el-icon class="agent-menu-icon"><ChatDotRound /></el-icon>
-            <span v-if="!collapsed" style="margin-left: 15px; font-size: 15px">{{ lang === "zh" ? "智能问答" : "Agent" }}</span>
-          </el-menu-item>
+      <el-aside :width="collapsed ? '72px' : '216px'" class="aside-bar">
+        <button class="menu-toggle" type="button" :aria-label="collapsed ? (lang === 'zh' ? '展开导航' : 'Expand navigation') : (lang === 'zh' ? '收起导航' : 'Collapse navigation')" :aria-expanded="!collapsed" @click="collapsed = !collapsed">
+          <el-icon><Expand v-if="collapsed" /><Fold v-else /></el-icon>
+        </button>
+        <el-menu :default-active="activeMenu" class="el-menu-vertical-demo" :collapse="collapsed" @select="handleMenuSelect">
+          <el-menu-item index="0"><el-icon><House /></el-icon><template #title>{{ lang === "zh" ? "首页" : "Home" }}</template></el-menu-item>
+          <el-menu-item index="1"><el-icon><Search /></el-icon><template #title>{{ lang === "zh" ? "搜索案例" : "Search Cases" }}</template></el-menu-item>
+          <el-menu-item index="2" :disabled="username === '游客'"><el-icon><Star /></el-icon><template #title>{{ lang === "zh" ? "收藏案件" : "Favorites" }}</template></el-menu-item>
+          <el-menu-item index="3" :disabled="username === '游客'"><el-icon><Clock /></el-icon><template #title>{{ lang === "zh" ? "历史记录" : "History" }}</template></el-menu-item>
+          <el-menu-item index="4" :disabled="username === '游客'"><el-icon><CreditCard /></el-icon><template #title>{{ lang === "zh" ? "购买次数" : "Buy credits" }}</template></el-menu-item>
+          <el-menu-item index="5"><el-icon><Collection /></el-icon><template #title>{{ lang === "zh" ? "本地知识库" : "Local KB" }}</template></el-menu-item>
+          <el-menu-item index="6"><el-icon><ChatDotRound /></el-icon><template #title>{{ lang === "zh" ? "智能问答" : "Agent" }}</template></el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -50,7 +25,7 @@
             <el-switch v-model="switchLang" :active-value="'en'" :inactive-value="'zh'" active-text="EN" inactive-text="中文" style="margin-right: 24px" @change="changeLang" />
             <el-dropdown trigger="hover" placement="bottom-end">
               <span class="avatar-dropdown" style="display: inline-block">
-                <div style="height: 32px; width: 32px; border-radius: 50%; background-color: #1883ff; display: flex; justify-content: center; align-items: center">
+                <div style="height: 32px; width: 32px; border-radius: 50%; background-color: var(--frcs-primary); display: flex; justify-content: center; align-items: center">
                   <i class="iconfont icon-yonghu" style="font-size: 20px; color: white; border: none"></i>
                 </div>
               </span>
@@ -75,7 +50,7 @@
 <script>
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { ChatDotRound, Collection, Menu } from "@element-plus/icons-vue";
+import { ChatDotRound, Clock, Collection, CreditCard, Expand, Fold, House, Search, Star } from "@element-plus/icons-vue";
 import { useStore } from "vuex";
 import { ElNotification } from "element-plus";
 import { getAuth, clearAllAuth } from "../utils/authStorage";
@@ -83,15 +58,21 @@ import { getAuth, clearAllAuth } from "../utils/authStorage";
 export default {
   components: {
     ChatDotRound,
+    Clock,
     Collection,
-    Menu,
+    CreditCard,
+    Expand,
+    Fold,
+    House,
+    Search,
+    Star,
   },
   setup() {
     // =============================
     // ✅ 响应式变量定义
     // =============================
     const collapsed = ref(true);
-    const activeMenu = ref("1");
+    const activeMenu = ref("0");
     const userEmail = ref(getAuth("userEmail") || "");
     const username = ref(getAuth("username") || "");
     const router = useRouter();
@@ -128,7 +109,10 @@ export default {
       const userId = getAuth("userId");
       const isGuest = userId === "0";
 
-      if (index === "1") {
+      if (index === "0") {
+        activeMenu.value = "0";
+        router.push("/case-query/home");
+      } else if (index === "1") {
         // 「搜索案例」→ 案例检索页（含多数据源、PDF+AI 摘要），不是首页
         activeMenu.value = "1";
         router.push("/case-query/search");
@@ -188,8 +172,8 @@ export default {
       if (path.includes("/case-query/kb")) return "5";
       if (path.includes("/case-query/agent")) return "6";
       if (path.includes("/case-query/search")) return "1";
-      // 首页 /case-query/home：不高亮「搜索案例」，避免误以为已在检索页
-      return "";
+      if (path.includes("/case-query/home") || path === "/case-query") return "0";
+      return "0";
     };
 
     // =============================
@@ -244,73 +228,25 @@ export default {
 </script>
 
 <style scoped>
-.common-layout {
-  height: 100vh;
-  width: 100vw;
-  background: #fff;
-}
-.aside-bar {
-  background: #f5f7fa;
-  color: #fff;
-  position: relative;
-  transition: width 0.2s;
-  min-height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding-bottom: 0;
-}
-.menu-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 56px;
-  cursor: pointer;
-  color: #409eff;
-  font-size: 20px;
-}
-.el-menu-vertical-demo {
-  border-right: none;
-}
-.kb-menu-icon {
-  color: #67c23a;
-  font-size: 22px;
-  margin-left: 2px;
-}
-.agent-menu-icon {
-  color: #409eff;
-  font-size: 22px;
-  margin-left: 2px;
-}
-.header-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #fff;
-  height: 64px;
-  padding: 0 24px;
-  border-bottom: none;
-}
-.header-title {
-  display: flex;
-  align-items: center;
-  font-size: 20px;
-  font-weight: bold;
-  color: #222;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-}
-.main-content {
-  background: #fff;
-  min-height: calc(100vh - 64px);
-  padding: 0;
-}
-/* 这里保留了 ::v-deep，但 Vue 3 推荐使用 :deep() 伪类选择器，你可以考虑更新 */
-::v-deep .el-menu-item {
-  border-radius: 10px;
-  overflow: hidden;
-}
+.common-layout { min-height:100vh; width:100%; background:var(--frcs-bg); }
+.aside-bar { background:linear-gradient(180deg,#1c1917 0%,#292524 100%); color:#fff; position:relative; transition:width .28s cubic-bezier(.22,.61,.36,1); min-height:100vh; overflow:hidden; display:flex; flex-direction:column; align-items:stretch; }
+.menu-toggle { width:100%; height:64px; display:flex; align-items:center; justify-content:center; flex:0 0 64px; cursor:pointer; color:rgba(255,255,255,.84); font-size:20px; border:0; border-bottom:1px solid rgba(255,255,255,.1); background:transparent; transition:background-color .22s ease,color .22s ease; }
+.menu-toggle:hover { background:rgba(255,255,255,.08); color:#fff; }
+.el-menu-vertical-demo { width:100%; border-right:none; background:transparent !important; padding:12px 8px; }
+:deep(.el-menu-item) { display:flex; align-items:center; gap:12px; width:100%; height:48px; margin:5px 0; padding:0 14px !important; border-radius:10px; overflow:hidden; color:rgba(255,255,255,.68); transition:background-color .22s ease,color .22s ease,box-shadow .22s ease; }
+:deep(.el-menu-item .el-icon) { flex:0 0 22px; width:22px; height:22px; margin:0 !important; color:currentColor; font-size:20px; }
+:deep(.el-menu-item span) { margin:0 !important; white-space:nowrap; }
+:deep(.el-menu--collapse .el-menu-item) { justify-content:center; padding:0 !important; }
+:deep(.el-menu--collapse .el-menu-item .el-icon) { margin:0 !important; }
+:deep(.el-menu-item:hover) { background:rgba(255,255,255,.1); color:#fff; }
+:deep(.el-menu-item.is-active) { background:rgba(214,168,93,.18); color:#f2d39a; box-shadow:inset 3px 0 var(--frcs-accent); }
+:deep(.el-menu-item.is-disabled) { opacity:.36; }
+:deep(.el-menu) { background:transparent; }
+.header-bar { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,.94); height:72px; padding:0 clamp(16px,3vw,34px); border-bottom:1px solid var(--frcs-border); backdrop-filter:blur(12px); }
+.header-title { display:flex; align-items:center; gap:12px; font-size:18px; font-weight:700; color:var(--frcs-primary); letter-spacing:-.02em; }
+.header-title::before { content:'§'; display:grid; place-items:center; width:30px; height:30px; border-radius:9px; color:#fff; background:var(--frcs-accent); font-family:Georgia,serif; font-size:18px; }
+.header-actions { display:flex; align-items:center; gap:18px; }
+.avatar-dropdown > div { background:var(--frcs-primary) !important; box-shadow:0 4px 12px rgba(28,25,23,.18); }
+.main-content { background:var(--frcs-bg); min-height:calc(100vh - 72px); padding:0; }
+@media (max-width:768px) { .header-bar { height:62px; padding:0 14px; } .header-title span { margin-left:0 !important; font-size:14px !important; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .header-actions { gap:8px; } .header-actions .el-switch { margin-right:4px !important; } .aside-bar { width:72px !important; } .main-content { min-height:calc(100vh - 62px); } }
 </style>

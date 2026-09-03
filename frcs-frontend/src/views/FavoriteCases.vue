@@ -1,11 +1,7 @@
 <template>
-  <div class="search-grid-container">
-    <div :class="['left-panel', { collapsed: isCollapsed }]">
-      <button class="collapse-btn" :class="{ collapsed: isCollapsed }" @click="isCollapsed = !isCollapsed">
-        <span v-if="isCollapsed">⮞</span>
-        <span v-else>⮜</span>
-      </button>
-      <div v-show="!isCollapsed" class="panel-content">
+  <div class="search-grid-container favorite-page">
+    <div class="left-panel">
+      <div class="panel-content">
         <h3 style="margin-bottom: 18px">{{ lang === "zh" ? "收藏夹" : "Favorites" }}</h3>
         <div class="filter-group">
           <div class="filter-label">{{ lang === "zh" ? "国家" : "Country" }}</div>
@@ -33,8 +29,7 @@
         </div>
       </div>
     </div>
-    <div style="grid-area: input-area; background-color: transparent"></div>
-    <div class="case-list-area">
+<div class="case-list-area">
       <el-scrollbar style="width: 100%; height: 590px">
         <div class="case-list-flex" v-loading="loadingCases" element-loading-text="正在加载收藏案件..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.8)">
           <template v-if="!loadingCases && cases.length === 0">
@@ -45,37 +40,33 @@
           <template v-else>
             <div v-for="(item, index) in cases" :key="item.case_id" class="case-card-new" @click="selectCase(index)" :class="{ 'selected-card': index === selectIndex }">
               <div class="case-card-content">
-                <div class="case-card-header">
-                  <el-tooltip class="box-item" effect="dark" :content="item.caseName" ; placement="top-start">
-                    <span class="case-title">{{ item.caseName }}</span>
-                  </el-tooltip>
+                <div class="case-card-header"><div class="case-title-wrap">
+                    <el-tooltip class="box-item" effect="dark" :content="item.caseName" placement="top-start" popper-class="case-title-tooltip">
+                      <span class="case-title">{{ item.caseName }}</span>
+                    </el-tooltip>
+                  </div>
                   <i
                     class="iconfont icon-shoucang_shixin"
                     :style="{
                       marginLeft: 'auto',
                       fontSize: '20px',
-                      color: '#409EFF',
+                      color: 'var(--frcs-accent)',
                       cursor: 'pointer',
                     }"
                     @click.stop="unFavorite(item.caseId)"
                     :title="lang === 'zh' ? '取消收藏' : 'Unfavorite'"
                   ></i>
                 </div>
-                <div class="case-card-row">
-                  <span class="case-country">
+                <div class="case-card-row case-card-meta-row"><span class="case-country meta-item"><small>{{ lang === "zh" ? "国家" : "Country" }}</small>
                     {{ showCountry(item.country) }}
                   </span>
-                  <span class="case-date">{{ item.judgementDate }}</span>
-                  <span style="margin-left: 26px"
-                    >{{ lang === "zh" ? "引用" : "cite" }} <span style="color: #0958d9">{{ item.citationCount }}</span> {{ lang === "zh" ? "次" : "times" }}</span
-                  >
+                  <span class="case-date meta-item"><small>{{ lang === "zh" ? "日期" : "Date" }}</small>{{ item.judgementDate }}</span>
+                  <span class="meta-item citation-item"><small>{{ lang === "zh" ? "引用" : "Citations" }}</small><b>{{ item.citationCount }}</b></span>
                 </div>
-                <div class="case-card-row">
-                  <span class="case-tags">
-                    {{ lang === "zh" ? "关键词" : "Tags" }}：
-                    <span style="color: #0958d9">{{ item.tags || (lang === "zh" ? "暂无关键词" : "No Tags") }}</span>
+                <div class="case-card-row case-card-summary-row"><span class="case-tags"><small>{{ lang === "zh" ? "关键词" : "Keywords" }}</small>
+                    <span class="tags-value">{{ item.tags || (lang === "zh" ? "暂无关键词" : "No Tags") }}</span>
                   </span>
-                  <span class="case-link" @click="getCaseSummary">{{ lang === "zh" ? "查看" : "View" }}</span>
+                  <span class="case-link card-action-link" @click="getCaseSummary">{{ lang === "zh" ? "查看" : "View" }}</span>
                 </div>
               </div>
             </div>
@@ -84,17 +75,19 @@
       </el-scrollbar>
       <div style="padding: 8px 0; display: flex; justify-content: center; width: 100%">
         <el-pagination
+          class="favorite-pagination"
           size="small"
+          background
           layout="prev, pager, next"
           :total="totalCasesCount"
           :page-size="pageSize"
           :current-page="page"
-          @update:current-page="page = $event"
-          @update:page-size="pageSize = $event"
+          :disabled="loadingCases"
+          @current-change="handlePageChange"
         />
       </div>
     </div>
-    <div style="grid-area: case-content-area; background-color: transparent">
+    <div class="favorite-detail-pane">
       <div
         style="
           border-top-left-radius: 10px;
@@ -109,26 +102,16 @@
           padding: 0 24px;
         "
       >
-        <span style="font-weight: 600; font-size: 16px; color: #409eff">
+        <span style="font-weight: 600; font-size: 16px; color: var(--frcs-accent)">
           {{ lang === "zh" ? "智能案件分析 :" : "Case Analysis :" }}
         </span>
-        <el-tooltip class="box-item" effect="dark" :content="cases[selectIndex]?.caseName || (lang === 'zh' ? '请选择案件' : 'Please select a case')" ; placement="top-start">
+        <el-tooltip class="box-item" effect="dark" :content="cases[selectIndex]?.caseName || (lang === 'zh' ? '请选择案件' : 'Please select a case')" placement="top-start">
           <span
             style="max-width: 700px; font-weight: 600; font-size: 16px; color: #333; margin-left: 10px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-            :title="cases[selectIndex]?.caseName || (lang === 'zh' ? '请选择案件' : 'Please select a case')"
           >
             {{ cases[selectIndex]?.caseName || (lang === "zh" ? "请选择案件" : "Please select a case") }}
           </span>
         </el-tooltip>
-        <el-switch
-          v-model="switchLang"
-          :active-value="'en'"
-          :inactive-value="'zh'"
-          active-text="EN"
-          inactive-text="中文"
-          size="small"
-          style="margin-left: 14px"
-        />
         <span style="font-weight: 600; font-size: 16px; color: #909399; cursor: pointer; margin-left: 24px" @click="openOriginUrl">
           {{ lang === "zh" ? "查看原始判决文书" : "View Original Judgment" }}
         </span>
@@ -178,20 +161,13 @@ export default {
     // ==============================
     const store = useStore();
     const lang = computed(() => store.getters.lang); // 从 Vuex 获取收藏夹搜索参数，用于初始值
-    const switchLang = computed({
-      get: () => store.state.lang,
-      set: (val) => {
-        store.commit("setLang", val);
-        localStorage.setItem("lang", val);
-      },
-    });
     const favoriteSearchParams = computed(() => store.getters.favoriteSearchParams);
     // 加载状态变量
     const loadingCases = ref(false); // 控制案件列表加载动画
     const loadingDetail = ref(false); // 控制案件详情加载动画
 
     // 布局控制状态
-    const isCollapsed = ref(true);
+
 
     // 收藏案例数据和总数
     const cases = ref([]); // 将不再是mock数据，而是通过API获取
@@ -456,6 +432,11 @@ export default {
     //   changeLangAndGetFavoriteCases();
     // });
 
+    const handlePageChange = (nextPage) => {
+      if (loadingCases.value || nextPage === page.value) return;
+      page.value = nextPage;
+    };
+
     // 处理案例卡片点击事件
     const selectCase = (index) => {
       selectIndex.value = index;
@@ -541,7 +522,7 @@ export default {
     // ==============================
     return {
       // 状态变量
-      isCollapsed,
+
       page,
       pageSize,
       selectIndex,
@@ -557,11 +538,11 @@ export default {
 
       // 计算属性
       lang,
-      switchLang,
       caseDetailHtml,
 
       // 方法函数
       selectCase, // 将 case selection 逻辑封装
+      handlePageChange,
       showCountry,
       getFavoriteCases,
       downloadWord,
@@ -574,220 +555,29 @@ export default {
 </script>
 
 <style scoped>
-/* 保持原有的样式，并添加 selected-card 样式 */
-.search-grid-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-columns: 1fr 8fr 1fr 22fr 1fr;
-  grid-template-rows: 20fr 100fr;
-  grid-template-areas:
-    "blank1 case-list-area blank2 case-content-area blank3"
-    "blank1 case-list-area blank2 case-content-area blank3"
-    "blank1 case-list-area blank2 case-content-area blank3";
-}
-.case-list-area {
-  grid-area: case-list-area;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 100%;
-}
-.case-list-flex {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 21px;
-  justify-content: flex-start;
-  margin-top: 8px;
-  margin-bottom: 8px;
-  width: 100%;
-  min-height: 400px; /* 确保在没有案件时也有一定的区域 */
-  align-content: flex-start; /* 当内容不足时，让项目从顶部开始 */
-  position: relative; /* 为 v-loading 提供定位上下文 */
-  align-items: center; /* 垂直居中加载动画 */
-  justify-content: center; /* 水平居中加载动画 */
-}
+.case-card-new { min-height:184px; padding:18px !important; border-radius:16px !important; background:linear-gradient(145deg,#fff 0%,#faf9f7 100%) !important; }
+.case-card-header { min-height:44px; padding-bottom:12px; border-bottom:1px solid var(--frcs-border); }
+.case-title { color:var(--frcs-primary) !important; font-size:16px !important; line-height:1.45; }
+.case-card-meta-row { display:grid !important; grid-template-columns:1fr 1fr 1fr; gap:8px !important; margin-top:14px !important; }
+.meta-item { display:flex; flex-direction:column; gap:3px; min-width:0; color:var(--frcs-text); font-size:13px; }
+.meta-item small,.case-tags small { color:var(--frcs-text-2); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.meta-item b { color:var(--frcs-accent); font-weight:700; }
+.case-card-summary-row { align-items:flex-start !important; justify-content:space-between; gap:12px !important; padding-top:11px; border-top:1px solid rgba(229,225,218,.72); }
+.case-tags { min-width:0; display:flex; flex-direction:column; gap:4px; }
+.tags-value { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--frcs-primary-2) !important; }
+.card-action-link { flex:0 0 auto; align-self:flex-end; color:var(--frcs-accent) !important; font-weight:700; }
+@media(max-width:640px){ .case-card-meta-row{grid-template-columns:1fr 1fr;} .case-card-summary-row{flex-wrap:wrap;} }
+.favorite-pagination { margin-top: 6px; }
+.favorite-pagination :deep(button), .favorite-pagination :deep(.el-pager li) { min-width: 32px; height: 32px; color: var(--frcs-primary-2); background: var(--frcs-surface); border: 1px solid var(--frcs-border); border-radius: 8px; }
+.favorite-pagination :deep(.el-pager li.is-active) { color: #fff; background: var(--frcs-primary); border-color: var(--frcs-primary); }
+.favorite-pagination :deep(button:hover:not(:disabled)), .favorite-pagination :deep(.el-pager li:hover) { color: var(--frcs-accent); border-color: var(--frcs-accent); }</style>
 
-.no-cases-message,
-.loading-message {
-  width: 100%;
-  text-align: center;
-  color: #606266;
-  font-size: 16px;
-  margin-top: 50px;
-}
-/* 确保加载文本不被截断或断行 */
-.case-list-flex :deep(.el-loading-text),
-.case-detail-container :deep(.el-loading-text) {
-  white-space: nowrap; /* 防止文本换行 */
-}
 
-.case-card-new {
-  background: #f2f6fc;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: box-shadow 0.2s, border 0.2s; /* 添加 border 过渡 */
-  width: 100%;
-  min-width: 220px;
-  max-width: 100%;
-  height: 100px;
-  margin-bottom: -2px;
-  padding: 16px 24px 12px 16px;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  border: 1px solid transparent; /* 默认透明边框 */
-  border: 1px solid #e0e6ed; /* 默认边框颜色 */
-  /* 推荐最终样式 */
-  box-shadow: 
-  0 1px 2px rgba(30, 96, 255, 0.08), /* 第一层：轻微边缘阴影，带有浅蓝色 */
-  0 2px 4px rgba(30, 96, 255, 0.04); /* 第二层：非常浅的扩散阴影，几乎若有若无 */
-}
-.case-card-new:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-.case-card-new.selected-card {
-  border: 2px solid #409eff; /* 蓝色边框 */
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2); /* 蓝色阴影 */
-}
-.case-card-content {
-  width: 100%;
-}
-.case-card-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.case-title {
-  font-weight: 600;
-  font-size: 16px;
-  color: #222;
-  flex: 1; /* 允许标题占据可用空间 */
-  text-overflow: ellipsis; /* 显示省略号 */
-  max-width: 18em; /* 限制最大宽度 */
-  white-space: nowrap; /* 防止换行 */
-  overflow: hidden; /* 超出部分隐藏 */
-}
-.case-card-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 2px;
-}
-.case-country {
-  font-size: 14px;
-  color: #222;
-  font-weight: light;
-  margin-right: 24px;
-}
-.case-court {
-  font-size: 14px;
-  color: #222;
-  font-weight: light;
-  margin-right: 24px;
-}
-.case-date {
-  font-size: 14px;
-  color: #222;
-  font-weight: light;
-  margin-left: 10px;
-}
-.case-tags {
-  font-size: 14px;
-  color: #222;
-  font-weight: light;
-  max-width: 16em; /* 限制最大宽度 */
-  white-space: nowrap; /* 防止换行 */
-  overflow: hidden; /* 超出部分隐藏 */
-  text-overflow: ellipsis; /* 超出部分显示省略号 */
-}
-.case-link {
-  float: right;
-  color: rgb(115.2, 117.6, 122.4);
-  font-size: 14px;
-  font-weight: 500;
-  margin-left: auto;
-  text-decoration: none;
-}
-.case-link:hover {
-  text-decoration: underline;
-  color: rgb(121.3, 187.1, 255);
-}
-.case-detail-content {
-  font-size: 15px;
-  color: #222;
-  line-height: 1.8;
-  /* 确保当内容很短时，加载动画依然能居中显示 */
-  min-height: 100px; /* 根据实际内容区域大小调整 */
-}
 
-/* 案件详情容器，添加定位属性以确保 v-loading 生效 */
-.case-detail-container {
-  position: relative;
-}
 
-.left-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 200px;
-  height: 93%;
-  background: #fff;
-  transition: left 0.3s;
-  z-index: 20;
-  border-right: 1px solid #eee;
-  display: flex;
-  flex-direction: column;
-  padding-top: 40px;
-}
-.left-panel.collapsed {
-  left: -200px;
-}
-.collapse-btn {
-  position: absolute;
-  top: 103px;
-  right: -26px;
-  width: 28px;
-  height: 28px;
-  background: #409eff;
-  color: white;
-  border: 1px solid #eee;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(205, 208, 214, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  z-index: 21;
-  transition: right 0.3s;
-}
-.collapse-btn.collapsed {
-  right: -26px;
-}
-.panel-content {
-  padding: 10px 12px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.filter-group {
-  margin-bottom: 18px;
-}
-.filter-label {
-  font-size: 15px;
-  color: #222;
-  margin-bottom: 6px;
-  font-weight: 500;
-}
-.filter-select {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  font-size: 14px;
-  margin-top: 4px;
-  background: #fafbfc;
-}
-</style>
+
+
+
+
+
+

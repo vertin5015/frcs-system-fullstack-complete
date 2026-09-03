@@ -178,60 +178,14 @@ export default {
 </script>
 
 <style scoped>
-.recharge-page {
-  padding: 24px;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.recharge-header h2 {
-  margin: 0 0 8px;
-  font-size: 22px;
-  color: #303133;
-}
-.sub {
-  margin: 0 0 8px;
-  color: #606266;
-  font-size: 15px;
-}
-.sub strong {
-  color: #409eff;
-  font-size: 18px;
-}
-.hint {
-  font-size: 13px;
-  color: #909399;
-  margin: 0 0 20px;
-  line-height: 1.5;
-}
-.pkg-row {
-  margin-top: 8px;
-}
-.pkg-card {
-  margin-bottom: 16px;
-  text-align: center;
-}
-.pkg-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
-}
-.pkg-credits {
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 8px;
-}
-.pkg-price {
-  font-size: 20px;
-  font-weight: 700;
-  color: #409eff;
-  margin-bottom: 16px;
-}
-.pkg-btn {
-  width: 100%;
-}
-.mock-tip {
-  font-size: 13px;
-  color: #909399;
-}
+.recharge-page { min-height:calc(100vh - 68px); }
+.recharge-header { margin-bottom:24px; }
+.recharge-header h2 { font-size:26px; margin:0 0 6px; }
+.pkg-row { row-gap:18px; }
+.pkg-card { height:100%; background:var(--frcs-surface); }
+.pkg-title { color:var(--frcs-primary); font-weight:700; font-size:16px; }
+.pkg-credits { color:var(--frcs-text); font-size:28px; font-weight:700; margin:14px 0 6px; }
+.pkg-price { color:var(--frcs-accent); font-size:22px; font-weight:700; }
+.pkg-btn { width:100%; margin-top:18px; }
+@media (max-width:768px) { .recharge-page { padding:20px 14px; } .pkg-credits { font-size:24px; } }
 </style>

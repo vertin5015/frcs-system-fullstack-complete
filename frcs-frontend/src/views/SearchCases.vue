@@ -1,31 +1,18 @@
 <template>
   <div class="search-grid-container">
-    <div :class="['left-panel', { collapsed: isCollapsed }]">
-      <button class="collapse-btn" :class="{ collapsed: isCollapsed }" @click="isCollapsed = !isCollapsed">
-        <span v-if="isCollapsed">⮞</span>
-        <span v-else>⮜</span>
-      </button>
-      <div v-show="!isCollapsed" class="panel-content">
-        <h3 style="margin-bottom: 18px">{{ lang === "zh" ? "筛选" : "Filter" }}</h3>
+  
+    <div class="left-panel">
+      <div class="panel-content">
+        <h3>{{ lang === "zh" ? "筛选" : "Filter" }}</h3>
         <div class="filter-group">
           <div class="filter-label">{{ lang === "zh" ? "国家" : "Country" }}</div>
           <select v-model="filterCountry" class="filter-select">
-            <option v-for="item in countryOptions" :key="item.value" :value="item.value">
-              {{ lang === "zh" ? item.label : item.enLabel }}
-            </option>
+            <option v-for="item in countryOptions" :key="item.value" :value="item.value">{{ lang === "zh" ? item.label : item.enLabel }}</option>
           </select>
         </div>
         <div class="filter-group">
           <div class="filter-label">{{ lang === "zh" ? "数据源（多选）" : "Data sources" }}</div>
-          <el-select
-            v-model="filterSources"
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            :placeholder="lang === 'zh' ? '不选则按国家筛选' : 'Optional: filter sources'"
-            class="filter-select-el"
-            style="width: 100%"
-          >
+          <el-select v-model="filterSources" multiple collapse-tags collapse-tags-tooltip :placeholder="lang === 'zh' ? '不选则按国家筛选' : 'Optional: filter sources'" class="filter-select-el">
             <el-option label="US" value="US" />
             <el-option label="EU" value="EU" />
             <el-option label="JPN" value="JPN" />
@@ -43,10 +30,11 @@
         </div>
       </div>
     </div>
-    <div class="search-main-stack" :class="{ 'with-filter-panel': !isCollapsed }">
+    <div class="search-main-stack">
       <div class="search-page-toolbar">
         <span class="search-toolbar-hint">{{ lang === "zh" ? "点击案例在新标签页打开阅读" : "Open a case in a new tab." }}</span>
-        <el-button type="primary" size="large" class="toolbar-back-home-btn" @click="backToHome">{{ lang === "zh" ? "返回主界面" : "Home" }}</el-button>
+
+
         <el-tag v-if="summaryCredits !== null" type="primary" effect="dark" size="large" round class="toolbar-credits-tag">
           <span class="toolbar-credits-label">{{ lang === "zh" ? "摘要剩余" : "Credits" }}</span>
           <span class="toolbar-credits-num">{{ summaryCredits }}</span>
@@ -56,14 +44,14 @@
         </el-link>
       </div>
       <div class="input-area search-input-box">
-        <div style="width: 100%; height: 85%; background-color: white; border-radius: 15px; border: 1px solid rgb(221.7, 222.6, 224.4); position: relative">
+        <div class="search-input-inner">
           <button
             style="
               position: absolute;
               right: 6px;
               bottom: 5px;
               z-index: 10;
-              background-color: #409eff;
+              background-color: var(--frcs-accent);
               border: none;
               border-radius: 50%;
               width: 30px;
@@ -79,8 +67,8 @@
           <el-input
             class="no-border-textarea"
             v-model="searchText"
-            style="padding-top: 12px; width: 100%"
-            :autosize="{ minRows: 2, maxRows: 2 }"
+
+            :autosize="{ minRows: 1, maxRows: 3 }"
             type="textarea"
             :placeholder="lang === 'zh' ? '请输入您想查询案件的关键字' : 'Please enter the keywords of the case you want to query'"
             @keyup.enter="performSearch"
@@ -101,18 +89,15 @@
               <div class="no-cases-message">{{ lang === "zh" ? "暂无案件数据。" : "No case data available." }}</div>
             </template>
             <template v-else>
-              <a
+              <div
                 v-for="item in cases"
                 :key="item.case_id"
                 class="case-card-new case-card-link"
-                :href="readerHref(item)"
-                target="_blank"
-                rel="noopener noreferrer"
               >
                 <div class="case-card-content">
                   <div class="case-card-header">
                     <div class="case-title-wrap">
-                      <el-tooltip class="box-item" effect="dark" :content="item.case_name" placement="top-start">
+                      <el-tooltip class="box-item" effect="dark" :content="item.case_name" placement="top-start" popper-class="case-title-tooltip">
                         <span class="case-title">{{ item.case_name }}</span>
                       </el-tooltip>
                     </div>
@@ -123,7 +108,7 @@
                     >
                       <i
                         class="iconfont icon-shoucang_shixin"
-                        :style="{ fontSize: '20px', color: item.isfavored ? '#409EFF' : 'rgb(199.5, 201, 204)' }"
+                        :style="{ fontSize: '20px', color: item.isfavored ? 'var(--frcs-accent)' : 'rgb(199.5, 201, 204)' }"
                       ></i>
                       <span style="font-size: 16px">{{ item.favoritedCount }}</span>
                     </div>
@@ -167,15 +152,15 @@
                     </div>
                   </div>
                   <div class="case-card-row case-card-actions-row">
-                    <span class="case-link">{{ lang === "zh" ? "新标签页阅读" : "Open in new tab" }}</span>
+                    <a class="case-link card-browse-link" :href="readerHref(item)" target="_blank" rel="noopener noreferrer" @click.stop>{{ lang === "zh" ? "新标签页阅读" : "Open in new tab" }}</a>
                   </div>
                 </div>
-              </a>
+              </div>
             </template>
           </div>
         </el-scrollbar>
         <div style="padding: 8px 0; display: flex; justify-content: center; width: 100%">
-          <el-pagination size="small" layout="prev, pager, next" :total="totalCasesCount" v-model:page-size="pageSize" v-model:current-page="page" />
+          <el-pagination class="search-pagination" size="small" background layout="prev, pager, next" :total="totalCasesCount" :page-size="pageSize" :current-page="page" :disabled="loadingCases" @current-change="handlePageChange" />
         </div>
       </div>
     </div>
@@ -200,7 +185,7 @@ export default {
 
     const loadingCases = ref(false);
     const searchEventSource = ref(null);
-    const isCollapsed = ref(true);
+
 
     const filterCountry = computed({
       get: () => normalizeOptionalParam(searchParams.value.country),
@@ -465,6 +450,11 @@ export default {
       return router.resolve({ path: "/case-reader", query: { caseId: item.case_id } }).href;
     };
 
+    const handlePageChange = (nextPage) => {
+      if (loadingCases.value || nextPage === page.value) return;
+      page.value = nextPage;
+    };
+
     const doPerformSearch = () => {
       page.value = 1;
       performSearch({ notify: true });
@@ -534,10 +524,6 @@ export default {
       performSearch();
     });
 
-    const backToHome = () => {
-      router.push("/case-query/home");
-    };
-
     const goRecharge = () => {
       router.push("/case-query/recharge");
     };
@@ -547,9 +533,6 @@ export default {
     return {
 
       lang,
-
-      isCollapsed,
-
       filterCountry,
 
       filterTime,
@@ -571,9 +554,7 @@ export default {
       toggleFavorite,
 
       doPerformSearch,
-
-      backToHome,
-
+      handlePageChange,
       goRecharge,
 
       performSearch,
@@ -603,1019 +584,28 @@ export default {
 
 
 <style scoped>
-
-.search-grid-container {
-
-  position: relative;
-
-  width: 100%;
-
-  height: 100%;
-
-  min-height: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-  box-sizing: border-box;
-
-}
-
-.search-main-stack {
-
-  flex: 1;
-
-  min-height: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-  padding: 8px 16px 16px 16px;
-
-  box-sizing: border-box;
-
-  transition: padding-left 0.3s;
-
-}
-
-.search-main-stack.with-filter-panel {
-
-  padding-left: 236px;
-
-}
-
-.search-page-toolbar {
-
-  display: flex;
-
-  flex-wrap: wrap;
-
-  align-items: center;
-
-  gap: 10px;
-
-  padding-bottom: 10px;
-
-  flex-shrink: 0;
-
-}
-
-.search-toolbar-hint {
-
-  font-size: 13px;
-
-  color: #909399;
-
-  flex: 1;
-
-  min-width: 200px;
-
-}
-
-.input-area.search-input-box {
-
-  flex-shrink: 0;
-
-  margin-bottom: 8px;
-
-}
-
-.case-list-area {
-
-  flex: 1;
-
-  min-height: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-  width: 100%;
-
-}
-
-.case-list-scrollbar {
-
-  flex: 1;
-
-  min-height: 0;
-
-}
-
-.case-card-link {
-
-  text-decoration: none;
-
-  color: inherit;
-
-  display: block;
-
-}
-
-.no-border-textarea :deep(.el-textarea__inner) {
-
-  border: none;
-
-  resize: none;
-
-  background-color: transparent;
-
-  box-shadow: none;
-
-}
-
-.case-list-flex {
-
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 24px;
-
-  justify-content: flex-start;
-
-  align-items: flex-start;
-
-  margin-top: 8px;
-
-  margin-bottom: 8px;
-
-  width: 100%;
-
-  position: relative;
-
-  min-height: 200px;
-
-}
-
-.case-list-flex.is-empty {
-
-  justify-content: center;
-
-  align-items: center;
-
-}
-
-.no-cases-message {
-
-  width: 100%;
-
-  text-align: center;
-
-  color: #606266;
-
-  font-size: 16px;
-
-  margin-top: 50px;
-
-}
-
-.case-list-flex :deep(.el-loading-text),
-
-.case-detail-container :deep(.el-loading-text) {
-
-  white-space: nowrap;
-
-}
-
-.case-card-new {
-
-  background: #f2f6fc;
-
-  border-radius: 14px;
-
-  cursor: pointer;
-
-  transition: box-shadow 0.2s, border 0.2s;
-
-  width: 100%;
-
-  min-width: 220px;
-
-  max-width: 100%;
-
-  min-height: 140px;
-
-  height: auto;
-
-  margin-bottom: -2px;
-
-  padding: 16px 24px 12px 16px;
-
-  display: flex;
-
-  align-items: flex-start;
-
-  box-sizing: border-box;
-
-  border: 1px solid rgb(221.7, 222.6, 224.4);
-
-  box-shadow: 0 1px 2px rgba(30, 96, 255, 0.08), 0 2px 4px rgba(30, 96, 255, 0.04);
-
-}
-
-.case-card-new.selected-card {
-
-  border: 2px solid #409eff;
-
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
-
-}
-
-.case-card-content {
-
-  flex: 1;
-
-  min-width: 0;
-
-  width: 100%;
-
-}
-
-.case-card-header {
-
-  display: flex;
-
-  align-items: flex-start;
-
-  gap: 10px;
-
-  margin-bottom: 7px;
-
-}
-
-.case-title {
-
-  font-weight: 600;
-
-  font-size: 16px;
-
-  color: #222;
-
-  flex: 1;
-
-  min-width: 0;
-
-  overflow: hidden;
-
-  display: -webkit-box;
-
-  -webkit-box-orient: vertical;
-
-  -webkit-line-clamp: 6;
-
-  line-clamp: 6;
-
-  white-space: normal;
-
-  word-break: break-word;
-
-  line-height: 1.35;
-
-}
-
-.case-title-wrap {
-
-  flex: 1;
-
-  min-width: 0;
-
-}
-
-.case-title-wrap :deep(.el-tooltip__trigger) {
-
-  display: block;
-
-  width: 100%;
-
-  max-width: 100%;
-
-}
-
-.case-card-row {
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: flex-start;
-
-  margin-bottom: 5px;
-
-}
-
-.case-card-meta-grid {
-
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 8px 22px;
-
-  margin-bottom: 8px;
-
-  padding: 4px 0 8px;
-
-  border-bottom: 1px solid rgba(64, 158, 255, 0.14);
-
-}
-
-.case-meta-chip {
-
-  display: inline-flex;
-
-  align-items: baseline;
-
-  flex-wrap: wrap;
-
-  gap: 4px 8px;
-
-  max-width: 100%;
-
-}
-
-.case-meta-chip-wide {
-
-  flex: 1 1 100%;
-
-}
-
-.case-meta-label {
-
-  font-size: 12px;
-
-  color: #909399;
-
-  white-space: nowrap;
-
-}
-
-.case-meta-value {
-
-  font-size: 13px;
-
-  color: #303133;
-
-  word-break: break-word;
-
-}
-
-.case-meta-code {
-
-  font-size: 12px;
-
-  color: #606266;
-
-  font-weight: 500;
-
-}
-
-.case-meta-mono {
-
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-}
-
-.case-card-actions-row {
-
-  justify-content: flex-end;
-
-  margin-bottom: 0;
-
-}
-
-.case-tags-row.case-card-row {
-
-  display: block;
-
-  width: 100%;
-
-  min-width: 0;
-
-  margin-bottom: 6px;
-
-}
-
-.case-tags-tooltip-host {
-
-  display: block;
-
-  width: 100%;
-
-  max-width: 100%;
-
-  min-width: 0;
-
-}
-
-.case-tags-tooltip-host :deep(.el-tooltip__trigger) {
-
-  display: block !important;
-
-  width: 100%;
-
-  max-width: 100%;
-
-  min-width: 0;
-
-  vertical-align: top;
-
-}
-
-.case-tags-wrap {
-
-  box-sizing: border-box;
-
-  width: 100%;
-
-  max-width: 100%;
-
-  font-size: 14px;
-
-  color: #222;
-
-  padding-top: 2px;
-
-}
-
-.case-tags-heading {
-
-  font-weight: 600;
-
-  font-size: 13px;
-
-  color: #606266;
-
-  margin-bottom: 8px;
-
-}
-
-.case-tags-lines {
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 8px;
-
-}
-
-.case-tags-line {
-
-  font-size: 14px;
-
-  color: #0958d9;
-
-  line-height: 1.5;
-
-  word-break: break-word;
-
-  overflow-wrap: anywhere;
-
-  padding: 6px 10px;
-
-  border-radius: 8px;
-
-  background: rgba(64, 158, 255, 0.08);
-
-  border-left: 3px solid #409eff;
-
-}
-
-.case-link {
-
-  color: rgb(115.2, 117.6, 122.4);
-
-  font-size: 14px;
-
-  font-weight: 500;
-
-  margin-left: auto;
-
-  text-decoration: none;
-
-}
-
-.case-link:hover {
-
-  text-decoration: underline;
-
-  color: rgb(121.3, 187.1, 255);
-
-}
-
-.case-toolbar {
-
-  border-top-left-radius: 10px;
-
-  border-top-right-radius: 10px;
-
-  min-height: 45px;
-
-  background-color: white;
-
-  border: 1px solid rgb(221.7, 222.6, 224.4);
-
-  display: flex;
-
-  align-items: center;
-
-  flex-wrap: wrap;
-
-  gap: 8px;
-
-  font-size: 16px;
-
-  font-weight: bold;
-
-  padding: 8px 16px;
-
-}
-
-.toolbar-back-home-btn {
-
-  flex-shrink: 0;
-
-  padding: 12px 22px;
-
-  font-size: 16px;
-
-  font-weight: 600;
-
-  min-height: 44px;
-
-  box-shadow: 0 2px 10px rgba(64, 158, 255, 0.35);
-
-}
-
-.toolbar-title {
-
-  font-weight: 600;
-
-  font-size: 16px;
-
-  color: #409eff;
-
-}
-
-.toolbar-credits-tag {
-
-  flex-shrink: 0;
-
-  padding: 6px 14px;
-
-  font-size: 13px;
-
-  font-weight: 600;
-
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.45);
-
-  border: none;
-
-}
-
-.toolbar-credits-label {
-
-  opacity: 0.95;
-
-  margin-right: 6px;
-
-}
-
-.toolbar-credits-num {
-
-  display: inline-block;
-
-  min-width: 1.25em;
-
-  font-size: 18px;
-
-  font-weight: 800;
-
-  letter-spacing: 0.02em;
-
-  line-height: 1;
-
-}
-
-.toolbar-recharge-link {
-
-  font-weight: 600;
-
-  font-size: 15px;
-
-}
-
-.toolbar-case-name {
-
-  font-weight: 600;
-
-  font-size: 16px;
-
-  color: #333;
-
-  flex: 1;
-
-  min-width: 120px;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-
-}
-
-.toolbar-link {
-
-  font-weight: 600;
-
-  font-size: 14px;
-
-  color: #909399;
-
-  cursor: pointer;
-
-}
-
-.toolbar-icon {
-
-  font-size: 16px;
-
-  color: rgb(121.3, 187.1, 255);
-
-  cursor: pointer;
-
-  margin-left: 8px;
-
-}
-
-.case-detail-container {
-
-  position: relative;
-
-  border: 1px solid rgb(221.7, 222.6, 224.4);
-
-  border-top: none;
-
-  min-height: 520px;
-
-  max-height: calc(100vh - 220px);
-
-  background-color: white;
-
-  border-bottom-right-radius: 10px;
-
-  border-bottom-left-radius: 10px;
-
-  padding: 16px;
-
-  box-sizing: border-box;
-
-  overflow: hidden;
-
-  display: flex;
-
-  flex-direction: column;
-
-}
-
-.detail-banner {
-
-  margin-bottom: 8px;
-
-  padding: 8px 12px;
-
-  border-radius: 6px;
-
-  font-size: 14px;
-
-}
-
-.detail-banner.error {
-
-  background: #fef0f0;
-
-  color: #c45656;
-
-  border: 1px solid #fab6b6;
-
-}
-
-.case-detail-split {
-
-  display: flex;
-
-  flex: 1;
-
-  gap: 16px;
-
-  min-height: 0;
-
-}
-
-.pdf-pane,
-
-.summary-pane {
-
-  flex: 1;
-
-  min-width: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-}
-
-.pane-label {
-
-  font-size: 14px;
-
-  font-weight: 600;
-
-  color: #606266;
-
-  margin-bottom: 8px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-}
-
-.pdf-frame {
-
-  width: 100%;
-
-  flex: 1;
-
-  min-height: 420px;
-
-  border: 1px solid #e4e7ed;
-
-  border-radius: 8px;
-
-}
-
-.pdf-placeholder {
-
-  flex: 1;
-
-  min-height: 200px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  color: #909399;
-
-  border: 1px dashed #dcdfe6;
-
-  border-radius: 8px;
-
-}
-
-.pdf-embed-fallback {
-
-  flex: 1;
-
-  min-height: 200px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-
-  justify-content: center;
-
-  gap: 16px;
-
-  padding: 24px;
-
-  text-align: center;
-
-  color: #606266;
-
-  border: 1px solid #e4e7ed;
-
-  border-radius: 8px;
-
-  background: #fafafa;
-
-}
-
-.pdf-embed-fallback-text {
-
-  margin: 0;
-
-  font-size: 14px;
-
-  line-height: 1.6;
-
-  max-width: 320px;
-
-}
-
-.detail-status {
-
-  font-size: 13px;
-
-  color: #409eff;
-
-  margin-bottom: 8px;
-
-}
-
-.case-detail-content {
-
-  font-size: 15px;
-
-  color: #222;
-
-  line-height: 1.8;
-
-  overflow-y: auto;
-
-  min-height: 120px;
-
-}
-
-.md-body :deep(h1),
-
-.md-body :deep(h2),
-
-.md-body :deep(h3) {
-
-  margin: 0.6em 0 0.3em;
-
-}
-
-.md-body :deep(p) {
-
-  margin: 0.4em 0;
-
-}
-
-.md-body :deep(ul),
-
-.md-body :deep(ol) {
-
-  padding-left: 1.4em;
-
-}
-
-.md-body :deep(code) {
-
-  background: #f5f7fa;
-
-  padding: 2px 6px;
-
-  border-radius: 4px;
-
-}
-
-.md-body :deep(pre) {
-
-  background: #f5f7fa;
-
-  padding: 12px;
-
-  overflow: auto;
-
-  border-radius: 8px;
-
-}
-
-.left-panel {
-
-  position: absolute;
-
-  top: 0;
-
-  left: 0;
-
-  width: 220px;
-
-  height: 93%;
-
-  background: #fff;
-
-  transition: left 0.3s;
-
-  z-index: 20;
-
-  border-right: 1px solid #eee;
-
-  display: flex;
-
-  flex-direction: column;
-
-  padding-top: 40px;
-
-}
-
-.left-panel.collapsed {
-
-  left: -220px;
-
-}
-
-.collapse-btn {
-
-  position: absolute;
-
-  top: 87px;
-
-  right: -26px;
-
-  width: 28px;
-
-  height: 28px;
-
-  background: #409eff;
-
-  color: white;
-
-  border: 1px solid #eee;
-
-  border-radius: 50%;
-
-  cursor: pointer;
-
-  box-shadow: 0 2px 8px rgba(205, 208, 214, 0.12);
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  font-size: 16px;
-
-  z-index: 21;
-
-  transition: right 0.3s;
-
-}
-
-.panel-content {
-
-  padding: 10px 12px;
-
-  width: 100%;
-
-  box-sizing: border-box;
-
-}
-
-.filter-group {
-
-  margin-bottom: 18px;
-
-}
-
-.filter-label {
-
-  font-size: 15px;
-
-  color: #222;
-
-  margin-bottom: 6px;
-
-  font-weight: 500;
-
-}
-
-.filter-select {
-
-  width: 100%;
-
-  padding: 4px 8px;
-
-  border: 1px solid #eee;
-
-  border-radius: 4px;
-
-  font-size: 14px;
-
-  margin-top: 4px;
-
-  background: #fafbfc;
-
-}
-
-.filter-select-el :deep(.el-select__wrapper) {
-
-  min-height: 36px;
-
-}
-
+.case-card-new { min-height:236px; padding:18px !important; border-radius:16px !important; background:linear-gradient(145deg,#fff 0%,#faf9f7 100%) !important; }
+.case-card-header { min-height:46px; padding-bottom:12px; border-bottom:1px solid var(--frcs-border); }
+.case-title { color:var(--frcs-primary) !important; font-size:16px !important; line-height:1.45; }
+.case-card-meta-grid { margin-top:14px !important; gap:8px !important; }
+.case-meta-chip { min-height:52px; padding:9px 10px !important; background:var(--frcs-primary-soft) !important; border:1px solid rgba(229,225,218,.82); }
+.case-meta-label { font-size:10px !important; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.case-meta-value { font-size:13px !important; font-weight:600; }
+.case-tags-row { padding-top:11px; border-top:1px solid rgba(229,225,218,.72); }
+.case-tags-heading { color:var(--frcs-text-2); font-size:11px; font-weight:700; letter-spacing:.04em; }
+.case-tags-line { color:var(--frcs-primary-2); font-size:12px; line-height:1.45; }
+.case-card-actions-row { align-items:center; margin-top:14px !important; padding-top:11px; border-top:1px solid rgba(229,225,218,.72); }
+.case-link { color:var(--frcs-accent) !important; font-weight:700; }
+@media(max-width:640px){ .case-card-meta-grid{grid-template-columns:1fr 1fr;} }
+@media(max-width:420px){ .case-card-meta-grid{grid-template-columns:1fr;} }
+.search-pagination { margin-top: 6px; }
+.search-pagination :deep(button), .search-pagination :deep(.el-pager li) { min-width: 32px; height: 32px; color: var(--frcs-primary-2); background: var(--frcs-surface); border: 1px solid var(--frcs-border); border-radius: 8px; }
+.search-pagination :deep(.el-pager li.is-active) { color: #fff; background: var(--frcs-primary); border-color: var(--frcs-primary); }
+.search-pagination :deep(button:hover:not(:disabled)), .search-pagination :deep(.el-pager li:hover) { color: var(--frcs-accent); border-color: var(--frcs-accent); }
 </style>
+
+
+
+
+
+

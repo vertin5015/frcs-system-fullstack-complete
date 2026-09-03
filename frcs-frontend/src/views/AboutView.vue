@@ -11,7 +11,7 @@ export default {
 </script>
 
 <style scoped>
-.about {
-  padding: 20px;
-}
+.about { min-height:calc(100vh - 68px); color:var(--frcs-text); }
+.about h1, .about h2 { color:var(--frcs-primary); }
+.about a { color:var(--frcs-primary-2); }
 </style>

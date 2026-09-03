@@ -15,13 +15,13 @@
           background-color: #f2f6fc;
         "
       >
-        <i class="iconfont icon-falvfagui" style="font-size: 70px; color: #409eff"></i>
+        <i class="iconfont icon-falvfagui" style="font-size: 70px; color: var(--frcs-accent)"></i>
       </div>
     </div>
     <div style="grid-template-areas: 'favorite-cases'; display: flex; justify-content: center; align-items: center">
       <div class="favorite-cases" style="margin-bottom: 20px; background-color: transparent; width: 990px">
         <div class="section-header">
-          <h3 style="font-weight: bold; display: inline-block; color: #409eff">{{ recentFavoritesText }}</h3>
+          <h3 style="font-weight: bold; display: inline-block; color: var(--frcs-accent)">{{ recentFavoritesText }}</h3>
         </div>
         <el-scrollbar>
           <div
@@ -33,17 +33,17 @@
           >
             <template v-if="!loadingFavorites && favoriteCases.length === 0">
               <div class="no-favorites-message">
-                <i class="iconfont icon-tishi2" style="color: #409eff; font-size: 30px; vertical-align: middle"></i>
+                <i class="iconfont icon-tishi2" style="color: var(--frcs-accent); font-size: 30px; vertical-align: middle"></i>
                 <span style="font-size: 17px; color: #595959; font-weight: 600; vertical-align: middle; padding-left: 10px">
                   <template v-if="username === '游客'">
                     <template v-if="lang === 'zh'">
                       游客不提供此功能，请
-                      <span style="color: #409eff; text-decoration: underline;cursor: pointer;" @click="logout">登录</span>
+                      <span style="color: var(--frcs-accent); text-decoration: underline;cursor: pointer;" @click="logout">登录</span>
                       以查看收藏的案件
                     </template>
                     <template v-else>
                       Please
-                      <span style="color: #409eff; text-decoration: underline" @click="logout">log in</span>
+                      <span style="color: var(--frcs-accent); text-decoration: underline" @click="logout">log in</span>
                       to view your favorite cases
                     </template>
                   </template>
@@ -136,7 +136,7 @@
           style="
             margin-bottom: 12px;
             padding: 10px 14px;
-            background: linear-gradient(90deg, #ecf5ff, #f0f9eb);
+            background: linear-gradient(90deg, var(--frcs-primary-soft), #fafaf9);
             border: 1px solid #b3d8ff;
             border-radius: 8px;
             cursor: pointer;
@@ -144,7 +144,7 @@
             color: #303133;
           "
         >
-          <span style="color: #409eff; font-weight: 600">{{
+          <span style="color: var(--frcs-accent); font-weight: 600">{{
             lang === "zh" ? "案例检索（新）" : "Case search (new)"
           }}</span>
           {{
@@ -167,20 +167,19 @@
             </el-radio-group>
           </div>
         </div>
-        <div class="input-box-outer">
-          <div class="input-box-inner" :class="{ focused: isInputFocused }">
+        <div class="input-area search-input-box home-search-box">
+          <div class="search-input-inner">
+            <button class="home-search-button" type="button" :aria-label="lang === 'zh' ? '搜索案例' : 'Search cases'" @click="searchCases">
+              <i class="iconfont icon-sousuo"></i>
+            </button>
             <el-input
-              @focus="isInputFocused = true"
-              @blur="isInputFocused = false"
               v-model="searchText"
+              class="no-border-textarea"
               type="textarea"
               :autosize="{ minRows: 1, maxRows: 3 }"
-              class="styled-textarea"
               :placeholder="searchPlaceholderText"
+              @keyup.enter="searchCases"
             />
-            <button class="send-btn" @click="searchCases">
-              <i class="iconfont icon-sousuo" style="font-size: 23px"></i>
-            </button>
           </div>
         </div>
       </div>
@@ -364,195 +363,51 @@ export default {
 </script>
 
 <style scoped>
-.home-view {
-  padding: 20px;
-  display: flex;
-  display: grid;
-  grid-template-areas:
-    "icon-area"
-    "favorite-cases"
-    "search-area";
-  grid-template-rows: 110px 250px 220px;
-  font-size: 14px;
-}
+.scrollbar-demo-item { width:272px; height:160px; padding:18px !important; border-radius:16px !important; background:linear-gradient(145deg,#fff 0%,#faf9f7 100%) !important; }
+.scrollbar-demo-item > div { width:100% !important; }
+.scrollbar-demo-item h4 { margin:0 0 14px !important; color:var(--frcs-primary) !important; font-size:15px !important; line-height:1.4; }
+.scrollbar-demo-item .home-card-meta { display:flex; justify-content:space-between; align-items:center; }
+.scrollbar-demo-item .home-card-meta span { color:var(--frcs-text-2); font-size:12px; }
+.scrollbar-demo-item .home-card-tags { margin-top:12px; padding-top:10px; border-top:1px solid var(--frcs-border); color:var(--frcs-primary-2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media(max-width:640px){ .scrollbar-demo-item{width:250px;} }
+</style>
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  font-size: 16px;
-}
+<style scoped>
+/* Home page layout repair */
+.home-view { width: 100%; max-width: 1280px; min-height: calc(100vh - 72px); margin: 0 auto; padding: 32px clamp(16px, 3vw, 42px) 40px; display: flex; flex-direction: column; gap: 28px; }
+.home-view > :first-child { display: flex !important; justify-content: center; align-items: center; }
+.home-view > :first-child > div { width: 88px !important; height: 88px !important; border-radius: 18px !important; background: var(--frcs-primary-soft) !important; box-shadow: var(--frcs-shadow-sm) !important; }
+.home-view > :first-child i { font-size: 52px !important; }
+.home-view > :nth-child(2) { display: block !important; }
+.favorite-cases { width: 100% !important; max-width: 100%; margin: 0 !important; padding: 22px; background: var(--frcs-surface) !important; border: 1px solid var(--frcs-border); border-radius: var(--frcs-radius-lg); box-shadow: var(--frcs-shadow-sm); }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-header h3 { margin: 0 !important; color: var(--frcs-primary) !important; font-size: 18px; }
+.scrollbar-flex-content { display: flex; gap: 14px; min-height: 176px; padding: 4px 2px 10px; }
+.no-favorites-message { width: 100%; min-height: 150px; display: flex; align-items: center; justify-content: center; text-align: center; }
+.scrollbar-demo-item { flex: 0 0 272px; cursor: pointer; }
+.home-view .search-area { display: flex; justify-content: center; width: 100%; }
+.home-view .search-area > div { width: 100% !important; height: auto !important; }
+.search-entry-hint { color: var(--frcs-text) !important; border-color: var(--frcs-border) !important; border-radius: var(--frcs-radius-md) !important; }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 14px 24px; padding: 14px 16px; background: var(--frcs-surface); border: 1px solid var(--frcs-border); border-radius: var(--frcs-radius-md); }
+.filter-bar .filter-group { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; }
+.filter-bar .filter-label { margin: 0; color: var(--frcs-text-2); font-size: 12px; font-weight: 700; }
+.input-box-outer { width: 100%; margin-top: 14px; padding: 8px; background: var(--frcs-surface); border: 1px solid var(--frcs-border); border-radius: var(--frcs-radius-lg); box-shadow: var(--frcs-shadow-sm); }
+.input-box-inner { position: relative; display: flex; align-items: center; width: 100%; }
+.input-box-inner .el-textarea { width: 100%; }
+.input-box-inner .styled-textarea .el-textarea__inner { min-height: 46px !important; padding: 11px 52px 11px 14px; resize: none; border: 0; box-shadow: none !important; background: transparent; }
+.send-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--frcs-accent); cursor: pointer; transition: transform var(--frcs-motion), background-color var(--frcs-motion); }
+.send-btn:hover { transform: translateY(-50%) scale(1.04); background: var(--frcs-primary); }
+@media (max-width: 680px) { .home-view { padding: 20px 12px 28px; gap: 20px; } .favorite-cases { padding: 16px; } .scrollbar-demo-item { flex-basis: 246px; } .filter-bar .filter-group { width: 100%; align-items: flex-start; } .filter-bar .el-radio-group { flex: 1; } }
 
-.case-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
+</style>
 
-.search-area {
-  background: transparent;
+<style scoped>
+/* Home search uses the exact SearchCases visual treatment */
+.home-search-box { margin-top: 14px; }
+.home-search-box .search-input-inner { min-height: 54px; }
+.home-search-button { position: absolute; right: 6px; top: 50%; z-index: 2; width: 36px; height: 36px; display: grid; place-items: center; transform: translateY(-50%); border: 0; border-radius: 50%; color: #fff; background: var(--frcs-accent); cursor: pointer; transition: transform var(--frcs-motion), background-color var(--frcs-motion); }
+.home-search-button:hover { transform: translateY(-50%) scale(1.04); background: var(--frcs-primary); }
+.home-search-button i { font-size: 20px; }
+.home-search-box .no-border-textarea .el-textarea__inner { min-height: 42px !important; padding: 10px 52px 10px 12px; resize: none; border: 0; box-shadow: none !important; background: transparent; }
 
-  padding: 32px 0 0 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 14px;
-}
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-bottom: 18px;
-  justify-content: flex-start;
-  width: 100%;
-  max-width: 1100px;
-  font-size: 14px;
-}
-.filter-group {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  white-space: nowrap;
-}
-.filter-label {
-  font-weight: 500;
-  color: #667085;
-  margin-right: 8px;
-  font-size: 15px;
-  white-space: nowrap;
-}
-.input-box-outer {
-  width: 100%;
-  max-width: 1100px;
-  display: flex;
-  justify-content: center;
-  background-color: transparent;
-}
-.input-box-inner {
-  position: relative;
-  width: 100%;
-  background: #fff;
-  cursor: pointer;
-  border-radius: 18px;
-  border: 2px solid #e0e6ed; /* 边框颜色 */
-  box-shadow: 0 2px 4px rgba(30, 96, 255, 0.08), /* 第一层：轻微边缘阴影，带有浅蓝色 */ 0 2px 4px rgba(30, 96, 255, 0.04); /* 第二层：非常浅的扩散阴影，几乎若有若无 */
-  padding: 0;
-  display: flex;
-  align-items: flex-end;
-  transition: box-shadow 0.2s;
-  font-size: 14px;
-}
-.input-box-inner:hover {
-  border: 2px solid #409eff; /* 悬停时的边框颜色 */
-}
-
-.styled-textarea {
-  width: 100%;
-  border: none;
-  background: transparent;
-  font-size: 16px;
-  padding: 24px 60px 24px 24px;
-  border-radius: 18px;
-  outline: none;
-  resize: none;
-  box-shadow: none;
-}
-.styled-textarea ::v-deep .el-textarea__inner {
-  border: none !important;
-  background: transparent !important;
-  font-size: 16px;
-  padding: 24px 60px 24px 24px;
-  border-radius: 30px;
-  outline: none;
-  resize: none;
-  box-shadow: none;
-}
-.send-btn {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  background: #3a8ee6;
-  border: none;
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #fff;
-  font-size: 22px;
-  cursor: pointer;
-  transition: background 0.2s;
-  box-shadow: 0 2px 4px rgba(30, 96, 255, 0.08), /* 第一层：轻微边缘阴影，带有浅蓝色 */ 0 3px 6px rgba(30, 96, 255, 0.04); /* 第二层：非常浅的扩散阴影，几乎若有若无 */
-}
-.send-btn:hover {
-  background: #409eff;
-}
-
-.scrollbar-flex-content {
-  display: flex;
-  width: fit-content; /* 保持原有的宽度设置 */
-  font-size: 14px;
-  position: relative; /* 为 v-loading 提供定位上下文，这是居中的关键 */
-  min-height: 120px; /* 确保加载动画有足够的显示空间 */
-  align-items: center; /* 垂直居中 flex 子项 */
-  justify-content: center; /* 水平居中 flex 子项 */
-  flex-wrap: nowrap; /* 确保子项不换行，保持横向布局 */
-}
-
-/* 确保加载文本不被截断或断行 */
-.scrollbar-flex-content :deep(.el-loading-text) {
-  white-space: nowrap; /* 防止文本换行 */
-}
-
-.scrollbar-demo-item {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 240px;
-  height: 120px;
-  margin: 10px 10px 10px 0;
-  text-align: left;
-  border-radius: 8px;
-  background: #f2f6fc;
-  color: #222;
-  border: 1px solid #e0e6ed; /* 边框颜色 */
-  box-shadow: 0 1px 2px rgba(30, 96, 255, 0.08), /* 第一层：轻微边缘阴影，带有浅蓝色 */ 0 2px 4px rgba(30, 96, 255, 0.04); /* 第二层：非常浅的扩散阴影，几乎若有若无 */
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-  font-size: 14px;
-}
-.scrollbar-demo-item:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.no-favorites-message {
-  width: 100%; /* 确保在 flex 容器中占据整行 */
-  text-align: center;
-  color: #606266;
-  font-size: 16px;
-  margin-top: 50px;
-  flex-basis: 100%; /* 确保它占据整行 */
-}
-
-.filter-bar,
-.filter-group,
-.filter-label,
-.el-radio-button__inner,
-.el-select,
-.el-select__input,
-.el-select__selected-item,
-.el-select-dropdown__item {
-  font-size: 16px !important;
-}
-.filter-label {
-  font-weight: 600;
-}
-.input-box-inner.focused {
-  border-color: #409eff;
-  /* 可选：加一点阴影增强反馈 */
-  box-shadow: 0 0 4px rgba(64, 158, 255, 0.3);
-}
 </style>

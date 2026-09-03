@@ -1,14 +1,7 @@
 <template>
   <div class="history-container">
-    <div class="history-header">
-      {{ lang === "zh" ? "历史记录" : "History Records" }}
-    </div>
-    <button class="collapse-btn" :class="{ collapsed: isCollapsed }" @click="isCollapsed = !isCollapsed">
-      <span v-if="isCollapsed">⮜</span>
-      <span v-else>⮞</span>
-    </button>
-    <div :class="['right-panel', { collapsed: isCollapsed }]" :style="isCollapsed ? { pointerEvents: 'none' } : {}">
-      <div v-show="!isCollapsed" class="panel-content">
+<div class="left-panel">
+      <div class="panel-content">
         <h3 style="margin-bottom: 18px">{{ lang === "zh" ? "筛选" : "Filter" }}</h3>
         <div class="filter-group">
           <div class="filter-label">{{ lang === "zh" ? "国家" : "Country" }}</div>
@@ -30,7 +23,8 @@
         </div>
       </div>
     </div>
-    <div class="card-area" :class="{ expand: isCollapsed }">
+    <div class="card-area">
+      <div class="history-header">{{ lang === "zh" ? "历史记录" : "History Records" }}</div>
       <div class="card-grid" v-loading="loading" element-loading-text="正在加载历史记录..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.8)">
         <template v-if="!loading && cases.length === 0">
           <div class="no-cases-message">
@@ -40,25 +34,24 @@
         <template v-else>
           <div v-for="item in cases" :key="item.id" class="case-card-new">
             <div class="case-card-content">
-              <div class="case-card-header" style="display: flex; justify-content: space-between; align-items: center">
-                <el-tooltip class="box-item" effect="dark" :content="item.caseName" placement="top-start">
-                  <span class="case-title">{{ item.caseName }}</span>
-                </el-tooltip>
+              <div class="case-card-header" style="display: flex; justify-content: space-between; align-items: center"><div class="case-title-wrap">
+                  <el-tooltip class="box-item" effect="dark" :content="item.caseName" placement="top-start" popper-class="case-title-tooltip">
+                    <span class="case-title">{{ item.caseName }}</span>
+                  </el-tooltip>
+                </div>
                 <el-tooltip class="box-item" effect="dark" :content="lang === 'zh' ? '原卷链接' : 'Original Link'" placement="top-start">
                   <i class="iconfont icon-lianjie custom-hover-purple" style="font-size: 20px; cursor: pointer" @click="openOriginalLink(item.originalDocumentUrl)"></i>
                 </el-tooltip>
               </div>
-              <div class="case-card-row">
-                <span class="case-country">{{ showCountry(item.country) }} </span>
+              <div class="case-card-row case-card-meta-row"><span class="case-country meta-item"><small>{{ lang === "zh" ? "国家" : "Country" }}</small>{{ showCountry(item.country) }} </span>
 
-                <span class="case-date">{{ lang === "zh" ? "案件号" : "CaseId" }} <span style="color: #0958d9;">{{ item.caseId }}</span></span>
+                <span class="case-date meta-item"><small>{{ lang === "zh" ? "案件号" : "Case ID" }}</small><b>{{ item.caseId }}</b></span>
               </div>
-              <div class="case-card-row">
-                <span class="case-tags">
-                  {{ lang === "zh" ? "关键词" : "Tags" }}：<span style="color: #0958d9">{{ item.tags || "" }}</span>
+              <div class="case-card-row case-card-summary-row"><span class="case-tags"><small>{{ lang === "zh" ? "关键词" : "Keywords" }}</small>
+                  <span class="tags-value">{{ item.tags || "" }}</span>
                 </span>
-                <span style="font-size: 14px; color: #222; margin-left: 15px">{{ item.judgementDate }}</span>
-                <span class="case-link" @click="showCase(item)">{{ lang === "zh" ? "查看" : "View" }}</span>
+                <span class="case-date meta-item"><small>{{ lang === "zh" ? "日期" : "Date" }}</small>{{ item.judgementDate }}</span>
+                <span class="case-link card-action-link" @click="showCase(item)">{{ lang === "zh" ? "查看" : "View" }}</span>
               </div>
             </div>
           </div>
@@ -129,7 +122,7 @@ export default {
     // 过滤器
     const filterCountry = ref(null);
     const filterTime = ref(null);
-    const isCollapsed = ref(true);
+
 
     // 分页
     const page = ref(1);
@@ -305,7 +298,7 @@ ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "
     return {
       lang,
       switchLang,
-      isCollapsed,
+
       filterCountry,
       filterTime,
       countryOptions,
@@ -328,259 +321,23 @@ ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "
 </script>
 
 <style scoped>
-/* 样式保持不变 */
-.history-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #fff;
-  overflow: hidden;
-  display: flex;
-  flex-direction: row;
-}
-
-.history-header {
-  position: absolute;
-  top: -2px;
-  left: 46px;
-  font-size: 18px;
-  font-weight: bold;
-  color: #409eff;
-  z-index: 20;
-  letter-spacing: 2px;
-  user-select: none;
-}
-
-.right-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 200px;
-  height: 100%;
-  background: #fff;
-  transition: right 0.3s;
-  z-index: 10;
-  border-left: 1px solid #eee;
-  display: flex;
-  flex-direction: column;
-  padding-top: 40px;
-}
-.right-panel.collapsed {
-  right: -200px;
-}
-.collapse-btn {
-  position: absolute;
-  top: 20px;
-  right: 184px;
-  width: 32px;
-  height: 32px;
-  background: #409eff;
-  color: white;
-  border: 1px solid #eee;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(205, 208, 214, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  z-index: 11;
-  transition: right 0.3s;
-}
-
-/* 折叠时按钮只露出一半 */
-.collapse-btn.collapsed {
-  right: -16px; /* 负一半宽度，只露出一半 */
-}
-.panel-content {
-  padding: 10px 12px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.filter-group {
-  margin-bottom: 18px;
-}
-.filter-label {
-  font-size: 15px;
-  color: #222;
-  margin-bottom: 6px;
-  font-weight: 500;
-}
-.filter-select {
-  width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  font-size: 14px;
-  margin-top: 4px;
-  background: #fafbfc;
-}
-.card-area {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  transition: padding-right 0.3s;
-  padding-right: 200px; /* 预留右侧面板宽度 */
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.card-area.expand {
-  padding-right: 0 !important;
-  transition: padding-right 0.3s;
-}
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(4, 1fr); /* 4行 */
-  gap: 14px 20px;
-  width: 100%;
-  height: calc(100% - 60px);
-  margin-top: 32px; /* 让卡片整体下移，避免与标题重叠 */
-  background: #fff;
-  box-sizing: border-box;
-  overflow: hidden;
-  padding-left: 32px;
-  padding-right: 32px;
-  position: relative; /* 为 v-loading 提供定位上下文 */
-  min-height: 400px; /* 确保在没有案件时也有足够的空间显示加载动画 */
-  justify-content: center; /* 水平居中内容 */
-  align-items: center; /* 垂直居中内容 */
-}
-.case-card-new {
-  background: #f2f6fc;
-
-  border-radius: 14px;
-  cursor: pointer;
-  width: 95%;
-  height: 95%;
-  margin: auto;
-  padding: 16px 24px 12px 16px;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  overflow: hidden;
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 1px 2px rgba(30, 96, 255, 0.08), /* 第一层：轻微边缘阴影，带有浅蓝色 */ 0 2px 4px rgba(30, 96, 255, 0.04); /* 第二层：非常浅的扩散阴影，几乎若有若无 */
-}
-.case-card-new.empty-card {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  cursor: default;
-  pointer-events: none;
-}
-.case-card-content {
-  width: 100%;
-}
-.case-card-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.case-title {
-  font-weight: 600;
-  max-width: 14em; /* 限制最大宽度 */
-  white-space: nowrap; /* 防止换行 */
-  overflow: hidden; /* 超出部分隐藏 */
-  text-overflow: ellipsis; /* 超出部分显示省略号 */
-  font-size: 16px;
-  color: #222;
-}
-.case-card-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 6px;
-}
-.case-country {
-  font-size: 14px;
-  color: #222;
-  margin-right: 24px;
-}
-.case-court {
-  font-size: 14px;
-  color: #222;
-  margin-right: 24px;
-}
-
-.case-tags {
-  font-size: 14px;
-  color: #222;
-}
-.case-link {
-  float: right;
-  color: #409eff;
-  font-size: 14px;
-  font-weight: 500;
-  margin-left: auto;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.case-link:hover {
-  color: #1867c0;
-}
-.history-pagination {
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin: 20px 0 0 0; /* 让分页栏紧贴卡片区 */
-
-  background: #fff;
-  flex-shrink: 0;
-  padding-left: 24px;
-}
-
-/* 加载和空状态消息样式 */
-.loading-message,
-.no-cases-message {
-  width: 100%;
-  text-align: center;
-  padding: 50px;
-  font-size: 16px;
-  color: #666;
-  position: absolute; /* 使其能在 v-loading 覆盖下显示 */
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none; /* 确保不影响 v-loading 的点击事件 */
-}
-
-/* 确保加载文本不被截断或断行 */
-.card-grid :deep(.el-loading-text),
-.dialog-detail-content :deep(.el-loading-text) {
-  white-space: nowrap; /* 防止文本换行 */
-}
-
-/* 弹窗内容区域样式，提供定位上下文给v-loading */
-.dialog-lang-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.dialog-lang-label {
-  font-size: 13px;
-  color: #606266;
-}
-.dialog-detail-content {
-  position: relative;
-  min-height: 200px; /* 确保弹窗内容在加载时也有一定高度 */
-  display: flex; /* 使用 flexbox 居中加载动画 */
-  align-items: center; /* 垂直居中 */
-  justify-content: center; /* 水平居中 */
-}
-.custom-hover-purple {
-  cursor: pointer;
-  transition: color 0.3s ease; /* 平滑过渡效果 */
-  color: #0958d9;
-}
-
-.custom-hover-purple:hover {
-  color: #52c41a; /* 紫色，例如：#9933CC 是经典的紫色 */
-}
+.case-card-new { min-height:184px; padding:18px !important; border-radius:16px !important; background:linear-gradient(145deg,#fff 0%,#faf9f7 100%) !important; }
+.case-card-header { min-height:44px; padding-bottom:12px; border-bottom:1px solid var(--frcs-border); }
+.case-title { color:var(--frcs-primary) !important; font-size:16px !important; line-height:1.45; }
+.case-card-meta-row { display:grid !important; grid-template-columns:1fr 1fr; gap:8px !important; margin-top:14px !important; }
+.meta-item { display:flex; flex-direction:column; gap:3px; min-width:0; color:var(--frcs-text); font-size:13px; }
+.meta-item small,.case-tags small { color:var(--frcs-text-2); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.meta-item b { color:var(--frcs-accent); font-weight:700; }
+.case-card-summary-row { align-items:flex-end !important; justify-content:space-between; gap:12px !important; padding-top:11px; border-top:1px solid rgba(229,225,218,.72); }
+.case-tags { min-width:0; display:flex; flex-direction:column; gap:4px; }
+.tags-value { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--frcs-primary-2) !important; }
+.card-action-link { flex:0 0 auto; color:var(--frcs-accent) !important; font-weight:700; }
+@media(max-width:640px){ .case-card-meta-row{grid-template-columns:1fr 1fr;} .case-card-summary-row{flex-wrap:wrap;} }
+.dialog-lang-row { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:8px; }
+.dialog-lang-label { font-size:13px; color:var(--frcs-text-2); }
+.dialog-detail-content { position:relative; min-height:200px; display:flex; align-items:center; justify-content:center; }
 </style>
+
+
+
+

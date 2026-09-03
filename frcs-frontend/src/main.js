@@ -7,6 +7,7 @@ import { syncSessionAuthToLocal } from './utils/authStorage'
 syncSessionAuthToLocal()
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import './styles/design-system.css'
 import "./assets/icons/logo.css"
 const app = createApp(App)
 app.use(store)
@@ -26,3 +27,4 @@ router.onError((err) => {
 
 app.use(ElementPlus)
 app.mount('#app')
+

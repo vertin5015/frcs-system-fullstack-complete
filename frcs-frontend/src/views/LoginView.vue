@@ -12,7 +12,7 @@
       <div class="login-card">
         <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 70px">
           <div style="height: 78px; width: 78px; background-color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center">
-            <i class="iconfont icon-falvfagui" style="font-size: 50px; color: #409eff"></i>
+            <i class="iconfont icon-falvfagui" style="font-size: 50px; color: var(--frcs-accent)"></i>
           </div>
         </div>
         <h2 class="welcome">{{ isLogin ? text.welcome : text.registerTitle }}</h2>
@@ -130,7 +130,7 @@
         size="large"
         :active-value="'en'"
         :inactive-value="'zh'"
-        style="--el-switch-on-color: #409eff; --el-switch-off-color: #409eff"
+        style="--el-switch-on-color: var(--frcs-accent); --el-switch-off-color: var(--frcs-accent)"
         active-text="English"
         inactive-text="中文"
       />
@@ -149,12 +149,12 @@
         width: 120px;
         border-radius: 25px;
         background-color: rgb(236, 245, 255, 0.9);
-        border: 2px solid #409eff;
+        border: 2px solid var(--frcs-accent);
       "
       @click="VisiterLogin"
     >
-      <i class="iconfont icon-iconfonthuiyuan" style="font-size: 25px; color: #409eff; position: relative; top: 2.5px; left: -6px; cursor: pointer" @click="VisiterLogin"></i>
-      <span style="position: relative; top: -1px; font-size: 16px; color: #409eff; cursor: pointer" @click="VisiterLogin">{{ lang === "zh" ? "游客" : "Guest" }}</span>
+      <i class="iconfont icon-iconfonthuiyuan" style="font-size: 25px; color: var(--frcs-accent); position: relative; top: 2.5px; left: -6px; cursor: pointer" @click="VisiterLogin"></i>
+      <span style="position: relative; top: -1px; font-size: 16px; color: var(--frcs-accent); cursor: pointer" @click="VisiterLogin">{{ lang === "zh" ? "游客" : "Guest" }}</span>
     </div>
   </div>
 </template>
@@ -572,102 +572,33 @@ export default {
 </script>
 
 <style scoped>
-.login-bg {
-  min-height: 100vh;
-  background: linear-gradient(to bottom right, rgb(121, 187, 255), rgb(217, 236, 255), rgb(217, 236, 255), rgb(121, 187, 255), rgb(217, 236, 255));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-.center-box {
-  width: 100vw;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding-right: 248px;
-  z-index: 2;
-}
-.login-card {
-  width: 400px;
-  background: #fff;
-  border-radius: 24px;
-  box-shadow: 0 2px 24px 0 rgba(60, 60, 60, 0.1);
-  padding: 40px 32px 32px 32px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 2;
-  position: relative;
-}
-.welcome {
-  font-size: 1.6rem;
-  font-weight: 600;
-  margin-bottom: 18px;
-  color: #595959;
-  letter-spacing: 1px;
-}
-.login-mode-row {
-  width: 100%;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: center;
-}
-.login-form {
-  width: 100%;
-}
-.code-row {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-  align-items: center;
-}
-.code-row .el-input {
-  flex: 1;
-}
-.login-btn {
-  width: 100%;
-  font-size: 1.1rem;
-  letter-spacing: 1px;
-  background: #409eff;
-  border: none;
-}
-.extra-links {
-  margin-top: 8px;
-  text-align: center;
-  font-size: 0.95rem;
-  color: #666;
-}
-.link-sep {
-  margin: 0 8px;
-  color: #ccc;
-}
-.signup-tip {
-  margin-top: 18px;
-  color: #888;
-  font-size: 0.98rem;
-  text-align: center;
-}
-.signup-link {
-  color: #409eff;
-  margin-left: 4px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-@media (max-width: 900px) {
-  .center-box {
-    width: 100vw;
-  }
-  .login-card {
-    margin: 0 auto;
-  }
-}
-.gradient-text {
-  background: linear-gradient(to right bottom, #0c6fff, #b6fbff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-</style>
+.login-bg { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 18px; position:relative; overflow:hidden; background:radial-gradient(circle at 15% 18%,rgba(161,98,7,.12),transparent 32%),linear-gradient(135deg,#f1efeb 0%,#fafaf9 54%,#e7e5e4 100%); }
+.login-bg::before { content:''; position:absolute; width:520px; height:520px; right:-180px; bottom:-220px; border:1px solid rgba(161,98,7,.18); border-radius:50%; box-shadow:0 0 0 40px rgba(161,98,7,.04),0 0 0 80px rgba(161,98,7,.025); }
+.login-bg > div:first-child,.login-bg > div:nth-child(2) { opacity:.11; pointer-events:none; }
+.center-box { width:min(100%,440px); z-index:2; }
+.login-card { background:rgba(255,255,255,.9); border:1px solid rgba(214,211,209,.9); border-radius:22px; box-shadow:0 24px 60px rgba(28,25,23,.14); padding:38px clamp(22px,5vw,46px) 30px; backdrop-filter:blur(12px); }
+.login-card > div:first-child > div { width:68px !important; height:68px !important; border-radius:18px !important; background:var(--frcs-primary) !important; box-shadow:0 10px 24px rgba(28,25,23,.18); }
+.login-card > div:first-child i { color:#fff !important; font-size:42px !important; }
+.login-card .welcome { color:var(--frcs-primary); font-family:"Cormorant Garamond",Georgia,serif; font-size:32px; font-weight:600; letter-spacing:.01em; margin:20px 0 24px; }
+.login-card :deep(.el-form-item__label) { color:var(--frcs-text-2); font-weight:600; }
+.login-card :deep(.el-input__wrapper) { min-height:44px; background:rgba(250,250,249,.9); }
+.login-card :deep(.el-radio-group) { width:100%; margin-bottom:16px; }
+.login-card :deep(.el-radio-button) { flex:1; }
+.login-card :deep(.el-radio-button__inner) { width:100%; border-color:var(--frcs-border); color:var(--frcs-text-2); }
+.login-card :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background:var(--frcs-primary); border-color:var(--frcs-primary); box-shadow:-1px 0 0 0 var(--frcs-primary); }
+.login-btn { width:100%; min-height:46px; background:var(--frcs-primary); border-color:var(--frcs-primary); font-weight:700; letter-spacing:.02em; }
+.login-btn:hover { background:#292524; border-color:#292524; }
+.signup-link { color:var(--frcs-accent) !important; cursor:pointer; transition:color .2s ease; }
+.signup-link:hover { color:#854d0e !important; }
+.gradient-text { color:var(--frcs-primary) !important; }
+@media(max-width:720px){.login-bg>div:first-child,.login-bg>div:nth-child(2){display:none}.login-bg{padding:20px 12px}.login-card{padding:28px 18px 22px;border-radius:18px}.login-card .welcome{font-size:28px}.login-bg>div:nth-last-child(2){left:16px!important}.login-bg>div:last-child{right:16px!important}}
+
+/* Center auth titles and align verification controls */
+.login-card .welcome { width: 100%; text-align: center; }
+.login-card .code-row { display: flex; align-items: stretch; gap: 10px; width: 100%; }
+.login-card .code-row .el-input { flex: 1 1 auto; min-width: 0; }
+.login-card .code-row .el-button { flex: 0 0 auto; min-width: 112px; margin: 0; }
+@media (max-width: 420px) { .login-card .code-row { gap: 8px; } .login-card .code-row .el-button { min-width: 100px; padding-left: 10px; padding-right: 10px; } }.login-card .code-row .el-input :deep(.el-input__wrapper), .login-card .code-row .el-button { height: 44px; min-height: 44px; box-sizing: border-box; }
+.login-card .code-row .el-button { padding-top: 0; padding-bottom: 0; line-height: 42px; }</style>
+
+

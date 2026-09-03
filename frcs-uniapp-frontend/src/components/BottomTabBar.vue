@@ -60,59 +60,11 @@ const handleSwitchTab = (item) => {
 
 <style scoped>
 /* 底部占位块：高度 = 导航栏内容高度 + 底部安全距离 */
-.tab-bar-placeholder {
-  height: calc(100rpx + env(safe-area-inset-bottom));
-  width: 100%;
-  background-color: transparent;
-}
-
-/* 底部导航栏主容器 */
-.bottom-tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: calc(100rpx + env(safe-area-inset-bottom));
-  background-color: #ffffff;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-  padding-bottom: env(safe-area-inset-bottom); /* 适配全面屏底部安全区 */
-  z-index: 999;
-}
-
-/* 单个 Tab 按钮 */
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100rpx;
-  color: #999999; /* 默认文字颜色 */
-  transition: all 0.2s ease; /* 添加轻微的过渡动画，让交互更现代 */
-}
-
-/* 图标样式设定 */
-.tab-icon {
-  font-size: 42rpx;
-  line-height: 1;
-  margin-bottom: 6rpx;
-}
-
-/* 文字样式设定 */
-.tab-text {
-  font-size: 24rpx;
-}
-
-/* 激活状态样式 */
-.tab-item.active .tab-text {
-  color: #218CFF; /* 保持主题色 */
-  font-weight: bold;
-}
-
-.tab-item.active {
-  background: linear-gradient(180deg, rgba(33, 140, 255, 0.08) 0%, rgba(33, 140, 255, 0) 100%);
-}
+.tab-bar-placeholder { height:calc(100rpx + env(safe-area-inset-bottom)); width:100%; background-color:transparent; }
+.bottom-tab-bar { position:fixed; bottom:0; left:0; width:100%; height:calc(100rpx + env(safe-area-inset-bottom)); background-color:#ffffff; display:flex; justify-content:space-around; align-items:center; box-shadow:0 -2rpx 10rpx rgba(0,0,0,.05); padding-bottom:env(safe-area-inset-bottom); z-index:999; }
+.tab-item { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100rpx; color:#999999; transition:all .2s ease; }
+.tab-icon { font-size:42rpx; line-height:1; margin-bottom:6rpx; }
+.tab-text { font-size:24rpx; }
+.tab-item.active .tab-text { color:#218CFF; font-weight:bold; }
+.tab-item.active { background:linear-gradient(180deg, rgba(33,140,255,.08) 0%, rgba(33,140,255,0) 100%); }
 </style>

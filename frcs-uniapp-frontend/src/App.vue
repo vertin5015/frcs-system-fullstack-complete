@@ -23,6 +23,7 @@ page {
   --frcs-warning: #E6A23C;
   --frcs-danger: #F56C6C;
   --frcs-radius-lg: 24rpx;
+  --frcs-shadow-sm: 0 4rpx 16rpx rgba(23, 50, 77, 0.06);
   --frcs-radius-md: 16rpx;
 
   background: #F5F7FA;
@@ -66,3 +67,6 @@ textarea {
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 </style>
+
+
+
