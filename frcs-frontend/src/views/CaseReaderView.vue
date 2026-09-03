@@ -5,6 +5,16 @@
       <el-button type="primary" plain @click="backToHome">{{ lang === "zh" ? "返回主界面" : "Home" }}</el-button>
       <span class="reader-title">{{ caseMeta?.case_name || "—" }}</span>
       <span class="reader-layout-hint">{{ lang === "zh" ? "拖动中间分隔条可调整左右宽度" : "Drag the divider to resize panes" }}</span>
+      <el-switch
+        v-model="switchLang"
+        :active-value="'en'"
+        :inactive-value="'zh'"
+        active-text="EN"
+        inactive-text="中文"
+        class="reader-lang-switch"
+        :title="lang === 'zh' ? '切换原文与 AI 摘要的语言' : 'Switch language of the document and AI summary'"
+        @change="onLangToggle"
+      />
       <el-button class="reader-open" @click="openOriginUrl">{{ lang === "zh" ? "外部打开原文" : "Open externally" }}</el-button>
     </header>
 
@@ -14,18 +24,43 @@
         <section class="reader-left" :style="{ flex: `0 0 ${leftPct}%`, minWidth: 0 }">
         <div class="pane-label pane-label-row">
           <span>{{ lang === "zh" ? "原始文档" : "Original Document" }}</span>
-          <el-button size="small" text type="primary" @click="reloadOriginal">
-            {{ lang === "zh" ? "刷新原文" : "Reload" }}
-          </el-button>
+          <div class="pane-label-actions">
+            <el-radio-group v-model="origView" size="small" @change="onOrigViewChange">
+              <el-radio-button label="original">{{ lang === "zh" ? "官方原文" : "Original" }}</el-radio-button>
+              <el-radio-button label="translated">{{ lang === "zh" ? "中文译文" : "English translation" }}</el-radio-button>
+            </el-radio-group>
+            <el-button v-if="origView === 'original'" size="small" text type="primary" @click="reloadOriginal">
+              {{ lang === "zh" ? "刷新原文" : "Reload" }}
+            </el-button>
+          </div>
         </div>
-        <div v-if="pdfUrl && canEmbedOriginalInFrame" class="reader-frame-wrap">
+        <div v-if="origView === 'original' && pdfUrl && canEmbedOriginalInFrame" class="reader-frame-wrap">
           <iframe class="reader-frame" :src="pdfUrl" title="original" :key="originalFrameKey" @load="onOriginalLoaded" />
         </div>
-        <div v-else-if="pdfUrl && !canEmbedOriginalInFrame" class="reader-fallback">
+        <div v-else-if="origView === 'original' && pdfUrl && !canEmbedOriginalInFrame" class="reader-fallback">
           <p>{{ lang === "zh" ? "当前页面内嵌失败，请点击外部打开。" : "Embedding failed. Open externally." }}</p>
           <el-button type="primary" @click="openOriginUrl">{{ lang === "zh" ? "外部打开原文" : "Open externally" }}</el-button>
         </div>
-        <div v-else class="reader-placeholder">{{ lang === "zh" ? "无原文链接" : "No document URL" }}</div>
+        <div v-else-if="origView === 'original'" class="reader-placeholder">{{ lang === "zh" ? "无原文链接" : "No document URL" }}</div>
+        <div v-else class="reader-translation-wrap">
+          <div v-if="origTranslateError" class="detail-banner error">
+            <span>{{ origTranslateError }}</span>
+          </div>
+          <div v-if="origTranslateNote" class="orig-translate-note">{{ origTranslateNote }}</div>
+          <div v-if="origTranslateTruncated" class="orig-translate-truncated">
+            {{ lang === "zh" ? "原文较长，译文已按前若干段落截断，完整内容请查看官方原文。" : "The original is long; only leading paragraphs are translated. See the official document for the full text." }}
+          </div>
+          <div v-loading="origTranslating" class="reader-translation-body" element-loading-text="正在翻译原文..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.85)">
+            <template v-if="!origTranslating">
+              <div v-if="!origTranslatedContent" class="reader-placeholder">
+                {{ lang === "zh" ? "暂无译文内容" : "No translation available" }}
+              </div>
+              <div v-else class="original-text-content">
+                <p v-for="(para, idx) in originalParagraphs" :key="idx" class="original-para">{{ para }}</p>
+              </div>
+            </template>
+          </div>
+        </div>
       </section>
 
       <div class="reader-gutter" @pointerdown.prevent="startDrag" :title="lang === 'zh' ? '拖拽调整左右宽度' : 'Drag to resize'" />
@@ -84,6 +119,13 @@ export default {
     const router = useRouter();
     const store = useStore();
     const lang = computed(() => store.getters.lang);
+    const switchLang = computed({
+      get: () => store.state.lang,
+      set: (val) => {
+        store.commit("setLang", val);
+        localStorage.setItem("lang", val);
+      },
+    });
 
     const caseMeta = ref(null);
     const loadError = ref("");
@@ -95,6 +137,30 @@ export default {
     const caseDetailContent = ref("");
     const summaryCredits = ref(null);
     const originalFrameKey = ref(0);
+
+    // 原文视图：官方原文 / 译文（按段落展示）
+    const origView = ref("original");
+    const origTranslating = ref(false);
+    const origTranslateError = ref("");
+    const origTranslatedContent = ref("");
+    const origTranslateNote = ref("");
+    const origTranslateTruncated = ref(false);
+    const origCache = ref({ zh: "", en: "" });
+    let summaryReloadQueued = false;
+    let summaryRunToken = 0;
+    let origTranslateToken = 0;
+
+    const splitIntoParagraphs = (text) => {
+      const t = String(text || "").trim();
+      if (!t) return [];
+      const byBlankLine = t.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+      if (byBlankLine.length > 1) {
+        return byBlankLine;
+      }
+      return t.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+    };
+    const originalParagraphs = computed(() => splitIntoParagraphs(origTranslatedContent.value));
+
     let pollAbort = false;
 
     const leftPct = ref(52);
@@ -164,8 +230,10 @@ export default {
 
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-    const runSummary = async (force = false) => {
+    const runSummary = async (force = false, languageCode = lang.value) => {
       if (!caseId.value) return;
+      const runToken = ++summaryRunToken;
+      const requestLang = languageCode === "en" ? "en" : "zh";
       pollAbort = false;
       loadingDetail.value = true;
       detailError.value = "";
@@ -173,14 +241,17 @@ export default {
       detailStatusText.value = lang.value === "zh" ? "正在启动摘要任务…" : "Starting summary…";
       caseDetailContent.value = "";
       let pollFinishedOk = false;
+      const isCurrentRun = () => runToken === summaryRunToken;
       try {
         const userId = parseInt(getAuth("userId") || "0", 10);
         if (userId === 0) {
+          if (!isCurrentRun()) return;
           detailError.value = lang.value === "zh" ? "请登录后使用 AI 摘要。" : "Please log in for AI summary.";
           detailStatusText.value = "";
           return;
         }
-        const start = await api.startSummaryAsync(caseId.value, lang.value, userId, force);
+        const start = await api.startSummaryAsync(caseId.value, requestLang, userId, force);
+        if (!isCurrentRun()) return;
         if (start.code !== 200) {
           const mapped = mapSummaryError(start.message, start.code, lang.value);
           detailError.value = mapped.text;
@@ -191,6 +262,7 @@ export default {
         }
         const d = start.data || {};
         if (d.status === "DONE" && d.content) {
+          if (!isCurrentRun()) return;
           caseDetailContent.value = d.content;
           detailStatusText.value = "";
           await refreshSummaryCredits();
@@ -199,9 +271,11 @@ export default {
         }
         detailStatusText.value = lang.value === "zh" ? "正在生成摘要，请稍候…" : "Generating…";
         const deadline = Date.now() + 30 * 60 * 1000;
-        while (Date.now() < deadline && !pollAbort) {
+        while (Date.now() < deadline && !pollAbort && isCurrentRun()) {
           await sleep(2000);
-          const st = await api.getSummaryAsyncStatus(caseId.value, lang.value, userId);
+          if (!isCurrentRun()) return;
+          const st = await api.getSummaryAsyncStatus(caseId.value, requestLang, userId);
+          if (!isCurrentRun()) return;
           if (st.code !== 200) {
             const mapped = mapSummaryError(st.message, st.code, lang.value);
             detailError.value = mapped.text || (lang.value === "zh" ? "查询摘要状态失败" : "Could not get summary status");
@@ -210,6 +284,7 @@ export default {
             break;
           }
           const s = st.data || {};
+          if (!isCurrentRun()) return;
           detailStatusText.value =
             s.status === "RUNNING"
               ? lang.value === "zh"
@@ -217,6 +292,7 @@ export default {
                 : "Generating…"
               : "";
           if (s.status === "DONE" && s.content) {
+            if (!isCurrentRun()) return;
             caseDetailContent.value = s.content;
             detailStatusText.value = "";
             await refreshSummaryCredits();
@@ -224,6 +300,7 @@ export default {
             break;
           }
           if (s.status === "FAILED") {
+            if (!isCurrentRun()) return;
             const mapped = mapSummaryError(s.errorMessage, null, lang.value);
             detailError.value = mapped.text || (lang.value === "zh" ? "摘要失败" : "Summary failed");
             isQuotaError.value = mapped.quota;
@@ -231,21 +308,28 @@ export default {
             break;
           }
         }
-        if (!pollFinishedOk && !detailError.value && !pollAbort) {
+        if (!pollFinishedOk && !detailError.value && !pollAbort && isCurrentRun()) {
           detailError.value =
             lang.value === "zh" ? "摘要等待超时，请稍后点击「重新生成」" : "Timed out. Tap Regenerate to retry.";
           detailStatusText.value = "";
         }
       } catch (e) {
+        if (!isCurrentRun()) return;
         detailStatusText.value = "";
         const extra = e.serverMessage || e.message;
         const mapped = mapSummaryError(extra, null, lang.value);
         isQuotaError.value = mapped.quota;
         detailError.value = mapped.text;
       } finally {
-        loadingDetail.value = false;
-        if (detailError.value) {
-          detailStatusText.value = "";
+        if (isCurrentRun()) {
+          loadingDetail.value = false;
+          if (detailError.value) {
+            detailStatusText.value = "";
+          }
+          if (summaryReloadQueued) {
+            summaryReloadQueued = false;
+            runSummary();
+          }
         }
       }
     };
@@ -315,6 +399,84 @@ export default {
       originalFrameKey.value += 1;
     };
 
+    const fetchOriginalTranslation = async () => {
+      if (!caseId.value) return;
+      const runToken = ++origTranslateToken;
+      const code = lang.value === "en" ? "en" : "zh";
+      if (origCache.value[code]) {
+        origTranslatedContent.value = origCache.value[code];
+        origTranslating.value = false;
+        return;
+      }
+      const isCurrentRun = () => runToken === origTranslateToken;
+      origTranslating.value = true;
+      origTranslateError.value = "";
+      origTranslatedContent.value = "";
+      origTranslateNote.value = "";
+      origTranslateTruncated.value = false;
+      try {
+        const r = await api.translateCaseOriginal(caseId.value, code);
+        if (!isCurrentRun()) return;
+        if (r.code === 200 && r.data) {
+          const d = r.data;
+          origCache.value[code] = d.content || "";
+          origTranslatedContent.value = d.content || "";
+          origTranslateNote.value = d.message || "";
+          origTranslateTruncated.value = !!d.truncated;
+          // 原文本来就是英文且目标也是英文时，直接展示官方原文更合适
+          if (code === "en" && d.sourceLanguage === "en" && origView.value === "translated") {
+            origView.value = "original";
+          }
+        } else {
+          origTranslateError.value =
+            r.message || (lang.value === "zh" ? "原文翻译失败，请稍后重试" : "Translation failed. Please retry later.");
+        }
+      } catch (e) {
+        if (!isCurrentRun()) return;
+        const status = e && e.response ? e.response.status : null;
+        if (status === 404) {
+          origTranslateError.value =
+            lang.value === "zh"
+              ? "原文翻译接口不存在（404）：当前连接的后端还没有部署最新代码，请先启动已更新的后端或把 /api 指向新后端。"
+              : "Translation endpoint not found (404): the connected backend is outdated. Start the updated backend or point /api to it.";
+        } else {
+          origTranslateError.value =
+            lang.value === "zh"
+              ? "原文翻译请求失败，请检查网络后重试"
+              : "Translation request failed. Check network and retry.";
+        }
+      } finally {
+        if (isCurrentRun()) {
+          origTranslating.value = false;
+        }
+      }
+    };
+
+    const onOrigViewChange = (val) => {
+      origView.value = val;
+      if (val === "translated") {
+        fetchOriginalTranslation();
+      }
+    };
+
+    const onLangToggle = async () => {
+      if (!caseMeta.value || !caseId.value) return;
+      if (!loadingDetail.value) {
+        await runSummary();
+      } else {
+        // 摘要正在生成：等当前任务结束后再按新语言生成一次
+        summaryReloadQueued = true;
+      }
+      const shouldAutoTranslate =
+        caseMeta.value?.country === "JPN" || lang.value === "zh";
+      if (shouldAutoTranslate) {
+        origView.value = "translated";
+      }
+      if (origView.value === "translated") {
+        await fetchOriginalTranslation();
+      }
+    };
+
     const onOriginalLoaded = () => {};
 
     const backToSearch = () => router.push("/case-query/search");
@@ -372,6 +534,11 @@ export default {
     };
 
     onMounted(async () => {
+      // 新标签页打开阅读器时 Vuex 默认 zh，这里恢复用户上次选择的语言
+      const storedLang = localStorage.getItem("lang");
+      if (storedLang === "zh" || storedLang === "en") {
+        store.commit("setLang", storedLang);
+      }
       await loadMeta();
       if (caseMeta.value) runSummary();
       refreshSummaryCredits();
@@ -379,6 +546,7 @@ export default {
 
     return {
       lang,
+      switchLang,
       caseMeta,
       loadError,
       pdfUrl,
@@ -390,12 +558,21 @@ export default {
       caseDetailHtml,
       summaryCredits,
       originalFrameKey,
+      origView,
+      origTranslating,
+      origTranslateError,
+      origTranslatedContent,
+      origTranslateNote,
+      origTranslateTruncated,
+      originalParagraphs,
       leftPct,
       dragging,
       splitContainerRef,
       startDrag,
       openOriginUrl,
       reloadOriginal,
+      onOrigViewChange,
+      onLangToggle,
       backToSearch,
       backToHome,
       goRecharge,
@@ -526,6 +703,17 @@ export default {
   justify-content: space-between;
   gap: 8px;
 }
+.pane-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.reader-lang-switch {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
 .reader-frame {
   width: 100%;
   height: 100%;
@@ -553,6 +741,49 @@ export default {
   min-height: 0;
   overflow: auto;
   padding: 0 12px 8px;
+}
+.reader-translation-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.reader-translation-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+.orig-translate-note {
+  font-size: 12px;
+  color: #909399;
+  padding: 6px 12px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #ebeef5;
+}
+.orig-translate-truncated {
+  font-size: 12px;
+  color: #e6a23c;
+  padding: 6px 12px;
+  background: #fdf6ec;
+  border-bottom: 1px solid #faecd8;
+}
+.original-text-content {
+  padding: 12px 14px 16px;
+}
+.original-para {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.85;
+  color: #222;
+  text-align: justify;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.reader-translation-wrap .reader-placeholder {
+  height: auto;
+  min-height: 120px;
 }
 .detail-banner.error {
   background: #fef0f0;

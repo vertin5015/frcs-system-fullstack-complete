@@ -120,6 +120,15 @@
             {{ cases[selectIndex]?.caseName || (lang === "zh" ? "请选择案件" : "Please select a case") }}
           </span>
         </el-tooltip>
+        <el-switch
+          v-model="switchLang"
+          :active-value="'en'"
+          :inactive-value="'zh'"
+          active-text="EN"
+          inactive-text="中文"
+          size="small"
+          style="margin-left: 14px"
+        />
         <span style="font-weight: 600; font-size: 16px; color: #909399; cursor: pointer; margin-left: 24px" @click="openOriginUrl">
           {{ lang === "zh" ? "查看原始判决文书" : "View Original Judgment" }}
         </span>
@@ -159,6 +168,7 @@ import { useStore } from "vuex";
 import api from "../api/index"; // 确保你有一个 api 模块来处理后端请求
 import { ElNotification } from "element-plus";
 import { getAuth } from "../utils/authStorage";
+import { ensureCaseSummary } from "../utils/caseSummaryFlow";
 
 export default {
   name: "FavoriteCases",
@@ -168,6 +178,13 @@ export default {
     // ==============================
     const store = useStore();
     const lang = computed(() => store.getters.lang); // 从 Vuex 获取收藏夹搜索参数，用于初始值
+    const switchLang = computed({
+      get: () => store.state.lang,
+      set: (val) => {
+        store.commit("setLang", val);
+        localStorage.setItem("lang", val);
+      },
+    });
     const favoriteSearchParams = computed(() => store.getters.favoriteSearchParams);
     // 加载状态变量
     const loadingCases = ref(false); // 控制案件列表加载动画
@@ -209,6 +226,7 @@ export default {
     ];
 
     const caseDetailContent = ref(""); // 用于存储 AI 分析结果，初始为空
+    const summaryRequestSeq = ref(0); // 避免快速切换案例/语言时旧请求覆盖新内容
 
     // Markdown 处理器
     const md = new MarkdownIt();
@@ -380,23 +398,33 @@ export default {
         caseDetailContent.value = lang.value === "zh" ? "暂无详细内容。" : "No detailed content available.";
         return;
       }
+      const seq = ++summaryRequestSeq.value;
       loadingDetail.value = true; // 开始加载案件详情
       try {
-        const params = {
+        caseDetailContent.value = lang.value === "zh" ? "正在加载 AI 分析结果，请稍候..." : "Loading AI analysis result, please wait...";
+        const result = await ensureCaseSummary({
           caseId: selectCaseId.value,
           language: lang.value,
           userId: parseInt(getAuth("userId") || "0", 10),
-        };
-        caseDetailContent.value = lang.value === "zh" ? "正在加载 AI 分析结果，请稍候..." : "Loading AI analysis result, please wait...";
-        console.log("获取 AI 分析结果的参数", params);
-        const response = await api.getCaseSummary(selectCaseId.value, lang.value, parseInt(getAuth("userId") || "0", 10));
-        console.log("AI分析结果", response);
-        caseDetailContent.value = response.data || (lang.value === "zh" ? "未获取到 AI 分析结果。" : "No AI analysis result obtained.");
+        });
+        if (seq !== summaryRequestSeq.value) {
+          return;
+        }
+        if (result.ok) {
+          caseDetailContent.value =
+            result.content || (lang.value === "zh" ? "未获取到 AI 分析结果。" : "No AI analysis result obtained.");
+        } else {
+          caseDetailContent.value = result.error || (lang.value === "zh" ? "获取 AI 分析结果失败。" : "Failed to retrieve AI analysis result.");
+        }
       } catch (error) {
         console.error("获取AI分析结果失败:", error);
-        caseDetailContent.value = lang.value === "zh" ? "获取 AI 分析结果失败。" : "Failed to retrieve AI analysis result.";
+        if (seq === summaryRequestSeq.value) {
+          caseDetailContent.value = lang.value === "zh" ? "获取 AI 分析结果失败。" : "Failed to retrieve AI analysis result.";
+        }
       } finally {
-        loadingDetail.value = false; // 结束加载案件详情
+        if (seq === summaryRequestSeq.value) {
+          loadingDetail.value = false; // 结束加载案件详情
+        }
       }
     };
 
@@ -529,6 +557,7 @@ export default {
 
       // 计算属性
       lang,
+      switchLang,
       caseDetailHtml,
 
       // 方法函数

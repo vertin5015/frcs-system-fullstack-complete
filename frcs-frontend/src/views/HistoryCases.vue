@@ -70,6 +70,18 @@
       </div>
     </div>
     <el-dialog v-model="dialogVisible" :title="dialogCase?.case_name" width="800px" top="60px" :close-on-click-modal="false">
+      <div class="dialog-lang-row">
+        <span class="dialog-lang-label">{{ lang === "zh" ? "摘要语言" : "Summary language" }}</span>
+        <el-switch
+          v-model="switchLang"
+          :active-value="'en'"
+          :inactive-value="'zh'"
+          active-text="EN"
+          inactive-text="中文"
+          size="small"
+          @change="onDialogLangToggle"
+        />
+      </div>
       <div v-loading="detailLoading" element-loading-text="正在加载案件详情..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.8)" class="dialog-detail-content">
         <div v-html="caseDetailHtml"></div>
       </div>
@@ -85,12 +97,20 @@ import MarkdownIt from "markdown-it";
 import api from "@/api"; // 假设您的api模块在 src/api/index.js
 import { ElNotification } from "element-plus";
 import { getAuth } from "../utils/authStorage";
+import { ensureCaseSummary } from "../utils/caseSummaryFlow";
 
 export default {
   name: "HistoryCases",
   setup() {
     const store = useStore();
     const lang = computed(() => store.getters.lang);
+    const switchLang = computed({
+      get: () => store.state.lang,
+      set: (val) => {
+        store.commit("setLang", val);
+        localStorage.setItem("lang", val);
+      },
+    });
 
     const countryOptions = [
       { value: null, label: "全部", enLabel: "All" },
@@ -122,6 +142,7 @@ export default {
     const md = new MarkdownIt();
     const caseDetailHtml = ref("");
     const detailLoading = ref(false); // 控制案件详情弹窗内容的加载状态
+    const dialogRequestSeq = ref(0); // 快速切换语言时丢弃过期请求结果
 
     const openOriginalLink = (url) => {
       if (!url) {
@@ -183,29 +204,10 @@ export default {
       }
     };
 
-    const showCase = async (item) => {
-      dialogCase.value = item;
-      dialogVisible.value = true; // 先打开弹窗，以便显示加载状态
-      caseDetailHtml.value = lang.value === "zh" ? "加载案件详情中..." : "Loading case details..."; // 设置加载提示
-      detailLoading.value = true; // 设置详情加载状态为 true
-
-      try {
-        // 调用API获取案件的详细分析内容
-        const params = {
-          caseId: item.caseId, // 使用 item.case_id 作为案件的唯一标识符，因为它在你的后端数据中是唯一的
-          language: lang.value, // 语言
-        };
-        console.log("查看详细分析params:", params);
-        const detailResponse = await api.getCaseSummary(item.caseId, lang.value, parseInt(getAuth("userId") || "0", 10)); // 假设API通过caseId获取详情
-
-        if (detailResponse && detailResponse.code === 200 && detailResponse.data) {
-          const detailedContent = detailResponse.data;
-
-          // 根据当前语言获取国家名
-          const displayCountry = (countryOptions.find((opt) => opt.value === item.country) || {})[lang.value === "zh" ? "label" : "enLabel"] || item.country;
-
-          // 构建弹窗内容，所有静态字符串都根据 lang.value 动态选择
-          caseDetailHtml.value = md.render(`
+    const buildDialogHtml = (item, detailedContent) => {
+      const displayCountry =
+        (countryOptions.find((opt) => opt.value === item.country) || {})[lang.value === "zh" ? "label" : "enLabel"] || item.country;
+      return md.render(`
 ### ${lang.value === "zh" ? "智能案件分析" : "Intelligent Case Analysis"}
 
 **${lang.value === "zh" ? "案件名称：" : "Case Name:"}** ${item.caseName}
@@ -218,18 +220,57 @@ export default {
 ---
 
 ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "No detailed analysis content found.")}
-          `);
+      `);
+    };
+
+    const loadDialogDetail = async (item) => {
+      if (!item) {
+        return;
+      }
+      const seq = ++dialogRequestSeq.value;
+      dialogCase.value = item;
+      dialogVisible.value = true; // 先打开弹窗，以便显示加载状态
+      caseDetailHtml.value = lang.value === "zh" ? "加载案件详情中..." : "Loading case details..."; // 设置加载提示
+      detailLoading.value = true; // 设置详情加载状态为 true
+
+      try {
+        const detailResult = await ensureCaseSummary({
+          caseId: item.caseId,
+          language: lang.value,
+          userId: parseInt(getAuth("userId") || "0", 10),
+        });
+        if (seq !== dialogRequestSeq.value) {
+          return;
+        }
+        if (detailResult.ok) {
+          caseDetailHtml.value = buildDialogHtml(item, detailResult.content);
         } else {
-          // 处理详情API返回的错误
-          const errorMessage = detailResponse && detailResponse.message ? detailResponse.message : lang.value === "zh" ? "获取案件详情失败" : "Failed to fetch case details";
-          caseDetailHtml.value = `<p style="color: red;">${errorMessage}</p>`;
-          console.error("Case Detail API Error:", errorMessage);
+          caseDetailHtml.value = `<p style="color: red;">${
+            detailResult.error || (lang.value === "zh" ? "获取案件详情失败" : "Failed to fetch case details")
+          }</p>`;
+          console.error("Case Detail API Error:", detailResult.error);
         }
       } catch (error) {
         console.error("Error fetching case detail:", error);
-        caseDetailHtml.value = `<p style="color: red;">${lang.value === "zh" ? "加载案件详情时发生网络错误。" : "Network error occurred while loading case details."}</p>`;
+        if (seq === dialogRequestSeq.value) {
+          caseDetailHtml.value = `<p style="color: red;">${
+            lang.value === "zh" ? "加载案件详情时发生网络错误。" : "Network error occurred while loading case details."
+          }</p>`;
+        }
       } finally {
-        detailLoading.value = false; // 详情加载完成
+        if (seq === dialogRequestSeq.value) {
+          detailLoading.value = false; // 详情加载完成
+        }
+      }
+    };
+
+    const showCase = (item) => {
+      loadDialogDetail(item);
+    };
+
+    const onDialogLangToggle = () => {
+      if (dialogCase.value) {
+        loadDialogDetail(dialogCase.value);
       }
     };
 
@@ -263,6 +304,7 @@ ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "
 
     return {
       lang,
+      switchLang,
       isCollapsed,
       filterCountry,
       filterTime,
@@ -279,6 +321,7 @@ ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "
       showCase,
       openOriginalLink,
       detailLoading, // 暴露 detailLoading 状态
+      onDialogLangToggle,
     };
   },
 };
@@ -513,6 +556,17 @@ ${detailedContent || (lang.value === "zh" ? "未找到详细分析内容。" : "
 }
 
 /* 弹窗内容区域样式，提供定位上下文给v-loading */
+.dialog-lang-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dialog-lang-label {
+  font-size: 13px;
+  color: #606266;
+}
 .dialog-detail-content {
   position: relative;
   min-height: 200px; /* 确保弹窗内容在加载时也有一定高度 */
