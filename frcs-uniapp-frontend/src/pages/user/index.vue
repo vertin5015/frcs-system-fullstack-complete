@@ -149,7 +149,7 @@ function goHistory() {
 
 // 跳转海外法律知识
 function goStudy() {
-  uni.navigateTo({ url: '/pages/study/index' })
+  uni.switchTab({ url: '/pages/study/index' })
 }
 
 function goAgent() {

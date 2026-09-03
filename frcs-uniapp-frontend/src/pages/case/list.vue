@@ -72,6 +72,11 @@
             为您找到相关{{ searchMode === 'case' ? '案例' : '条文' }}共 <text class="highlight">{{ totalCount }}</text> 条
           </view>
 
+          <view v-if="loading && listData.length === 0" class="searching-state">
+            <view class="spinner"></view>
+            <text class="searching-text">正在{{ searchMode === 'case' ? '检索案例' : '查询条文' }}…</text>
+          </view>
+
           <view v-if="listData.length === 0 && !loading" class="empty-state">
             <text class="empty-icon">🔍</text>
             <text class="empty-text">暂无匹配的搜索结果</text>
@@ -85,6 +90,7 @@
                   <view class="type-tag">{{ item.citationCount != null ? `引用 ${item.citationCount}` : '涉外案例' }}</view>
                 </view>
                 <view class="card-title clamp-2">{{ item.case_name }}</view>
+                <view class="card-docket ellipsis">案号：{{ item.case_id }}</view>
                 <view class="card-subtitle clamp-2">{{ item.tags || '暂无摘要' }}</view>
                 <view class="card-footer">
                   <text class="date-text">{{ item.judgement_date || '-' }}</text>
@@ -122,33 +128,12 @@ import { ref, computed } from 'vue';
 import BottomTabBar from '../../components/BottomTabBar.vue';
 import api from '../../api';
 import { useUserStore } from '../../store/user';
+import { useSearchStore } from '../../store/search';
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import type { KbHit } from '../../types/case'
 
-onShow(() => {
-  uni.hideTabBar({
-    animation: false // 瞬间隐藏，不要动画，避免闪烁
-  })
-})
-
 const userStore = useUserStore()
-// ================= 状态定义 =================
-const searchMode = ref<'case' | 'law'>('case');
-const keyword = ref('');
-const isSearched = ref(false);
-
-// 筛选状态
-const selectedCountry = ref('全部国家');
-const selectedTime = ref('全部时间');
-const selectedSource = ref('全部数据源');
-
-// 案例与条文两种形态复用同一个列表
-const listData = ref<any[]>([]);
-const page = ref(1);
-const pageSize = 10;
-const totalCount = ref(0);
-const hasMore = ref(true);
-const loading = ref(false);
+const searchStore = useSearchStore()
 
 const countryName = (code?: string) => {
   if (code === 'US') return '美国'
@@ -166,21 +151,65 @@ const safeDecode = (v?: string) => {
   }
 }
 
-// 从首页/搜索入口携带参数进入
+/**
+ * 应用来自首页的搜索条件（与网页端「先写 Vuex searchParams 再进搜索页自动检索」一致）。
+ */
+const applyPending = (p: { keyword?: string; country?: string; period?: number | '' }) => {
+  if (!p) return
+  searchMode.value = 'case'
+  selectedSource.value = '全部数据源'
+  if (p.keyword) keyword.value = p.keyword
+
+  const countryLabelMap: Record<string, string> = { US: '美国', EU: '欧盟', JPN: '日本' }
+  const timeLabelMap: Record<string, string> = { '1': '最近一年', '3': '最近三年', '5': '最近五年', '10': '最近十年' }
+  if (p.country && countryLabelMap[p.country]) {
+    selectedCountry.value = countryLabelMap[p.country]
+  }
+  if (p.period != null && p.period !== '' && timeLabelMap[String(p.period)]) {
+    selectedTime.value = timeLabelMap[String(p.period)]
+  }
+  handleSearch(true)
+}
+
 onLoad((query) => {
-  if (query?.keyword) keyword.value = safeDecode(String(query.keyword))
-  const countryMap: Record<string, string> = { US: '美国', EU: '欧盟', JPN: '日本' }
-  const timeMap: Record<string, string> = { '1': '最近一年', '3': '最近三年', '5': '最近五年', '10': '最近十年' }
-  const country = safeDecode(String(query?.country || ''))
-  const period = safeDecode(String(query?.period || ''))
-  if (country && countryMap[country]) {
-    selectedCountry.value = countryMap[country]
+  // 兼容带 query 直达（reLaunch/外部跳转），统一转成 pending 由 onShow 消费
+  if (query?.keyword) {
+    const periodRaw = safeDecode(String(query?.period || ''))
+    searchStore.setPending({
+      keyword: safeDecode(String(query.keyword)),
+      country: safeDecode(String(query?.country || '')),
+      period: periodRaw === '' ? '' : Number(periodRaw),
+    })
   }
-  if (period && timeMap[period]) {
-    selectedTime.value = timeMap[period]
-  }
-  if (keyword.value) handleSearch(true)
 })
+
+onShow(() => {
+  uni.hideTabBar({
+    animation: false // 瞬间隐藏，不要动画，避免闪烁
+  })
+  const pending = searchStore.takePending()
+  if (pending) {
+    applyPending(pending)
+  }
+})
+
+// ================= 状态定义 =================
+const searchMode = ref<'case' | 'law'>('case');
+const keyword = ref('');
+const isSearched = ref(false);
+
+// 筛选状态
+const selectedCountry = ref('全部国家');
+const selectedTime = ref('全部时间');
+const selectedSource = ref('全部数据源');
+
+// 案例与条文两种形态复用同一个列表
+const listData = ref<any[]>([]);
+const page = ref(1);
+const pageSize = 10;
+const totalCount = ref(0);
+const hasMore = ref(true);
+const loading = ref(false);
 
 // ================= 热门搜索数据 =================
 const caseHotSearches = ['苹果专利纠纷', 'GDPR数据违规', '跨境电商合同', '反倾销调查', '离岸公司股权'];
@@ -254,16 +283,20 @@ const clearSearch = () => {
   page.value = 1;
 };
 
+// 请求序号：防止上一次未返回的搜索覆盖最新一次结果
+let searchSeq = 0
+
 const handleSearch = async (isRefresh = false) => {
   if (isRefresh) {
     isSearched.value = true;
     page.value = 1;
     listData.value = [];
     hasMore.value = true;
+  } else if (loading.value || !hasMore.value) {
+    return
   }
 
-  if (loading.value || !hasMore.value) return;
-
+  const seq = ++searchSeq
   loading.value = true;
   try {
     if (searchMode.value === 'case') {
@@ -281,6 +314,7 @@ const handleSearch = async (isRefresh = false) => {
         userId: userStore.userId,
       }
       const res = await api.searchCases(params)
+      if (seq !== searchSeq) return
       if (res.code !== 200) {
         uni.showToast({ title: res.message || '搜索失败', icon: 'none' })
         return
@@ -296,6 +330,7 @@ const handleSearch = async (isRefresh = false) => {
     } else {
       // 条文模式：后端无独立法律列表接口，通过知识库检索命中展示
       const res = await api.kbQuery({ question: keyword.value.trim() || '涉外法律', language: 'zh', topK: 20 })
+      if (seq !== searchSeq) return
       if (res.code !== 200) {
         uni.showToast({ title: res.message || '查询失败', icon: 'none' })
         return
@@ -307,9 +342,12 @@ const handleSearch = async (isRefresh = false) => {
 
   } catch (error) {
     console.error('搜索失败:', error)
+    if (seq !== searchSeq) return
     uni.showToast({ title: '搜索失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (seq === searchSeq) {
+      loading.value = false;
+    }
   }
 };
 
@@ -512,6 +550,17 @@ const goToLawDetail = (item: KbHit) => {
   .country-tag { background: #EBF4FF; color: #218CFF; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
   .type-tag { background: #F0F2F5; color: #606266; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
   .card-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 12rpx; line-height: 1.4; word-break: break-word; }
+  .card-docket {
+    font-size: 22rpx;
+    color: #909399;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    margin-bottom: 12rpx;
+    background: #F7F9FC;
+    padding: 6rpx 12rpx;
+    border-radius: 6rpx;
+    display: inline-block;
+    max-width: 100%;
+  }
   .card-subtitle { font-size: 26rpx; color: #666; margin-bottom: 20rpx; line-height: 1.5; word-break: break-word; }
   .card-footer {
     display: flex; justify-content: space-between; align-items: center;
@@ -544,5 +593,34 @@ const goToLawDetail = (item: KbHit) => {
   .empty-icon { font-size: 72rpx; line-height: 1; margin-bottom: 20rpx; opacity: 0.6; }
   .empty-text { color: #999; font-size: 28rpx; }
 }
+
+.searching-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 110rpx 0;
+
+  .spinner {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 50%;
+    border: 6rpx solid #EBF4FF;
+    border-top-color: #218CFF;
+    animation: frcs-spin 0.8s linear infinite;
+    margin-bottom: 24rpx;
+  }
+
+  .searching-text {
+    color: #218CFF;
+    font-size: 26rpx;
+  }
+}
+
+@keyframes frcs-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .load-more-text { text-align: center; padding: 30rpx 0; color: #999; font-size: 24rpx; }
 </style>

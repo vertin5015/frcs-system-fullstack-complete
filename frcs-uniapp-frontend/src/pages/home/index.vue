@@ -121,8 +121,10 @@ import BottomTabBar from '../../components/BottomTabBar.vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '../../api'
 import { useUserStore } from '../../store/user'
+import { useSearchStore } from '../../store/search'
 
 const userStore = useUserStore()
+const searchStore = useSearchStore()
 
 onShow(() => {
   uni.hideTabBar({
@@ -184,7 +186,7 @@ const loadRecentFavorites = async () => {
 
 // ================= 交互方法 =================
 const handleBannerClick = () => {
-  uni.navigateTo({ url: '/pages/case/list' })
+  uni.switchTab({ url: '/pages/case/list' })
 }
 
 const openCountrySelect = () => {
@@ -214,9 +216,13 @@ const handleSearch = () => {
   }
   const countryMap: Record<string, string> = { '全部国家': '', '美国': 'US', '欧盟': 'EU', '日本': 'JPN' }
   const timeMap: Record<string, string> = { '全部时间': '', '最近一年': '1', '最近三年': '3', '最近五年': '5', '最近十年': '10' }
-  uni.navigateTo({
-    url: `/pages/case/list?keyword=${encodeURIComponent(keyword.value)}&country=${countryMap[selectedCountry.value] || ''}&period=${timeMap[selectedTime.value] || ''}`
+  // 检索页是 tabBar 页面，switchTab 不能携带参数，先把搜索条件写入共享 store
+  searchStore.setPending({
+    keyword: keyword.value.trim(),
+    country: countryMap[selectedCountry.value] || '',
+    period: timeMap[selectedTime.value] ? Number(timeMap[selectedTime.value]) : '',
   })
+  uni.switchTab({ url: '/pages/case/list' })
 }
 
 const handleViewAllFavorites = () => {
