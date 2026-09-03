@@ -120,9 +120,11 @@ import { computed, ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import api from '../../api'
 import { useUserStore } from '../../store/user'
+import { useOriginalStore } from '../../store/original'
 import type { CaseBaseInfo } from '../../types/case'
 
 const userStore = useUserStore()
+const originalStore = useOriginalStore()
 const caseMeta = ref<CaseBaseInfo>()
 const caseId = ref('')
 
@@ -323,7 +325,9 @@ const openOriginal = () => {
     uni.showToast({ title: '无原文链接', icon: 'none' })
     return
   }
-  uni.navigateTo({ url: `/pages/case/original?url=${encodeURIComponent(url)}` })
+  // 通过 store 传递原始地址，避免 query 编解码不一致
+  originalStore.open(url)
+  uni.navigateTo({ url: '/pages/case/original' })
 }
 
 onLoad(async (query) => {
