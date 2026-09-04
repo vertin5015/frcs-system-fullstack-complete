@@ -190,7 +190,15 @@
           </div>
         </el-scrollbar>
         <div style="padding: 8px 0; display: flex; justify-content: center; width: 100%">
-          <el-pagination size="small" layout="prev, pager, next" :total="totalCasesCount" v-model:page-size="pageSize" v-model:current-page="page" />
+          <el-pagination
+            size="small"
+            layout="prev, pager, next"
+            :total="totalCasesCount"
+            :page-size="pageSize"
+            :current-page="page"
+            @current-change="onPageChange"
+            hide-on-single-page
+          />
         </div>
       </div>
     </div>
@@ -240,6 +248,7 @@ export default {
     const totalCasesCount = ref(0);
     const sourceStats = ref([]);
     const summaryCredits = ref(null);
+    let searchSeq = 0;
 
     const refreshSummaryCredits = async () => {
       const uid = getAuth("userId");
@@ -356,8 +365,10 @@ export default {
     };
 
     const performSearch = async (options = {}) => {
+      const seq = ++searchSeq;
       const keyword = (searchText.value || "").trim();
       if (!keyword) {
+        if (seq !== searchSeq) return;
         if (searchEventSource.value) {
           try {
             searchEventSource.value.close();
@@ -379,6 +390,7 @@ export default {
         }
         return;
       }
+      if (seq !== searchSeq) return;
       if (searchEventSource.value) {
         try {
           searchEventSource.value.close();
@@ -389,8 +401,12 @@ export default {
       }
       loadingCases.value = true;
       cases.value = [];
-      totalCasesCount.value = 0;
-      sourceStats.value = [];
+      // 翻页时保留上一次总数，避免 Element Plus 因 total=0 把页码自动拉回第 1 页；
+      // 只有新关键词/新筛选这类“新搜索”才清零总数。
+      if (!options.keepTotal) {
+        totalCasesCount.value = 0;
+        sourceStats.value = [];
+      }
 
       const userId = parseInt(getAuth("userId") || "0", 10);
       const params = new URLSearchParams();
@@ -415,6 +431,7 @@ export default {
       searchEventSource.value = es;
 
       es.addEventListener("part", (e) => {
+        if (seq !== searchSeq) return;
         try {
           const payload = JSON.parse(e.data);
           const chunk = payload.cases || [];
@@ -430,9 +447,12 @@ export default {
       es.addEventListener("done", (e) => {
         try {
           const wrap = JSON.parse(e.data);
+          if (seq !== searchSeq) return;
           if (wrap.code === 200 && wrap.data) {
-            cases.value = wrap.data.cases || [];
-            totalCasesCount.value = wrap.data.totalCount ?? 0;
+            const list = wrap.data.cases || [];
+            const total = wrap.data.totalCount ?? 0;
+            cases.value = list;
+            totalCasesCount.value = total;
             sourceStats.value = wrap.data.sourceStats || [];
           }
         } catch (err) {
@@ -447,6 +467,7 @@ export default {
       });
 
       es.addEventListener("fail", (e) => {
+        if (seq !== searchSeq) return;
         try {
           const wrap = JSON.parse(e.data);
           ElNotification({
@@ -469,6 +490,7 @@ export default {
       });
 
       es.onerror = () => {
+        if (seq !== searchSeq) return;
         loadingCases.value = false;
         if (searchEventSource.value === es) {
           try {
@@ -488,6 +510,20 @@ export default {
     const doPerformSearch = () => {
       page.value = 1;
       performSearch({ notify: true });
+    };
+
+    const onPageChange = (val) => {
+      const target = Number(val) || 1;
+      if (target === page.value) return;
+      page.value = target;
+      performSearch({ keepTotal: true });
+    };
+
+    const resetPageAndSearch = () => {
+      if (page.value !== 1) {
+        page.value = 1;
+      }
+      performSearch();
     };
 
     const toggleFavorite = async (item) => {
@@ -542,17 +578,8 @@ export default {
       }
     });
 
-    watch([page, pageSize, filterCountry, filterTime], () => {
-      performSearch();
-    });
-
-    watch(filterSources, () => {
-      performSearch();
-    });
-
-    watch(lang, () => {
-      performSearch();
-    });
+    // 页码变化只由分页组件触发，避免其它 watch 在翻页时把结果/页码互相覆盖
+    watch([filterCountry, filterTime, filterSources, lang, pageSize], resetPageAndSearch);
 
     const backToHome = () => {
       router.push("/case-query/home");
@@ -593,6 +620,7 @@ export default {
       toggleFavorite,
 
       doPerformSearch,
+      onPageChange,
 
       backToHome,
 

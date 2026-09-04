@@ -2,6 +2,7 @@ package com.hnu.legal_cases.controller;
 
 import com.alibaba.fastjson.JSON;
 import com.hnu.legal_cases.dto.ai.CaseQaReqVO;
+import com.hnu.legal_cases.dto.ai.CaseOriginalTranslationVO;
 import com.hnu.legal_cases.dto.ai.SummaryCaseReqVO;
 import com.hnu.legal_cases.dto.ai.SummaryStatusResVO;
 import com.hnu.legal_cases.dto.cases.CaseBaseInfo;
@@ -14,6 +15,7 @@ import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.CaseDetailService;
 import com.hnu.legal_cases.service.CaseService;
 import com.hnu.legal_cases.service.CheckReqVOService;
+import com.hnu.legal_cases.service.CaseOriginalTranslateService;
 import com.hnu.legal_cases.service.FavoriteService;
 import com.hnu.legal_cases.service.OriginalDocumentCacheService;
 import com.hnu.legal_cases.service.SearchCasesService;
@@ -63,6 +65,8 @@ public class CasesController {
     SpringAIService springAIService;
     @Autowired
     OriginalDocumentCacheService originalDocumentCacheService;
+    @Autowired
+    CaseOriginalTranslateService caseOriginalTranslateService;
 
     @GetMapping(value = "/search", produces = "application/json")
     public JSONReturnBean<SearchCasesResVO> searchCases(@ModelAttribute SearchCasesReqVO reqVO) {
@@ -317,6 +321,29 @@ public class CasesController {
         } catch (Throwable e) {
             log.error("caseMeta", e);
             return JSONReturnBean.failed("查询案例失败");
+        }
+    }
+
+    /**
+     * 原文翻译：将抓取到的判决文书按段落切分，并翻译为指定语言（zh/en）。
+     * 原文已是目标语言时直接返回按段落整理后的原文，方便阅读。
+     */
+    @GetMapping(value = "/original-translate", produces = "application/json")
+    public JSONReturnBean<CaseOriginalTranslationVO> originalTranslate(
+            @RequestParam String caseId,
+            @RequestParam String language) {
+        try {
+            if (StringUtils.isBlank(caseId) || StringUtils.isBlank(language)) {
+                return JSONReturnBean.failed("caseId 或 language 为空");
+            }
+            CaseOriginalTranslationVO vo = caseOriginalTranslateService.translateOriginal(caseId, language);
+            return JSONReturnBean.success(vo);
+        } catch (ServiceException e) {
+            log.error("原文翻译失败，入参 caseId={} language={}，error={}", caseId, language, e.getMessage());
+            return JSONReturnBean.failed(e.getMessage());
+        } catch (Throwable e) {
+            log.error("原文翻译错误，入参 caseId={} language={}", caseId, language, e);
+            return JSONReturnBean.failed("原文翻译失败，请稍后重试");
         }
     }
 
