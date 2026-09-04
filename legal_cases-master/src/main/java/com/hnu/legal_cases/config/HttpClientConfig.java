@@ -34,6 +34,18 @@ public class HttpClientConfig {
         return new RestTemplate(factory);
     }
 
+    /**
+     * Dedicated client for OpenAI-compatible embedding endpoints.
+     */
+    @Bean("embeddingRestTemplate")
+    public RestTemplate embeddingRestTemplate(EmbeddingProperties embeddingProperties) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        int timeout = Math.max(1000, embeddingProperties.getTimeoutMs());
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
+        return new RestTemplate(factory);
+    }
+
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();

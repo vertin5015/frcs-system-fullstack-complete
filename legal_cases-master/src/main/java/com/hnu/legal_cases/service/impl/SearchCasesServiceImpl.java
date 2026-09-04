@@ -9,8 +9,11 @@ import com.hnu.legal_cases.dto.cases.CaseBaseInfo;
 import com.hnu.legal_cases.dto.cases.SearchCasesReqVO;
 import com.hnu.legal_cases.dto.cases.SearchCasesResVO;
 import com.hnu.legal_cases.dto.cases.SearchPreviewCaseDTO;
+import com.hnu.legal_cases.dto.cases.SearchSourceStat;
 import com.hnu.legal_cases.dto.cases.SearchStreamPartDTO;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchBatch;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchResult;
 import com.hnu.legal_cases.dto.crawler.CrawlerSingleQueryResult;
 import com.hnu.legal_cases.enums.LanguageEnum;
 import com.hnu.legal_cases.exception.ServiceException;
@@ -82,12 +85,14 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             if (CollectionUtils.isEmpty(caseIds)) {
                 resVO.setTotalCount(0);
                 resVO.setCases(Collections.emptyList());
+                resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
                 notifier.done(resVO);
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
             resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
             resVO.setCases(caseBaseInfoList);
+            resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
             notifier.done(resVO);
             return;
         }
@@ -101,7 +106,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         }
         log.info("提取关键词（stream）：{}", extractedKeyword);
 
-        List<CompletableFuture<CrawlerSingleQueryResult>> futures = crawlerService.startParallelCaseSearch(
+        CrawlerSearchBatch batch = crawlerService.startParallelCaseSearchBatch(
                 extractedKeyword, country, period, reqVO.getSources(),
                 (source, result) -> {
                     List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result);
@@ -110,23 +115,27 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                     }
                 });
 
-        List<CrawlerBaseInfoItem> items;
+        CrawlerSearchResult crawlerResult;
         try {
-            items = crawlerService.mergeDistinctAfterWait(futures);
+            crawlerResult = crawlerService.mergeDistinctAfterWaitWithStats(
+                    batch.getFutures(), batch.getTargetCountries());
         } catch (ServiceException e) {
             notifier.fail(e.getMessage());
             return;
         }
 
+        List<CrawlerBaseInfoItem> items = crawlerResult.getItems();
         if (CollectionUtils.isEmpty(items)) {
             SearchCasesResVO empty = new SearchCasesResVO();
             empty.setTotalCount(0);
             empty.setCases(Collections.emptyList());
+            empty.setSourceStats(crawlerResult.getSourceStats());
             notifier.done(empty);
             return;
         }
 
         caseCacheService.cacheCaseIds(cacheKey, items);
+        caseCacheService.cacheSourceStats(cacheKey, crawlerResult.getSourceStats());
         SearchCasesResVO resVO = new SearchCasesResVO();
         try {
             caseService.saveCases(items, country);
@@ -136,12 +145,14 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             if (CollectionUtils.isEmpty(caseIds)) {
                 resVO.setTotalCount(0);
                 resVO.setCases(Collections.emptyList());
+                resVO.setSourceStats(crawlerResult.getSourceStats());
                 notifier.done(resVO);
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
             resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
             resVO.setCases(caseBaseInfoList);
+            resVO.setSourceStats(crawlerResult.getSourceStats());
             notifier.done(resVO);
         } catch (Throwable e) {
             caseCacheService.deleteCacheKey(cacheKey);
@@ -210,25 +221,31 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             if (CollectionUtils.isEmpty(caseIds)) {
                 resVO.setTotalCount(0);
                 resVO.setCases(Collections.emptyList());
+                resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
             resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
             resVO.setCases(caseBaseInfoList);
+            resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
             return resVO;
         }
 
         String extractedKeyword = springAIService.extractKeyword(keyword, country);
         log.info("提取关键词：{}", extractedKeyword);
 
-        List<CrawlerBaseInfoItem> items = crawlerService.queryCaseBaseInfo(extractedKeyword, country, period, reqVO.getSources());
+        CrawlerSearchResult crawlerResult = crawlerService.queryCaseBaseInfoWithStats(
+                extractedKeyword, country, period, reqVO.getSources());
+        List<CrawlerBaseInfoItem> items = crawlerResult.getItems();
         if (CollectionUtils.isEmpty(items)) {
             resVO.setTotalCount(0);
             resVO.setCases(Collections.emptyList());
+            resVO.setSourceStats(crawlerResult.getSourceStats());
             return resVO;
         }
 
         caseCacheService.cacheCaseIds(cacheKey, items);
+        caseCacheService.cacheSourceStats(cacheKey, crawlerResult.getSourceStats());
 
         try {
             caseService.saveCases(items, country);
@@ -238,11 +255,13 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             if (CollectionUtils.isEmpty(caseIds)) {
                 resVO.setTotalCount(0);
                 resVO.setCases(Collections.emptyList());
+                resVO.setSourceStats(crawlerResult.getSourceStats());
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
             resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
             resVO.setCases(caseBaseInfoList);
+            resVO.setSourceStats(crawlerResult.getSourceStats());
             return resVO;
         } catch (Throwable e) {
             caseCacheService.deleteCacheKey(cacheKey);
@@ -292,7 +311,9 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         String language = reqVO.getLanguage();
 
         String content = caseDetailService.getContent(caseId, language);
-        if (StringUtils.isNotBlank(content) && userId != 0L) {
+        if (StringUtils.isNotBlank(content)
+                && !SpringAIServiceImpl.isFallbackSummary(content)
+                && userId != 0L) {
             browseHistoryService.saveBrowseHistory(userId, caseId);
             return content;
         }
@@ -306,12 +327,25 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         if (userId != null && userId != 0L) {
             summaryQuotaService.tryAcquireSummaryQuota(userId, caseId, "SUMMARY_SYNC");
         }
+        boolean fallback = false;
+        String fallbackSummaryEN = null;
+        String fallbackSummaryZH = null;
         try {
             String caseDetail = crawlerService.getCaseDetail(url);
             String summaryEN = springAIService.summaryCase(caseDetail);
+            fallback = SpringAIServiceImpl.isFallbackSummary(summaryEN);
             String summaryZH = springAIService.translate(summaryEN, "English", "Simplified Chinese");
             summaryZH = this.formatText(summaryZH);
-            caseDetailService.insertCaseDetail(caseId, summaryEN, summaryZH);
+            if (fallback) {
+                fallbackSummaryEN = summaryEN;
+                fallbackSummaryZH = summaryZH;
+            } else {
+                if (caseDetailMapper.getCaseDetailByCaseId(caseId) == null) {
+                    caseDetailService.insertCaseDetail(caseId, summaryEN, summaryZH);
+                } else {
+                    caseDetailMapper.updateSummaryDone(caseId, summaryZH, summaryEN);
+                }
+            }
         } catch (Throwable e) {
             if (userId != null && userId != 0L) {
                 summaryQuotaService.refundSummaryQuota(userId, caseId);
@@ -320,6 +354,16 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 throw (ServiceException) e;
             }
             throw new ServiceException(e.getMessage() != null ? e.getMessage() : "摘要生成失败");
+        }
+
+        if (fallback) {
+            if (userId != null && userId != 0L) {
+                summaryQuotaService.refundSummaryQuota(userId, caseId);
+            }
+            String selected = LanguageEnum.ZH_CN.getCode().equals(language)
+                    ? fallbackSummaryZH
+                    : fallbackSummaryEN;
+            return StringUtils.isNotBlank(selected) ? selected : fallbackSummaryEN;
         }
 
         if (userId != null && userId != 0L) {
@@ -345,7 +389,9 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             caseDetailMapper.resetSummary(caseId);
         }
         String content = caseDetailService.getContent(caseId, language);
-        if (!forceRegenerate && StringUtils.isNotBlank(content)) {
+        if (!forceRegenerate
+                && StringUtils.isNotBlank(content)
+                && !SpringAIServiceImpl.isFallbackSummary(content)) {
             SummaryStatusResVO vo = new SummaryStatusResVO();
             vo.setStatus("DONE");
             vo.setContent(content);
@@ -376,7 +422,8 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                     log.warn("insertPlaceholder 并发可能重复 caseId={} msg={}", caseId, e.getMessage());
                 }
             } else if ("FAILED".equals(row.getSummaryStatus()) || "PENDING".equals(row.getSummaryStatus())
-                    || row.getSummaryStatus() == null || forceRegenerate) {
+                    || row.getSummaryStatus() == null || forceRegenerate
+                    || SpringAIServiceImpl.isFallbackSummary(content)) {
                 caseDetailMapper.updateSummaryStatus(caseId, "RUNNING", null);
             }
 

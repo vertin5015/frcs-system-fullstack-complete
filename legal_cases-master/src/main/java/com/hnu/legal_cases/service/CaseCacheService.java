@@ -1,6 +1,7 @@
 package com.hnu.legal_cases.service;
 
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
+import com.hnu.legal_cases.dto.cases.SearchSourceStat;
 
 import java.util.List;
 import java.util.Set;
@@ -35,6 +36,16 @@ public interface CaseCacheService {
      * 将案例ID存入缓存
      */
     void cacheCaseIds(String cacheKey, List<CrawlerBaseInfoItem> items);
+
+    /**
+     * 缓存每个数据源的结果统计，供缓存命中时同样展示给用户。
+     */
+    void cacheSourceStats(String cacheKey, List<SearchSourceStat> sourceStats);
+
+    /**
+     * 读取缓存中的数据源统计。
+     */
+    List<SearchSourceStat> getCachedSourceStats(String cacheKey);
 
     /**
      * 删除缓存

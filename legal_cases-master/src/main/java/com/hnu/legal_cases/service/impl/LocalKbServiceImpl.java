@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hnu.legal_cases.config.KbProperties;
 import com.hnu.legal_cases.dao.CaseDetailMapper;
 import com.hnu.legal_cases.dto.ai.SpringAIResVO;
+import com.hnu.legal_cases.dto.cases.CaseBaseInfo;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
 import com.hnu.legal_cases.dto.kb.KbIngestCrawlerReqVO;
 import com.hnu.legal_cases.dto.kb.KbIngestDbReqVO;
@@ -14,7 +15,7 @@ import com.hnu.legal_cases.dto.kb.KbQueryResVO;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.pojo.CaseDetailInfo;
 import com.hnu.legal_cases.service.LocalKbService;
-import com.hnu.legal_cases.service.LocalEmbeddingService;
+import com.hnu.legal_cases.service.EmbeddingService;
 import com.hnu.legal_cases.service.CrawlerService;
 import com.hnu.legal_cases.service.SpringAIService;
 import com.hnu.legal_cases.service.AiCallRunner;
@@ -42,7 +43,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LocalKbServiceImpl implements LocalKbService {
 
-    private final LocalEmbeddingService localEmbeddingService;
+    private final EmbeddingService embeddingService;
     private final CaseDetailMapper caseDetailMapper;
     private final CrawlerService crawlerService;
     private final SpringAIService springAIService;
@@ -190,6 +191,11 @@ public class LocalKbServiceImpl implements LocalKbService {
 
     @Override
     public synchronized KbQueryResVO query(KbQueryReqVO reqVO) {
+        return query(reqVO, List.of());
+    }
+
+    @Override
+    public synchronized KbQueryResVO query(KbQueryReqVO reqVO, List<CaseBaseInfo> relatedCases) {
         if (reqVO == null || StringUtils.isBlank(reqVO.getQuestion())) {
             throw new ServiceException("问题为空");
         }
@@ -202,7 +208,7 @@ public class LocalKbServiceImpl implements LocalKbService {
             return empty;
         }
 
-        float[] qv = localEmbeddingService.embed(reqVO.getQuestion().trim());
+        float[] qv = embeddingService.embed(reqVO.getQuestion().trim());
         int topK = normalizedTopK(reqVO.getTopK(), all.size());
         final String qText = reqVO.getQuestion().trim();
         final float[] queryVector = qv;
@@ -213,7 +219,7 @@ public class LocalKbServiceImpl implements LocalKbService {
                 .toList();
 
         String lang = StringUtils.isNotBlank(reqVO.getLanguage()) ? reqVO.getLanguage().trim() : "zh";
-        String context = buildContext(ranked);
+        String context = buildRagContext(ranked, relatedCases, lang);
         String answer;
         try {
             answer = askOpenAi(reqVO.getQuestion().trim(), context, lang);
@@ -242,14 +248,16 @@ public class LocalKbServiceImpl implements LocalKbService {
     private String askOpenAi(String question, String context, String language) throws Exception {
         String outLang = language.toLowerCase(Locale.ROOT).startsWith("zh") ? "中文" : "English";
         String prompt = """
-                你是法律知识库问答助手。请基于给定的知识片段回答问题，不要编造事实。
-                如果知识片段无法支持答案，请明确回复“知识库中暂无足够信息”。
+                你是涉外法律知识库问答助手。请基于给定的知识片段回答，不要编造事实。
+                如果知识片段不足以直接回答，可结合相关案例的案情、裁判结果和司法实践进行说明，
+                并明确标注“该结论来自检索到的案例，仅作参考”。
+                如果知识片段和相关案例都无法支持答案，请明确回复“当前资料不足，无法给出可靠回答”。
                 回答语言：%s
                 
                 【问题】
                 %s
                 
-                【知识片段】
+                【检索资料】
                 %s
                 
                 输出 JSON：
@@ -327,12 +335,15 @@ public class LocalKbServiceImpl implements LocalKbService {
     }
 
     private List<Float> embedSafely(String text) {
-        return toList(localEmbeddingService.embed(text));
+        return toList(embeddingService.embed(text));
     }
 
     private static double similarityScore(KbChunk c, float[] qv, String question) {
         if (qv != null && c.getEmbedding() != null && !c.getEmbedding().isEmpty()) {
-            return cosine(toArray(c.getEmbedding()), qv);
+            float[] stored = toArray(c.getEmbedding());
+            if (stored.length == qv.length) {
+                return cosine(stored, qv);
+            }
         }
         return keywordOverlapScore(question, c.getContent());
     }
@@ -427,6 +438,30 @@ public class LocalKbServiceImpl implements LocalKbService {
                     .append("\n")
                     .append(c.getContent())
                     .append("\n\n");
+        }
+        return sb.toString();
+    }
+
+    private String buildRagContext(List<ScoredChunk> ranked, List<CaseBaseInfo> relatedCases, String language) {
+        boolean zh = language != null && language.toLowerCase(Locale.ROOT).startsWith("zh");
+        StringBuilder sb = new StringBuilder();
+        sb.append(zh ? "【知识库片段】\n" : "[Knowledge base snippets]\n");
+        sb.append(buildContext(ranked));
+
+        if (relatedCases != null && !relatedCases.isEmpty()) {
+            sb.append(zh ? "\n【相关案例】\n" : "\n[Related cases]\n");
+            for (int i = 0; i < relatedCases.size(); i++) {
+                CaseBaseInfo c = relatedCases.get(i);
+                sb.append(i + 1).append(". ")
+                        .append(zh ? "案件名称" : "Case name").append(": ")
+                        .append(c.getCase_name() == null ? "-" : c.getCase_name()).append("\n")
+                        .append("   ").append(zh ? "国家" : "Country").append(": ")
+                        .append(c.getCountry() == null ? "-" : c.getCountry()).append("\n")
+                        .append("   ").append(zh ? "案号" : "Case ID").append(": ")
+                        .append(c.getCase_id() == null ? "-" : c.getCase_id()).append("\n")
+                        .append("   ").append(zh ? "摘要" : "Summary").append(": ")
+                        .append(c.getTags() == null ? "-" : c.getTags()).append("\n\n");
+            }
         }
         return sb.toString();
     }

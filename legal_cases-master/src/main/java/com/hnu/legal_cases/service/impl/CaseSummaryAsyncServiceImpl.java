@@ -56,6 +56,9 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
 
             boolean zh = language == null || language.toLowerCase().startsWith("zh");
             String primarySummary = springAIService.summaryCase(caseDetail, zh ? "zh" : "en");
+            if (SpringAIServiceImpl.isFallbackSummary(primarySummary)) {
+                throw new IllegalStateException("AI 摘要服务不可用，已返回临时兜底，请稍后重试");
+            }
             String summaryZH;
             String summaryEN;
             if (zh) {

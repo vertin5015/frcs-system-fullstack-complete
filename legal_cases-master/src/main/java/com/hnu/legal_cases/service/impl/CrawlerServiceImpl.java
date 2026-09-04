@@ -3,8 +3,11 @@ package com.hnu.legal_cases.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.hnu.legal_cases.client.CrawlerClient;
 import com.hnu.legal_cases.config.CrawlerProperties;
+import com.hnu.legal_cases.dto.cases.SearchSourceStat;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItemNormalizer;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchBatch;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchResult;
 import com.hnu.legal_cases.dto.crawler.CrawlerSingleQueryResult;
 import com.hnu.legal_cases.enums.CountryEnum;
 import com.hnu.legal_cases.exception.ServiceException;
@@ -18,7 +21,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -68,7 +73,30 @@ public class CrawlerServiceImpl implements CrawlerService {
     }
 
     @Override
+    public CrawlerSearchResult queryCaseBaseInfoWithStats(
+            String keyword,
+            String country,
+            Integer period,
+            String sourcesCsv) {
+        List<CountryEnum> targetCountries = determineTargetCountries(country, sourcesCsv);
+        List<CompletableFuture<CrawlerSingleQueryResult>> futures =
+                startParallelCaseSearch(keyword, country, period, sourcesCsv, (a, b) -> { });
+        return mergeDistinctAfterWaitWithStats(futures, targetCountries);
+    }
+
+    @Override
     public List<CompletableFuture<CrawlerSingleQueryResult>> startParallelCaseSearch(
+            String keyword,
+            String country,
+            Integer period,
+            String sourcesCsv,
+            BiConsumer<String, CrawlerSingleQueryResult> onSourceDone) {
+        return startParallelCaseSearchBatch(keyword, country, period, sourcesCsv, onSourceDone)
+                .getFutures();
+    }
+
+    @Override
+    public CrawlerSearchBatch startParallelCaseSearchBatch(
             String keyword,
             String country,
             Integer period,
@@ -106,18 +134,45 @@ public class CrawlerServiceImpl implements CrawlerService {
             });
             futures.add(f);
         }
-        return futures;
+        return new CrawlerSearchBatch(futures, targetCountries);
     }
 
     @Override
     public List<CrawlerBaseInfoItem> mergeDistinctAfterWait(List<CompletableFuture<CrawlerSingleQueryResult>> futures) {
+        CrawlerSearchResult result = mergeDistinctAfterWaitWithStatsInternal(futures, null);
+        return result.getItems();
+    }
+
+    @Override
+    public CrawlerSearchResult mergeDistinctAfterWaitWithStats(
+            List<CompletableFuture<CrawlerSingleQueryResult>> futures) {
+        return mergeDistinctAfterWaitWithStatsInternal(futures, null);
+    }
+
+    @Override
+    public CrawlerSearchResult mergeDistinctAfterWaitWithStats(
+            List<CompletableFuture<CrawlerSingleQueryResult>> futures,
+            List<CountryEnum> targetCountries) {
+        return mergeDistinctAfterWaitWithStatsInternal(futures, targetCountries);
+    }
+
+    private CrawlerSearchResult mergeDistinctAfterWaitWithStatsInternal(
+            List<CompletableFuture<CrawlerSingleQueryResult>> futures,
+            List<CountryEnum> targetCountries) {
         waitForSearchFutures(futures);
 
         boolean anySourceRespondedOk = false;
         List<CrawlerBaseInfoItem> allResults = new ArrayList<>();
-        for (CompletableFuture<CrawlerSingleQueryResult> future : futures) {
+        List<SearchSourceStat> sourceStats = new ArrayList<>();
+        for (int i = 0; i < futures.size(); i++) {
+            CompletableFuture<CrawlerSingleQueryResult> future = futures.get(i);
+            if (future == null) {
+                continue;
+            }
+            String sourceCode = resolveSourceCode(targetCountries, i);
             if (!future.isDone()) {
-                log.warn("列表搜索全局超时：本数据源尚未完成，已跳过");
+                log.warn("列表搜索全局超时：本数据源尚未完成，已跳过 source={}", sourceCode);
+                sourceStats.add(new SearchSourceStat(sourceCode, 0, "TIMEOUT"));
                 continue;
             }
             try {
@@ -128,11 +183,20 @@ public class CrawlerServiceImpl implements CrawlerService {
                 if (result.getItems() != null) {
                     allResults.addAll(result.getItems());
                 }
+                if (result.isCrawlApiOk()) {
+                    int count = result.getItems() == null ? 0 : result.getItems().size();
+                    sourceStats.add(new SearchSourceStat(sourceCode, count,
+                            count == 0 ? "NO_RESULTS" : "SUCCESS"));
+                } else {
+                    sourceStats.add(new SearchSourceStat(sourceCode, 0, "FAILED"));
+                }
             } catch (ExecutionException e) {
                 log.error("查询数据源失败", e.getCause());
+                sourceStats.add(new SearchSourceStat(sourceCode, 0, "FAILED"));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("合并爬虫结果被中断");
+                sourceStats.add(new SearchSourceStat(sourceCode, 0, "FAILED"));
             }
         }
 
@@ -150,18 +214,45 @@ public class CrawlerServiceImpl implements CrawlerService {
                         ),
                         map -> new ArrayList<>(map.values())
                 ));
+        Map<String, Long> distinctCounts = distinctResults.stream()
+                .filter(item -> item.getSourceId() != null)
+                .collect(Collectors.groupingBy(
+                        item -> {
+                            String code = CountryEnum.getCodeBySourceId(item.getSourceId());
+                            return code == null ? "UNKNOWN" : code;
+                        },
+                        HashMap::new,
+                        Collectors.counting()));
+        for (SearchSourceStat stat : sourceStats) {
+            if (stat != null && stat.getSource() != null) {
+                stat.setCount(distinctCounts.getOrDefault(stat.getSource(), 0L).intValue());
+                if (stat.getCount() > 0) {
+                    stat.setStatus("SUCCESS");
+                } else if ("SUCCESS".equals(stat.getStatus())) {
+                    stat.setStatus("NO_RESULTS");
+                }
+            }
+        }
         log.info("查询完成，共获取到 {} 条案例数据", distinctResults.size());
         if (distinctResults.isEmpty()) {
             if (anySourceRespondedOk) {
                 log.info("爬虫接口至少一路返回 ok，但合并后无有效案例（无匹配或条目无标题）");
-                return new ArrayList<>();
+                return new CrawlerSearchResult(new ArrayList<>(), sourceStats);
             }
             throw new ServiceException(
                     "调用爬虫搜索案例返回值为空。请确认各数据源爬虫服务已启动且网络可达，"
                             + "或在 application.yml 的 crawler.search 中配置正确地址（列表搜：EU:9002、US:9003、JPN:9004；详情 crawler.detail-url，默认 9001）。"
                             + "也可查看后端日志中「查询数据源 XX 失败」排查连接错误。");
         }
-        return distinctResults;
+        return new CrawlerSearchResult(distinctResults, sourceStats);
+    }
+
+    private String resolveSourceCode(List<CountryEnum> targetCountries, int index) {
+        if (targetCountries != null && index < targetCountries.size()) {
+            return targetCountries.get(index).getCode();
+        }
+        CountryEnum[] values = CountryEnum.values();
+        return index < values.length ? values[index].getCode() : "UNKNOWN";
     }
 
     /**

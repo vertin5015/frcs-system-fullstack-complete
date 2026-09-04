@@ -1,6 +1,6 @@
 package com.hnu.legal_cases.service.impl;
 
-import com.hnu.legal_cases.service.LocalEmbeddingService;
+import com.hnu.legal_cases.service.EmbeddingService;
 import io.micrometer.common.util.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +12,7 @@ import java.util.Arrays;
  * 说明：这是工程兜底方案，不依赖外部模型服务；语义效果弱于专业 embedding 模型，但稳定可用。
  */
 @Service
-public class LocalEmbeddingServiceImpl implements LocalEmbeddingService {
+public class LocalEmbeddingServiceImpl implements EmbeddingService {
     private static final int DIM = 384;
 
     @Override

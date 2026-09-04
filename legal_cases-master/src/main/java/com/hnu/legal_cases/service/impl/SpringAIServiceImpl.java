@@ -5,10 +5,12 @@ import com.hnu.legal_cases.enums.CountryEnum;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.SpringAIService;
 import com.hnu.legal_cases.service.AiCallRunner;
+import com.hnu.legal_cases.service.SummaryAiCallRunner;
 import com.alibaba.fastjson.JSON;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,9 @@ public class SpringAIServiceImpl implements SpringAIService {
     private final ChatClient summaryClient;
 
     private final AiCallRunner aiCallRunner;
+
+    @Autowired
+    private SummaryAiCallRunner summaryAiCallRunner;
 
     /**
      * 提取关键词
@@ -101,7 +106,7 @@ public class SpringAIServiceImpl implements SpringAIService {
                     safeContent
             );
 
-            String raw = aiCallRunner.call(() -> summaryClient.prompt()
+            String raw = summaryAiCallRunner.call(() -> summaryClient.prompt()
                     .user(summaryPrompt)
                     .call()
                     .content());
@@ -361,6 +366,20 @@ public class SpringAIServiceImpl implements SpringAIService {
             }
         }
         return false;
+    }
+
+    /**
+     * Detects the local fallback summaries produced by this class so callers can avoid persisting
+     * them as successful AI-generated summaries.
+     */
+    public static boolean isFallbackSummary(String content) {
+        if (StringUtils.isBlank(content)) {
+            return true;
+        }
+        String normalized = content.trim();
+        return normalized.contains("本地兜底")
+                || normalized.contains("Case Summary (Fallback)")
+                || normalized.contains("Fallback)");
     }
 
     private static boolean isSimpleLatinKeyword(String s) {

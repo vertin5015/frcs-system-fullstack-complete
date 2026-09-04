@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -43,7 +44,7 @@ class LegalAgentServiceImplTest {
                 "forum selection clause".equals(req.getQuestion())
                         && "zh".equals(req.getLanguage())
                         && Integer.valueOf(5).equals(req.getTopK())
-        ))).thenReturn(kbRes);
+        ), anyList())).thenReturn(kbRes);
 
         LegalAgentServiceImpl service = new LegalAgentServiceImpl(searchCasesService, localKbService);
         AgentAskReqVO req = new AgentAskReqVO();
@@ -63,7 +64,7 @@ class LegalAgentServiceImplTest {
         assertThat(res.getTrace()).extracting(AgentAskResVO.TraceStep::getName)
                 .containsExactly("plan", "case_search", "kb_retrieve", "answer");
         verify(searchCasesService).searchCases(argThat(arg -> "forum selection clause".equals(arg.getKeyword())));
-        verify(localKbService).query(argThat(arg -> "forum selection clause".equals(arg.getQuestion())));
+        verify(localKbService).query(argThat(arg -> "forum selection clause".equals(arg.getQuestion())), anyList());
     }
 
     @Test
@@ -74,7 +75,8 @@ class LegalAgentServiceImplTest {
         KbQueryResVO kbRes = new KbQueryResVO();
         kbRes.setAnswer("RAG answer from local knowledge base.");
         kbRes.setHitCount(1);
-        when(localKbService.query(argThat(req -> "contract breach".equals(req.getQuestion())))).thenReturn(kbRes);
+        when(localKbService.query(argThat(req -> "contract breach".equals(req.getQuestion())), anyList()))
+                .thenReturn(kbRes);
 
         LegalAgentServiceImpl service = new LegalAgentServiceImpl(searchCasesService, localKbService);
         AgentAskReqVO req = new AgentAskReqVO();

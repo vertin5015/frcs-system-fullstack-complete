@@ -1,7 +1,10 @@
 package com.hnu.legal_cases.service;
 
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchBatch;
+import com.hnu.legal_cases.dto.crawler.CrawlerSearchResult;
 import com.hnu.legal_cases.dto.crawler.CrawlerSingleQueryResult;
+import com.hnu.legal_cases.enums.CountryEnum;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +33,15 @@ public interface CrawlerService {
     List<CrawlerBaseInfoItem> queryCaseBaseInfo(String keyword, String country, Integer period, String sourcesCsv);
 
     /**
+     * 查询案例基本信息，并返回每个数据源的成功/失败/0 条统计。
+     */
+    CrawlerSearchResult queryCaseBaseInfoWithStats(
+            String keyword,
+            String country,
+            Integer period,
+            String sourcesCsv);
+
+    /**
      * 启动多数据源并行搜索；每路完成时回调（完成顺序即回调顺序，用于流式呈现）。
      *
      * @return 与并行任务对应的 Future 列表，用于后续 {@link #mergeDistinctResults} 与全局等待
@@ -42,9 +54,33 @@ public interface CrawlerService {
             BiConsumer<String, CrawlerSingleQueryResult> onSourceDone);
 
     /**
+     * Same as {@link #startParallelCaseSearch}, but also exposes the ordered source list so callers
+     * can build accurate per-source statistics.
+     */
+    CrawlerSearchBatch startParallelCaseSearchBatch(
+            String keyword,
+            String country,
+            Integer period,
+            String sourcesCsv,
+            BiConsumer<String, CrawlerSingleQueryResult> onSourceDone);
+
+    /**
      * 在 {@link #startParallelCaseSearch} 之后调用：等待（受全局超时约束）并合并、去重；空结果时抛出与同步搜索一致的 {@link com.hnu.legal_cases.exception.ServiceException}。
      */
     List<CrawlerBaseInfoItem> mergeDistinctAfterWait(List<CompletableFuture<CrawlerSingleQueryResult>> futures);
+
+    /**
+     * 等待、合并、去重，并同时返回每个数据源的状态统计。
+     */
+    CrawlerSearchResult mergeDistinctAfterWaitWithStats(
+            List<CompletableFuture<CrawlerSingleQueryResult>> futures);
+
+    /**
+     * Merge results and build statistics using the exact ordered source list.
+     */
+    CrawlerSearchResult mergeDistinctAfterWaitWithStats(
+            List<CompletableFuture<CrawlerSingleQueryResult>> futures,
+            List<CountryEnum> targetCountries);
 
     /**
      * 查询案例详细信息

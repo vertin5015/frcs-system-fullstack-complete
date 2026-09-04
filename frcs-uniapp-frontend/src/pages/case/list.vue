@@ -68,11 +68,27 @@
         </view>
 
         <view v-else class="results-section">
-          <view class="result-stats" v-if="!loading || listData.length > 0">
+        <view class="result-stats" v-if="!loading || listData.length > 0">
             为您找到相关{{ searchMode === 'case' ? '案例' : '条文' }}共 <text class="highlight">{{ totalCount }}</text> 条
-          </view>
+        </view>
 
-          <view v-if="loading && listData.length === 0" class="searching-state">
+        <view v-if="sourceStats.length" class="source-stats-row">
+          <view
+            v-for="stat in sourceStats"
+            :key="stat.source"
+            class="source-stat-chip"
+            :class="{ 'source-stat-zero': stat.status === 'NO_RESULTS', 'source-stat-failed': stat.status === 'FAILED' || stat.status === 'TIMEOUT' }"
+          >
+            <text class="source-stat-country">{{ countryName(stat.source) }}</text>
+            <text class="source-stat-count">{{ stat.count ?? 0 }}</text>
+            <text class="source-stat-unit">条</text>
+            <text v-if="stat.status === 'NO_RESULTS'" class="source-stat-tag zero">未爬到</text>
+            <text v-else-if="stat.status === 'FAILED'" class="source-stat-tag failed">爬取失败</text>
+            <text v-else-if="stat.status === 'TIMEOUT'" class="source-stat-tag timeout">超时</text>
+          </view>
+        </view>
+
+        <view v-if="loading && listData.length === 0" class="searching-state">
             <view class="spinner"></view>
             <text class="searching-text">正在{{ searchMode === 'case' ? '检索案例' : '查询条文' }}…</text>
           </view>
@@ -208,6 +224,7 @@ const listData = ref<any[]>([]);
 const page = ref(1);
 const pageSize = 10;
 const totalCount = ref(0);
+const sourceStats = ref<Array<{ source?: string; count?: number; status?: string }>>([]);
 const hasMore = ref(true);
 const loading = ref(false);
 
@@ -291,6 +308,7 @@ const handleSearch = async (isRefresh = false) => {
     isSearched.value = true;
     page.value = 1;
     listData.value = [];
+    sourceStats.value = [];
     hasMore.value = true;
   } else if (loading.value || !hasMore.value) {
     return
@@ -322,6 +340,7 @@ const handleSearch = async (isRefresh = false) => {
       if (isRefresh) {
         listData.value = res.data?.cases || []
         totalCount.value = res.data?.totalCount || 0
+        sourceStats.value = res.data?.sourceStats || []
       } else {
         listData.value.push(...(res.data?.cases || []))
       }
@@ -527,6 +546,55 @@ const goToLawDetail = (item: KbHit) => {
   margin-bottom: 24rpx;
   .highlight { color: #218CFF; font-weight: bold; margin: 0 4rpx; }
 }
+
+.source-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 22rpx;
+}
+
+.source-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 18rpx;
+  border: 1rpx solid #E4E7ED;
+  border-radius: 28rpx;
+  background: #ffffff;
+  font-size: 24rpx;
+  color: #333333;
+}
+
+.source-stat-country { color: #333333; }
+
+.source-stat-count {
+  color: #218CFF;
+  font-weight: 700;
+}
+
+.source-stat-unit { color: #909399; }
+
+.source-stat-tag {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 18rpx;
+}
+
+.source-stat-tag.zero {
+  background: #FDF6EC;
+  color: #B88230;
+}
+
+.source-stat-tag.failed,
+.source-stat-tag.timeout {
+  background: #FEF0F0;
+  color: #C45656;
+}
+
+.source-stat-zero { border-color: #F5DAB1; }
+
+.source-stat-failed { border-color: #F3B1B1; }
 
 .list-container {
   display: flex;

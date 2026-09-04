@@ -1,6 +1,9 @@
 package com.hnu.legal_cases.service.impl;
 
 import cn.hutool.crypto.SecureUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
+import com.hnu.legal_cases.dto.cases.SearchSourceStat;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.CaseCacheService;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -119,6 +123,31 @@ public class CaseCacheServiceImpl implements CaseCacheService {
         }
     }
 
+    @Override
+    public void cacheSourceStats(String cacheKey, List<SearchSourceStat> sourceStats) {
+        if (sourceStats == null || sourceStats.isEmpty()) {
+            return;
+        }
+        String statsKey = cacheKey + ":sourceStats";
+        stringRedisTemplate.opsForValue().set(statsKey, JSON.toJSONString(sourceStats),
+                CACHE_EXPIRE_HOURS, TimeUnit.HOURS);
+    }
+
+    @Override
+    public List<SearchSourceStat> getCachedSourceStats(String cacheKey) {
+        String raw = stringRedisTemplate.opsForValue().get(cacheKey + ":sourceStats");
+        if (StringUtils.isBlank(raw)) {
+            return new ArrayList<>();
+        }
+        try {
+            return JSON.parseObject(raw, new TypeReference<List<SearchSourceStat>>() {
+            });
+        } catch (Exception e) {
+            log.warn("读取数据源统计缓存失败 key={} error={}", cacheKey, e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
     /**
      * 删除缓存
      */
@@ -126,6 +155,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
     public void deleteCacheKey(String cacheKey) {
         try {
             stringRedisTemplate.delete(cacheKey);
+            stringRedisTemplate.delete(cacheKey + ":sourceStats");
             log.info("已经删除缓存key：{}", cacheKey);
         } catch (Exception e) {
             log.error("删除缓存key失败，key=" + cacheKey);

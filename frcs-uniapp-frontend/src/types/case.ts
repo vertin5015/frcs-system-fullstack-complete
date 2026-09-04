@@ -39,9 +39,16 @@ export interface BrowseHistoryInfo {
 }
 
 /** 搜索分页结果 */
+export interface SearchSourceStat {
+  source?: string
+  count?: number
+  status?: 'SUCCESS' | 'NO_RESULTS' | 'FAILED' | 'TIMEOUT' | string
+}
+
 export interface SearchResult {
   totalCount: number
   cases: CaseBaseInfo[]
+  sourceStats?: SearchSourceStat[]
 }
 
 /** 收藏分页结果 */

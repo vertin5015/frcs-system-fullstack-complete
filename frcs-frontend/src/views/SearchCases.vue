@@ -87,6 +87,21 @@
           />
         </div>
       </div>
+      <div v-if="sourceStats.length" class="source-stats-bar">
+        <span
+          v-for="stat in sourceStats"
+          :key="stat.source"
+          class="source-stat"
+          :class="{ 'source-stat-zero': stat.status === 'NO_RESULTS', 'source-stat-failed': stat.status === 'FAILED' || stat.status === 'TIMEOUT' }"
+        >
+          <span class="source-stat-label">{{ showCountry(stat.source) }}</span>
+          <span class="source-stat-count">{{ stat.count ?? 0 }}</span>
+          <span class="source-stat-unit">条</span>
+          <span v-if="stat.status === 'NO_RESULTS'" class="source-stat-tag zero">未爬到</span>
+          <span v-else-if="stat.status === 'FAILED'" class="source-stat-tag failed">爬取失败</span>
+          <span v-else-if="stat.status === 'TIMEOUT'" class="source-stat-tag timeout">超时</span>
+        </span>
+      </div>
       <div class="case-list-area">
         <el-scrollbar class="case-list-scrollbar">
           <div
@@ -223,6 +238,7 @@ export default {
 
     const cases = ref([]);
     const totalCasesCount = ref(0);
+    const sourceStats = ref([]);
     const summaryCredits = ref(null);
 
     const refreshSummaryCredits = async () => {
@@ -353,6 +369,7 @@ export default {
         loadingCases.value = false;
         cases.value = [];
         totalCasesCount.value = 0;
+        sourceStats.value = [];
         if (options.notify) {
           ElNotification({
             title: lang.value === "zh" ? "提示" : "Notice",
@@ -373,6 +390,7 @@ export default {
       loadingCases.value = true;
       cases.value = [];
       totalCasesCount.value = 0;
+      sourceStats.value = [];
 
       const userId = parseInt(getAuth("userId") || "0", 10);
       const params = new URLSearchParams();
@@ -415,6 +433,7 @@ export default {
           if (wrap.code === 200 && wrap.data) {
             cases.value = wrap.data.cases || [];
             totalCasesCount.value = wrap.data.totalCount ?? 0;
+            sourceStats.value = wrap.data.sourceStats || [];
           }
         } catch (err) {
           console.error(err);
@@ -440,6 +459,7 @@ export default {
         } finally {
           cases.value = [];
           totalCasesCount.value = 0;
+          sourceStats.value = [];
           loadingCases.value = false;
           es.close();
           if (searchEventSource.value === es) {
@@ -562,6 +582,8 @@ export default {
 
       totalCasesCount,
 
+      sourceStats,
+
       page,
 
       pageSize,
@@ -680,6 +702,56 @@ export default {
 
   margin-bottom: 8px;
 
+}
+
+.source-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.source-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 13px;
+  color: #303133;
+}
+
+.source-stat-count {
+  font-weight: 700;
+  color: #409eff;
+}
+
+.source-stat-tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.source-stat-tag.zero {
+  background: #fdf6ec;
+  color: #b88230;
+}
+
+.source-stat-tag.failed,
+.source-stat-tag.timeout {
+  background: #fef0f0;
+  color: #c45656;
+}
+
+.source-stat-failed {
+  border-color: #f3b1b1;
+}
+
+.source-stat-zero {
+  border-color: #f5dab1;
 }
 
 .case-list-area {

@@ -36,6 +36,7 @@ public class LegalAgentServiceImpl implements LegalAgentService {
         int topK = normalizeTopK(reqVO.getTopK());
 
         AgentAskResVO res = new AgentAskResVO();
+        List<CaseBaseInfo> relatedCases = List.of();
         boolean refreshCases = Boolean.TRUE.equals(reqVO.getRefreshCases());
         log.info("agent ask start question={} language={} country={} sources={} period={} topK={} refreshCases={}",
                 question, language, reqVO.getCountry(), reqVO.getSources(), reqVO.getPeriod(), topK, refreshCases);
@@ -48,8 +49,9 @@ public class LegalAgentServiceImpl implements LegalAgentService {
                 SearchCasesResVO searchRes = searchCases(reqVO, question, language);
                 int totalCount = searchRes.getTotalCount() == null ? 0 : searchRes.getTotalCount();
                 List<CaseBaseInfo> cases = searchRes.getCases() == null ? List.of() : searchRes.getCases();
+                relatedCases = limitCases(cases, 5);
                 res.setSearchTotalCount(totalCount);
-                res.setRelatedCases(limitCases(cases, 5));
+                res.setRelatedCases(relatedCases);
                 res.getTrace().add(AgentAskResVO.TraceStep.of("case_search", "done",
                         "matched " + totalCount + " cases"));
                 log.info("agent case search done question={} totalCount={} returnedCases={}",
@@ -62,7 +64,7 @@ public class LegalAgentServiceImpl implements LegalAgentService {
             }
         }
 
-        KbQueryResVO kbRes = queryKnowledgeBase(question, language, topK);
+        KbQueryResVO kbRes = queryKnowledgeBase(question, language, topK, relatedCases);
         int hitCount = kbRes.getHitCount() == null ? 0 : kbRes.getHitCount();
         res.setKbHitCount(hitCount);
         res.setKbHits(kbRes.getHits() == null ? List.of() : kbRes.getHits());
@@ -90,12 +92,13 @@ public class LegalAgentServiceImpl implements LegalAgentService {
         return searchRes == null ? new SearchCasesResVO() : searchRes;
     }
 
-    private KbQueryResVO queryKnowledgeBase(String question, String language, int topK) {
+    private KbQueryResVO queryKnowledgeBase(String question, String language, int topK,
+                                            List<CaseBaseInfo> relatedCases) {
         KbQueryReqVO kbReq = new KbQueryReqVO();
         kbReq.setQuestion(question);
         kbReq.setLanguage(language);
         kbReq.setTopK(topK);
-        KbQueryResVO kbRes = localKbService.query(kbReq);
+        KbQueryResVO kbRes = localKbService.query(kbReq, relatedCases);
         return kbRes == null ? new KbQueryResVO() : kbRes;
     }
 
