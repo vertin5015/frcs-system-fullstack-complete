@@ -145,14 +145,6 @@ const getCaseMeta = async (caseId, language, userId) => {
   });
 };
 
-/** 原文翻译：后端把抓取的判决原文按段落切分并翻译成 zh/en */
-const translateCaseOriginal = async (caseId, language) => {
-  return await instance.get(paths.caseOriginalTranslate, {
-    params: { caseId, language },
-    timeout: 600000,
-  });
-};
-
 const postCaseQa = async (caseId, question, language, userId) => {
   return await instance.post(paths.caseQa, { caseId, question, language, userId }, { timeout: 120000 });
 };
@@ -423,7 +415,6 @@ const api = {
   changePasswordApi,
   getCollectionList,
   getCaseMeta,
-  translateCaseOriginal,
   postCaseQa,
   searchCases,
   getCaseSummary,
