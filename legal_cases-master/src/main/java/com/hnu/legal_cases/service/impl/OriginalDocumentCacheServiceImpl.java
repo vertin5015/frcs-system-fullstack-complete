@@ -53,7 +53,12 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
             Map<String, String> persisted = JSON.parseObject(json, new TypeReference<Map<String, String>>() {
             });
             if (persisted != null && !persisted.isEmpty()) {
-                textCache.putAll(persisted);
+                for (Map.Entry<String, String> entry : persisted.entrySet()) {
+                    String key = normalizeUrl(entry.getKey());
+                    if (StringUtils.isNotBlank(key)) {
+                        textCache.putIfAbsent(key, entry.getValue());
+                    }
+                }
                 log.info("原文正文持久缓存加载完成 count={}", persisted.size());
             }
         } catch (Exception e) {
@@ -140,7 +145,25 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     }
 
     private String normalize(String url) {
-        return url == null ? null : url.trim();
+        return normalizeUrl(url);
+    }
+
+    private String normalizeUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        String value = url.trim();
+        if (value.contains("courtlistener.com") && value.contains("/opinion/")) {
+            int q = value.indexOf('?');
+            if (q > 0) {
+                value = value.substring(0, q);
+            }
+            int hash = value.indexOf('#');
+            if (hash > 0) {
+                value = value.substring(0, hash);
+            }
+        }
+        return value;
     }
 
     private void rememberMeta(String url, String sourceId, String title) {

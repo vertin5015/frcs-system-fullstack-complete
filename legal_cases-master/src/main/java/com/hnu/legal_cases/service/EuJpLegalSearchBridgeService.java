@@ -1,5 +1,8 @@
 package com.hnu.legal_cases.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hnu.legal_cases.config.CrawlerProperties;
 import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
 import com.hnu.legal_cases.enums.CountryEnum;
 import lombok.extern.slf4j.Slf4j;
@@ -7,11 +10,13 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -24,11 +29,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * 内置 EU / JPN 列表搜索：直连官方公开页面解析（无外网爬虫进程时启用）。
+ * 内置 US / EU / JPN 列表与详情桥：优先调用官方 API，失败时回退到公开页面解析。
  */
 @Slf4j
 @Service
@@ -52,7 +56,29 @@ public class EuJpLegalSearchBridgeService {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private CrawlerProperties crawlerProperties;
+
     public List<CrawlerBaseInfoItem> searchUs(String keyword, String year) {
+        List<CrawlerBaseInfoItem> official = searchCourtListenerApi(keyword, year);
+        if (!official.isEmpty()) {
+            return official;
+        }
+        return searchCourtListenerHtml(keyword, year);
+    }
+
+    public List<CrawlerBaseInfoItem> searchEu(String keyword, String year) {
+        List<CrawlerBaseInfoItem> official = searchEurLexSparql(keyword, year);
+        if (!official.isEmpty()) {
+            return official;
+        }
+        return searchEurLexHtml(keyword);
+    }
+
+    private List<CrawlerBaseInfoItem> searchCourtListenerHtml(String keyword, String year) {
         if (keyword == null || keyword.isBlank()) {
             keyword = "contract";
         }
@@ -84,7 +110,7 @@ public class EuJpLegalSearchBridgeService {
         return List.of();
     }
 
-    public List<CrawlerBaseInfoItem> searchEu(String keyword) {
+    private List<CrawlerBaseInfoItem> searchEurLexHtml(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             keyword = "judgment";
         }
@@ -109,6 +135,191 @@ public class EuJpLegalSearchBridgeService {
         }
         log.info("EU bridge: no results — Eur-Lex often requires browser cookies / TLS (AWS WAF); try VPN, Scrapy crawler, or another region.");
         return List.of();
+    }
+
+    private List<CrawlerBaseInfoItem> searchCourtListenerApi(String keyword, String year) {
+        try {
+            if (keyword == null || keyword.isBlank()) {
+                keyword = "contract";
+            }
+            String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
+            StringBuilder qs = new StringBuilder()
+                    .append("?q=").append(URLEncoder.encode(keyword.trim(), StandardCharsets.UTF_8))
+                    .append("&type=o&order_by=score%20desc&page_size=20");
+            if (year != null && !year.isBlank()) {
+                try {
+                    int years = Math.max(1, Math.min(50, Integer.parseInt(year.trim())));
+                    qs.append("&filed_after=")
+                            .append(LocalDate.now().minusYears(years).withDayOfYear(1));
+                } catch (NumberFormatException ignored) {
+                    // ignore invalid year
+                }
+            }
+            HttpResponse<String> response = requestJsonGet(base + "/search/" + qs);
+            if (response.statusCode() != 200) {
+                log.warn("CourtListener API search returned HTTP {}", response.statusCode());
+                return List.of();
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode results = root.path("results");
+            if (!results.isArray()) {
+                return List.of();
+            }
+            List<CrawlerBaseInfoItem> out = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            for (JsonNode row : results) {
+                String title = text(row, "caseName");
+                if (title.isBlank()) {
+                    continue;
+                }
+                String clusterId = text(row, "cluster_id");
+                String docket = clusterId.isBlank() ? "" : "CL-" + clusterId;
+                if (docket.isBlank()) {
+                    docket = "CL-" + text(row, "docketNumber");
+                }
+                String absUrl = text(row, "absolute_url");
+                String url = absUrl;
+                if (!absUrl.startsWith("http")) {
+                    url = "https://www.courtlistener.com" + absUrl;
+                }
+                if (!seen.add(url)) {
+                    continue;
+                }
+                String snippet = "";
+                JsonNode opinions = row.path("opinions");
+                if (opinions.isArray() && opinions.size() > 0) {
+                    snippet = text(opinions.get(0), "snippet");
+                }
+                CrawlerBaseInfoItem item = new CrawlerBaseInfoItem();
+                item.setSourceId(CountryEnum.US.getSourceId());
+                item.setDocketNumber(docket);
+                item.setTitle(title.length() > 512 ? title.substring(0, 512) : title);
+                item.setUrl(url);
+                item.setCitationCount(String.valueOf(row.path("citeCount").asInt(0)));
+                String date = text(row, "dateFiled");
+                item.setDateFiled(date.isBlank() ? LocalDate.now().withDayOfMonth(1).toString() : date);
+                item.setSummary(snippet.isBlank() ? null : snippet);
+                out.add(item);
+                if (out.size() >= MAX_ITEMS) {
+                    break;
+                }
+            }
+            log.info("CourtListener API returned {} items", out.size());
+            return out;
+        } catch (Exception e) {
+            log.warn("CourtListener API search failed, fallback to HTML: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<CrawlerBaseInfoItem> searchEurLexSparql(String keyword, String year) {
+        try {
+            if (keyword == null || keyword.isBlank()) {
+                keyword = "judgment";
+            }
+            String safeKeyword = keyword.trim()
+                    .replace("\\", " ")
+                    .replace("\"", " ")
+                    .replace("'", " ")
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .toLowerCase(Locale.ROOT)
+                    .trim();
+            if (safeKeyword.isEmpty()) {
+                return List.of();
+            }
+
+            StringBuilder query = new StringBuilder();
+            query.append("PREFIX cdm: <http://publications.europa.eu/ontology/cdm#> ")
+                    .append("SELECT DISTINCT ?work ?celex ?ecli ?date ?title ?parties WHERE { ")
+                    .append("?work cdm:work_has_resource-type ?type . ")
+                    .append("FILTER(?type = <http://publications.europa.eu/resource/authority/resource-type/JUDG>) ")
+                    .append("OPTIONAL { ?work cdm:resource_legal_id_celex ?celex . } ")
+                    .append("OPTIONAL { ?work cdm:case-law_ecli ?ecli . } ")
+                    .append("OPTIONAL { ?work cdm:work_date_document ?date . } ")
+                    .append("OPTIONAL { ?expr cdm:expression_belongs_to_work ?work . ?expr cdm:expression_title ?title . FILTER(lang(?title) = \"en\") } ")
+                    .append("OPTIONAL { ?expr2 cdm:expression_belongs_to_work ?work . ?expr2 cdm:expression_case-law_parties ?parties . FILTER(lang(?parties) = \"en\") } ")
+                    .append("FILTER(CONTAINS(LCASE(STR(?title)), \"")
+                    .append(safeKeyword)
+                    .append("\") || CONTAINS(LCASE(STR(?parties)), \"")
+                    .append(safeKeyword)
+                    .append("\")) ");
+            if (year != null && !year.isBlank()) {
+                try {
+                    int years = Math.max(1, Math.min(50, Integer.parseInt(year.trim())));
+                    String from = LocalDate.now().minusYears(years).withDayOfYear(1).toString();
+                    query.append("FILTER(!BOUND(?date) || ?date >= \"")
+                            .append(from)
+                            .append("\"^^<http://www.w3.org/2001/XMLSchema#date>) ");
+                } catch (NumberFormatException ignored) {
+                    // ignore invalid year
+                }
+            }
+            query.append("FILTER not exists { ?work cdm:do_not_index \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean> . } ")
+                    .append("} LIMIT 20");
+
+            String sparqlUrl = crawlerProperties.getEurlexSparqlUrl().trim();
+            URI sparqlUri = URI.create(sparqlUrl);
+            assertAllowedHost(sparqlUri);
+            String formBody = "query=" + URLEncoder.encode(query.toString(), StandardCharsets.UTF_8)
+                    + "&format=" + URLEncoder.encode("application/sparql-results+json", StandardCharsets.UTF_8);
+            HttpRequest request = HttpRequest.newBuilder(sparqlUri)
+                    .timeout(READ)
+                    .header("User-Agent", UA)
+                    .header("Accept", "application/sparql-results+json")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                    .build();
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
+                log.warn("EUR-Lex SPARQL returned HTTP {}", response.statusCode());
+                return List.of();
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode bindings = root.path("results").path("bindings");
+            if (!bindings.isArray()) {
+                return List.of();
+            }
+            List<CrawlerBaseInfoItem> out = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            for (JsonNode binding : bindings) {
+                String celex = bindingText(binding, "celex");
+                if (celex.isBlank()) {
+                    continue;
+                }
+                if (!seen.add(celex)) {
+                    continue;
+                }
+                String title = bindingText(binding, "title");
+                String parties = bindingText(binding, "parties");
+                if (title.isBlank()) {
+                    title = parties;
+                }
+                if (title.isBlank()) {
+                    title = celex;
+                }
+                String url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri="
+                        + URLEncoder.encode("CELEX:" + celex, StandardCharsets.UTF_8);
+                CrawlerBaseInfoItem item = new CrawlerBaseInfoItem();
+                item.setSourceId(CountryEnum.EU.getSourceId());
+                item.setDocketNumber(celex);
+                item.setTitle(title.length() > 512 ? title.substring(0, 512) : title);
+                item.setUrl(url);
+                item.setCitationCount("0");
+                String date = bindingText(binding, "date");
+                item.setDateFiled(date.isBlank() ? LocalDate.now().withDayOfMonth(1).toString() : date);
+                item.setSummary(title);
+                out.add(item);
+                if (out.size() >= MAX_ITEMS) {
+                    break;
+                }
+            }
+            log.info("EUR-Lex SPARQL returned {} items", out.size());
+            return out;
+        } catch (Exception e) {
+            log.warn("EUR-Lex SPARQL search failed, fallback to HTML: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     public List<CrawlerBaseInfoItem> searchJp(String keyword) {
@@ -166,13 +377,7 @@ public class EuJpLegalSearchBridgeService {
 
     private HttpResponse<String> request(String urlStr) throws IOException, InterruptedException {
         URI uri = URI.create(urlStr);
-        String host = uri.getHost();
-        if (host == null || (!host.endsWith("europa.eu")
-                && !host.endsWith("eur-lex.europa.eu")
-                && !host.endsWith("courts.go.jp")
-                && !host.endsWith("courtlistener.com"))) {
-            throw new IOException("disallowed host");
-        }
+        assertAllowedHost(uri);
         HttpRequest req = HttpRequest.newBuilder(uri)
                 .timeout(READ)
                 .header("User-Agent", UA)
@@ -183,6 +388,29 @@ public class EuJpLegalSearchBridgeService {
         return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    private HttpResponse<String> requestJsonGet(String urlStr) throws IOException, InterruptedException {
+        URI uri = URI.create(urlStr);
+        assertAllowedHost(uri);
+        HttpRequest req = HttpRequest.newBuilder(uri)
+                .timeout(READ)
+                .header("User-Agent", UA)
+                .header("Accept", "application/json")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .GET()
+                .build();
+        return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private void assertAllowedHost(URI uri) throws IOException {
+        String host = uri.getHost();
+        if (host == null || (!host.endsWith("europa.eu")
+                && !host.endsWith("eur-lex.europa.eu")
+                && !host.endsWith("courts.go.jp")
+                && !host.endsWith("courtlistener.com"))) {
+            throw new IOException("disallowed host");
+        }
+    }
+
     static boolean isDeferredResponse(int statusCode) {
         return statusCode == 202;
     }
@@ -191,34 +419,233 @@ public class EuJpLegalSearchBridgeService {
         if (detailUrl == null || detailUrl.isBlank()) {
             return "";
         }
-        HttpResponse<String> response = requestDetailWithRetry(detailUrl.trim());
-        if (isDeferredResponse(response.statusCode())) {
-            log.warn("CourtListener detail deferred by anti-bot response status={}", response.statusCode());
+        String normalized = detailUrl.trim();
+        if (normalized.contains("courtlistener.com")) {
+            return fetchCourtListenerDetail(normalized);
+        }
+        if (normalized.contains("eur-lex.europa.eu")
+                || normalized.contains("publications.europa.eu")
+                || normalized.toUpperCase(Locale.ROOT).contains("CELEX:")) {
+            return fetchEurLexDetail(normalized);
+        }
+        return fetchHtmlDetail(normalized);
+    }
+
+    private String fetchCourtListenerDetail(String detailUrl) {
+        String opinionId = "";
+        Matcher idMatcher = COURT_LISTENER_OPINION_ID.matcher(detailUrl);
+        if (idMatcher.find()) {
+            opinionId = idMatcher.group(1);
+        }
+        if (opinionId.isBlank()) {
+            return fetchHtmlDetail(detailUrl);
+        }
+        String apiKey = crawlerProperties.getCourtListenerApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("CourtListener full text requires COURTLISTENER_API_KEY; fallback to HTML detail url={}", detailUrl);
+            return fetchHtmlDetail(detailUrl);
+        }
+        try {
+            String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
+            URI detailUri = URI.create(base + "/opinions/" + opinionId + "/");
+            assertAllowedHost(detailUri);
+            HttpRequest req = HttpRequest.newBuilder(detailUri)
+                    .timeout(READ)
+                    .header("User-Agent", UA)
+                    .header("Accept", "application/json")
+                    .header("Authorization", "Token " + apiKey.trim())
+                    .GET()
+                    .build();
+            HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                log.warn("CourtListener API token rejected status={}; fallback to HTML detail", response.statusCode());
+                return fetchHtmlDetail(detailUrl);
+            }
+            if (response.statusCode() != 200) {
+                log.warn("CourtListener API detail HTTP {}; fallback to HTML detail", response.statusCode());
+                return fetchHtmlDetail(detailUrl);
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            String plainText = text(root, "plain_text");
+            if (!plainText.isBlank()) {
+                return capText(normalizeTextBlocks(plainText));
+            }
+            String opinionHtml = text(root, "html_with_citations");
+            if (opinionHtml.isBlank()) {
+                opinionHtml = text(root, "html");
+            }
+            if (opinionHtml.isBlank()) {
+                return "";
+            }
+            Document doc = Jsoup.parse(opinionHtml, detailUrl);
+            doc.select("script,style,noscript,header,footer,nav,form").remove();
+            return capText(extractParagraphText(doc));
+        } catch (Exception e) {
+            log.warn("CourtListener API detail failed, fallback to HTML: {}", e.getMessage());
+            return fetchHtmlDetail(detailUrl);
+        }
+    }
+
+    private String fetchEurLexDetail(String detailUrl) {
+        String celex = extractCelexToken(detailUrl);
+        if (celex.isBlank()) {
+            return fetchHtmlDetail(detailUrl);
+        }
+        try {
+            String base = crawlerProperties.getEurlexContentBaseUrl().trim().replaceAll("/+$", "");
+            String contentUrl = base + "/" + URLEncoder.encode(celex, StandardCharsets.UTF_8) + "?lang=en";
+            URI uri = URI.create(contentUrl);
+            assertAllowedHost(uri);
+            HttpRequest req = HttpRequest.newBuilder(uri)
+                    .timeout(READ)
+                    .header("User-Agent", UA)
+                    .header("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "en")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
+                log.warn("EUR-Lex content HTTP {}; fallback to HTML detail", response.statusCode());
+                return fetchHtmlDetail(detailUrl);
+            }
+            Document doc = Jsoup.parse(response.body(), contentUrl);
+            doc.select("script,style,noscript,header,footer,nav,form").remove();
+            Element textOnly = doc.selectFirst("#TexteOnly");
+            Element root = textOnly == null ? (doc.body() == null ? doc : doc.body()) : textOnly;
+            String text = extractParagraphText(root);
+            if (text.isBlank()) {
+                text = normalizeTextBlocks(root.text());
+            }
+            return capText(text);
+        } catch (Exception e) {
+            log.warn("EUR-Lex content fetch failed, fallback to HTML: {}", e.getMessage());
+            return fetchHtmlDetail(detailUrl);
+        }
+    }
+
+    private String fetchHtmlDetail(String detailUrl) {
+        try {
+            HttpResponse<String> response = requestDetailWithRetry(detailUrl.trim());
+            if (isDeferredResponse(response.statusCode())) {
+                log.warn("CourtListener detail deferred by anti-bot response status={}", response.statusCode());
+                return "";
+            }
+            if (response.statusCode() != 200) {
+                throw new IOException("HTTP " + response.statusCode());
+            }
+            String html = response.body();
+            Document doc = Jsoup.parse(html, detailUrl);
+            doc.select("script,style,noscript,header,footer,nav,form").remove();
+
+            String title = str(doc.title());
+            Element main = firstPresent(doc,
+                    ".opinion-content",
+                    ".opinion",
+                    "#opinion",
+                    "article",
+                    "main",
+                    ".content");
+            Element root = main == null ? (doc.body() == null ? doc : doc.body()) : main;
+            String text = extractParagraphText(root);
+            if (text.isBlank()) {
+                text = normalizeTextBlocks(root.text());
+            }
+            if (text.length() > 120_000) {
+                text = text.substring(0, 120_000);
+            }
+            if (title.isEmpty()) {
+                return text;
+            }
+            return title + "\n\n" + text;
+        } catch (Exception e) {
+            log.warn("HTML detail fetch failed url={} : {}", detailUrl, e.getMessage());
             return "";
         }
-        if (response.statusCode() != 200) {
-            throw new IOException("HTTP " + response.statusCode());
-        }
-        String html = response.body();
-        Document doc = Jsoup.parse(html, detailUrl);
-        doc.select("script,style,noscript,header,footer,nav,form").remove();
+    }
 
-        String title = str(doc.title());
-        Element main = firstPresent(doc,
-                ".opinion-content",
-                ".opinion",
-                "#opinion",
-                "article",
-                "main",
-                ".content");
-        String text = main == null ? str(doc.body() == null ? "" : doc.body().text()) : str(main.text());
-        if (text.length() > 120_000) {
-            text = text.substring(0, 120_000);
+    private String extractParagraphText(Element root) {
+        if (root == null) {
+            return "";
         }
-        if (title.isEmpty()) {
-            return text;
+        List<String> paragraphs = new ArrayList<>();
+        String previous = "";
+        for (Element el : root.select("h1,h2,h3,h4,h5,h6,p,li,blockquote,pre")) {
+            if (isNestedBlock(el, root)) {
+                continue;
+            }
+            String text = normalizeWhitespace(el.text());
+            if (text.isBlank() || text.equals(previous)) {
+                continue;
+            }
+            paragraphs.add(text);
+            previous = text;
         }
-        return title + "\n\n" + text;
+        return String.join("\n\n", paragraphs);
+    }
+
+    private boolean isNestedBlock(Element el, Element root) {
+        Element parent = el.parent();
+        while (parent != null && parent != root) {
+            if (parent instanceof Element pe && BLOCK_TAGS.contains(pe.tagName())) {
+                return true;
+            }
+            parent = parent.parent();
+        }
+        return false;
+    }
+
+    private static final Set<String> BLOCK_TAGS = Set.of(
+            "h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote", "pre");
+
+    private String capText(String text) {
+        String value = text == null ? "" : text.trim();
+        int cap = crawlerProperties.getMaxDetailItemChars();
+        if (cap > 0 && value.length() > cap) {
+            return value.substring(0, cap) + "\n\n[truncated: " + (value.length() - cap) + " chars omitted]";
+        }
+        return value;
+    }
+
+    private String normalizeTextBlocks(String text) {
+        String normalized = text.replace("\r\n", "\n").replace("\r", "\n").trim();
+        String[] blocks = normalized.split("\\n{2,}");
+        List<String> out = new ArrayList<>();
+        for (String block : blocks) {
+            String value = block.trim();
+            if (!value.isBlank()) {
+                out.add(value.replace('\u00a0', ' '));
+            }
+        }
+        return String.join("\n\n", out);
+    }
+
+    private String normalizeWhitespace(String value) {
+        return value == null ? "" : value.replace('\u00a0', ' ').replaceAll("\\s+", " ").trim();
+    }
+
+    private String extractCelexToken(String url) {
+        String upper = url.toUpperCase(Locale.ROOT);
+        Matcher m = CELEX_TOKEN.matcher(upper);
+        if (m.find()) {
+            return m.group(1);
+        }
+        m = Pattern.compile("(?:CELEX[:\\s%]*|RESOURCE/CELEX/)(\\d{4}[A-Z]{1,10}\\d{1,14})")
+                .matcher(upper);
+        return m.find() ? m.group(1) : "";
+    }
+
+    private static String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() || value.isMissingNode() ? "" : value.asText("");
+    }
+
+    private static String bindingText(JsonNode binding, String field) {
+        JsonNode value = binding == null ? null : binding.path(field);
+        if (value == null || value.isMissingNode()) {
+            return "";
+        }
+        JsonNode literal = value.get("value");
+        return literal == null || literal.isNull() || literal.isMissingNode() ? "" : literal.asText("");
     }
 
     private HttpResponse<String> requestDetailWithRetry(String detailUrl)
