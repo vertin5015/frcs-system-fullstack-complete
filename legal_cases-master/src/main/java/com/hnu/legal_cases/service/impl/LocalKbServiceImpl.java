@@ -71,7 +71,8 @@ public class LocalKbServiceImpl implements LocalKbService {
         }
 
         List<KbChunk> all = loadAll();
-        int inserted = appendChunks(all, sourceId, title, chunks);
+        int inserted = appendChunks(all, sourceId, title, chunks,
+                reqVO.getArticleNo(), reqVO.getLawName(), reqVO.getIssueDate(), reqVO.getCode());
         saveAll(all);
         log.info("本地知识库入库完成 sourceId={} chunks={}", sourceId, inserted);
         return inserted;
@@ -239,6 +240,10 @@ public class LocalKbServiceImpl implements LocalKbService {
             h.setTitle(r.getChunk().getTitle());
             h.setScore(r.getScore());
             h.setPreview(preview(r.getChunk().getContent(), 120));
+            h.setArticleNo(r.getChunk().getArticleNo());
+            h.setLawName(r.getChunk().getLawName());
+            h.setIssueDate(r.getChunk().getIssueDate());
+            h.setCode(r.getChunk().getCode());
             hits.add(h);
         }
         res.setHits(hits);
@@ -311,6 +316,11 @@ public class LocalKbServiceImpl implements LocalKbService {
     }
 
     private int appendChunks(List<KbChunk> all, String sourceId, String title, List<String> chunks) {
+        return appendChunks(all, sourceId, title, chunks, null, null, null, null);
+    }
+
+    private int appendChunks(List<KbChunk> all, String sourceId, String title, List<String> chunks,
+                             String articleNo, String lawName, String issueDate, String code) {
         int inserted = 0;
         for (int i = 0; i < chunks.size(); i++) {
             String chunkText = chunks.get(i);
@@ -319,6 +329,10 @@ public class LocalKbServiceImpl implements LocalKbService {
             c.setSourceId(sourceId);
             c.setTitle(title);
             c.setContent(chunkText);
+            c.setArticleNo(articleNo);
+            c.setLawName(lawName);
+            c.setIssueDate(issueDate);
+            c.setCode(code);
             c.setEmbedding(embedSafely(chunkText));
             c.setCreatedAt(LocalDateTime.now().toString());
             all.add(c);
@@ -572,6 +586,10 @@ public class LocalKbServiceImpl implements LocalKbService {
         private String sourceId;
         private String title;
         private String content;
+        private String articleNo;
+        private String lawName;
+        private String issueDate;
+        private String code;
         private List<Float> embedding;
         private String createdAt;
     }

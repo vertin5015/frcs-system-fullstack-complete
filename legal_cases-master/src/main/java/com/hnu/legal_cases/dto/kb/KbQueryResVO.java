@@ -17,5 +17,9 @@ public class KbQueryResVO {
         private String title;
         private Double score;
         private String preview;
+        private String articleNo;
+        private String lawName;
+        private String issueDate;
+        private String code;
     }
 }

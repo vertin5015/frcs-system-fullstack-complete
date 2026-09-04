@@ -3,16 +3,20 @@ package com.hnu.legal_cases.controller;
 import com.hnu.legal_cases.dto.kb.KbIngestReqVO;
 import com.hnu.legal_cases.dto.kb.KbIngestCrawlerReqVO;
 import com.hnu.legal_cases.dto.kb.KbIngestDbReqVO;
+import com.hnu.legal_cases.dto.kb.EmbeddingHealthResVO;
 import com.hnu.legal_cases.dto.kb.KbQueryReqVO;
 import com.hnu.legal_cases.dto.kb.KbQueryResVO;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.LocalKbService;
+import com.hnu.legal_cases.service.impl.CloudFirstEmbeddingService;
 import com.hnu.legal_cases.util.JSONReturnBean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -22,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class KbController {
 
     private final LocalKbService localKbService;
+
+    private final CloudFirstEmbeddingService embeddingService;
 
     @PostMapping("/ingest")
     public JSONReturnBean<String> ingest(@RequestBody KbIngestReqVO reqVO) {
@@ -71,6 +77,17 @@ public class KbController {
         } catch (Throwable e) {
             log.error("kb query", e);
             return JSONReturnBean.failed("知识库查询失败");
+        }
+    }
+
+    @GetMapping("/embedding-health")
+    public JSONReturnBean<EmbeddingHealthResVO> embeddingHealth(
+            @RequestParam(required = false, defaultValue = "embedding health check") String text) {
+        try {
+            return JSONReturnBean.success(embeddingService.health(text));
+        } catch (Throwable e) {
+            log.error("embedding health", e);
+            return JSONReturnBean.failed("embedding 健康检查失败");
         }
     }
 }

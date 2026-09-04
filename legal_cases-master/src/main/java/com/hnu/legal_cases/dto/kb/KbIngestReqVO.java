@@ -23,4 +23,24 @@ public class KbIngestReqVO {
      * 可选语言标记，仅用于日志与后续扩展（zh/en）。
      */
     private String language;
+
+    /**
+     * 条款编号（可选）。
+     */
+    private String articleNo;
+
+    /**
+     * 条文名称（可选）。
+     */
+    private String lawName;
+
+    /**
+     * 发行日期（可选）。
+     */
+    private String issueDate;
+
+    /**
+     * 所属法典（可选）。
+     */
+    private String code;
 }

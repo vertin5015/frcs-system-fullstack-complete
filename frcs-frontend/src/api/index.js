@@ -403,6 +403,13 @@ const kbQuery = async (payload) => {
   return await instance.post(paths.kbQuery, payload, { timeout: 120000 });
 };
 
+const getKbEmbeddingHealth = async (text = "embedding health check") => {
+  return await instance.get(paths.kbEmbeddingHealth, {
+    params: { text },
+    timeout: 60000,
+  });
+};
+
 const agentAsk = async (payload) => {
   return await instance.post(paths.agentAsk, payload, { timeout: 180000 });
 };
@@ -434,6 +441,7 @@ const api = {
   kbIngest,
   kbIngestCrawler,
   kbQuery,
+  getKbEmbeddingHealth,
   agentAsk,
 };
 export default api;

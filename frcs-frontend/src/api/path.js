@@ -32,6 +32,7 @@ const paths = {
   kbIngest: '/api/kb/ingest',
   kbIngestCrawler: '/api/kb/ingest-crawler',
   kbQuery: '/api/kb/query',
+  kbEmbeddingHealth: '/api/kb/embedding-health',
   agentAsk: '/api/agent/ask',
 };
 export { base, paths };

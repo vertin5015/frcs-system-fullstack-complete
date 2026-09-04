@@ -7,8 +7,26 @@
         <h3>{{ lang === "zh" ? "手动入库" : "Manual Ingest" }}</h3>
         <el-input v-model="manual.sourceId" :placeholder="lang === 'zh' ? '来源ID（可选）' : 'Source ID (optional)'" />
         <el-input v-model="manual.title" :placeholder="lang === 'zh' ? '标题（可选）' : 'Title (optional)'" />
+        <div class="inline">
+          <el-input v-model="manual.articleNo" :placeholder="lang === 'zh' ? '条款编号（可选）' : 'Article no (optional)'" />
+          <el-input v-model="manual.lawName" :placeholder="lang === 'zh' ? '条文名称（可选）' : 'Law name (optional)'" />
+          <el-input v-model="manual.issueDate" :placeholder="lang === 'zh' ? '发行日期（可选）' : 'Issue date (optional)'" />
+          <el-input v-model="manual.code" :placeholder="lang === 'zh' ? '所属法典（可选）' : 'Code (optional)'" />
+        </div>
         <el-input v-model="manual.content" type="textarea" :rows="6" :placeholder="lang === 'zh' ? '粘贴要入库的文本' : 'Paste text to ingest'" />
         <el-button type="primary" :loading="loadingManual" @click="doManualIngest">{{ lang === "zh" ? "执行入库" : "Ingest" }}</el-button>
+      </div>
+
+      <div class="row">
+        <h3>{{ lang === "zh" ? "Embedding 状态" : "Embedding Health" }}</h3>
+        <div class="inline">
+          <el-button type="primary" plain :loading="loadingEmbeddingHealth" @click="doEmbeddingHealth">
+            {{ lang === "zh" ? "检查 Embedding" : "Check Embedding" }}
+          </el-button>
+          <span v-if="embeddingHealth" class="health-text">
+            {{ embeddingHealth.source }} · {{ embeddingHealth.model }} · {{ embeddingHealth.dimensions }}D · {{ embeddingHealth.latencyMs }}ms
+          </span>
+        </div>
       </div>
 
       <div class="row">
@@ -40,6 +58,7 @@
           <el-button type="success" :loading="loadingQuery" @click="doQuery">{{ lang === "zh" ? "提问" : "Ask" }}</el-button>
         </div>
         <el-input v-model="answer" type="textarea" :rows="8" readonly :placeholder="lang === 'zh' ? '回答会显示在这里' : 'Answer will appear here'" />
+        <el-tree v-if="kbTreeData.length" :data="kbTreeData" node-key="id" default-expand-all />
       </div>
     </div>
   </div>
@@ -59,13 +78,20 @@ export default {
     const loadingManual = ref(false);
     const loadingCrawler = ref(false);
     const loadingQuery = ref(false);
+    const loadingEmbeddingHealth = ref(false);
     const answer = ref("");
+    const kbHits = ref([]);
+    const embeddingHealth = ref(null);
 
     const manual = reactive({
       sourceId: "",
       title: "",
       content: "",
       language: "zh",
+      articleNo: "",
+      lawName: "",
+      issueDate: "",
+      code: "",
     });
     const crawler = reactive({
       keyword: "",
@@ -78,6 +104,32 @@ export default {
       question: "",
       language: "zh",
       topK: 5,
+    });
+
+    const label = (zh, en, value) => `${lang.value === "zh" ? zh : en}: ${value || "-"}`;
+
+    const kbTreeData = computed(() => {
+      const rows = kbHits.value || [];
+      const grouped = new Map();
+      rows.forEach((hit, idx) => {
+        const groupKey = hit.code || hit.lawName || hit.sourceId || `hit-${idx}`;
+        const groupLabel = hit.code || hit.lawName || hit.sourceId || `Hit ${idx + 1}`;
+        if (!grouped.has(groupKey)) {
+          grouped.set(groupKey, { id: groupKey, label: groupLabel, children: [] });
+        }
+        const fields = [];
+        fields.push({ id: `${groupKey}-${idx}-article`, label: label("条款编号", "Article no", hit.articleNo) });
+        fields.push({ id: `${groupKey}-${idx}-law`, label: label("条文名称", "Law name", hit.lawName) });
+        fields.push({ id: `${groupKey}-${idx}-date`, label: label("发行日期", "Issue date", hit.issueDate) });
+        fields.push({ id: `${groupKey}-${idx}-code`, label: label("所属法典", "Code", hit.code) });
+        fields.push({ id: `${groupKey}-${idx}-preview`, label: label("简要内容", "Preview", hit.preview) });
+        grouped.get(groupKey).children.push({
+          id: `${groupKey}-${idx}`,
+          label: hit.title || hit.articleNo || `片段 ${idx + 1}`,
+          children: fields,
+        });
+      });
+      return Array.from(grouped.values());
     });
 
     const doManualIngest = async () => {
@@ -126,11 +178,26 @@ export default {
         const res = await api.kbQuery({ ...query, language: lang.value });
         if (res.code === 200 && res.data) {
           answer.value = res.data.answer || "";
+          kbHits.value = res.data.hits || [];
         } else {
           ElMessage.error(res.message || (lang.value === "zh" ? "查询失败" : "Query failed"));
         }
       } finally {
         loadingQuery.value = false;
+      }
+    };
+
+    const doEmbeddingHealth = async () => {
+      loadingEmbeddingHealth.value = true;
+      try {
+        const res = await api.getKbEmbeddingHealth("embedding health check");
+        if (res.code === 200 && res.data) {
+          embeddingHealth.value = res.data;
+        } else {
+          ElMessage.error(res.message || (lang.value === "zh" ? "检查失败" : "Check failed"));
+        }
+      } finally {
+        loadingEmbeddingHealth.value = false;
       }
     };
 
@@ -140,12 +207,17 @@ export default {
       crawler,
       query,
       answer,
+      kbHits,
+      kbTreeData,
+      embeddingHealth,
       loadingManual,
       loadingCrawler,
       loadingQuery,
+      loadingEmbeddingHealth,
       doManualIngest,
       doCrawlerIngest,
       doQuery,
+      doEmbeddingHealth,
     };
   },
 };
@@ -171,5 +243,9 @@ export default {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+.health-text {
+  color: #409eff;
+  font-size: 13px;
 }
 </style>

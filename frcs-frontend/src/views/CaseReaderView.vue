@@ -78,6 +78,13 @@
             <span>{{ detailError }}</span>
           </div>
           <div v-if="detailStatusText" class="detail-status">{{ detailStatusText }}</div>
+          <el-tree
+            v-if="caseTreeData.length"
+            :data="caseTreeData"
+            node-key="id"
+            default-expand-all
+            class="case-tree"
+          />
           <div v-html="caseDetailHtml" class="case-detail-content md-body"></div>
         </div>
 
@@ -190,6 +197,49 @@ export default {
 
     const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
     const caseDetailHtml = computed(() => md.render(caseDetailContent.value || ""));
+
+    const stripMarkdown = (text) => {
+      const t = String(text || "").trim();
+      if (!t) return "";
+      return t.replace(/```[\s\S]*?```/g, "").replace(/[#>*`_~-]/g, "").replace(/\s+/g, " ").trim();
+    };
+
+    const extractLabeledField = (content, label) => {
+      const text = String(content || "");
+      const patterns = [
+        new RegExp(`${label}\\s*[:：]\\s*(.+)`),
+        new RegExp(`\\*\\*${label}\\*\\*\\s*[:：]\\s*(.+)`),
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1] && match[1].trim()) {
+          return match[1].trim();
+        }
+      }
+      return "";
+    };
+
+    const caseTreeData = computed(() => {
+      const meta = caseMeta.value || {};
+      const content = caseDetailContent.value || "";
+      const brief = stripMarkdown(content).slice(0, 240);
+      const court = extractLabeledField(content, "判决法庭");
+      const parties = extractLabeledField(content, "当事人");
+      const summary = extractLabeledField(content, "简要内容") || brief;
+      const rootLabel = meta.case_name || caseId.value || "案例";
+      return [{
+        id: "root",
+        label: rootLabel,
+        children: [
+          { id: "name", label: `案件名称：${meta.case_name || "-"}` },
+          { id: "docket", label: `案号：${meta.case_id || "-"}` },
+          { id: "date", label: `判决时间：${meta.judgement_date || "-"}` },
+          { id: "court", label: `判决法庭：${court || "-"}` },
+          { id: "parties", label: `当事人：${parties || "-"}` },
+          { id: "summary", label: `简要内容：${summary || "-"}` },
+        ],
+      }];
+    });
 
     const refreshSummaryCredits = async () => {
       const uid = getAuth("userId");
@@ -556,6 +606,7 @@ export default {
       isQuotaError,
       detailStatusText,
       caseDetailHtml,
+      caseTreeData,
       summaryCredits,
       originalFrameKey,
       origView,
@@ -735,6 +786,13 @@ export default {
   padding: 16px;
   color: #909399;
   font-size: 14px;
+}
+.case-tree {
+  margin-bottom: 8px;
+  background: #fafafa;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 8px;
 }
 .reader-summary-wrap {
   flex: 1;

@@ -235,6 +235,14 @@ public class SpringAIServiceImpl implements SpringAIService {
             
             Please provide a comprehensive summary according to the standard case summary structure
             and return it in Markdown format using the requested output language.
+            The first section MUST be titled "案件基本信息" and include these exact labeled lines:
+            - 案件名称：
+            - 案号：
+            - 判决时间：
+            - 判决法庭：
+            - 当事人：
+            - 简要内容：
+            Then continue with 关键词、基本案情、裁判理由、裁判要旨、关联索引.
             Note that plain text is returned directly!
             
             Output Markdown only. Do not wrap the answer in JSON. Do not use ``` code fences.

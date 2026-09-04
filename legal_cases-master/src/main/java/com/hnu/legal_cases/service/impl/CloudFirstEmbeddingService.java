@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hnu.legal_cases.config.EmbeddingProperties;
+import com.hnu.legal_cases.dto.kb.EmbeddingHealthResVO;
 import com.hnu.legal_cases.service.EmbeddingService;
 import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +73,22 @@ public class CloudFirstEmbeddingService implements EmbeddingService {
             return (float[]) vector.clone();
         }
         return vector;
+    }
+
+    /**
+     * Returns diagnostic information without relying on the in-memory vector cache.
+     */
+    public EmbeddingHealthResVO health(String text) {
+        String sample = StringUtils.isBlank(text) ? "embedding health check" : text.trim();
+        long start = System.currentTimeMillis();
+        float[] vector = tryCloudEmbed(sample);
+        long latency = System.currentTimeMillis() - start;
+        if (vector != null) {
+            return new EmbeddingHealthResVO("CLOUD", properties.getModel(), vector.length, latency);
+        }
+        float[] local = localEmbeddingService.embed(sample);
+        return new EmbeddingHealthResVO("LOCAL_FALLBACK", "local-3gram-hash", local.length,
+                System.currentTimeMillis() - start);
     }
 
     private float[] tryCloudEmbed(String text) {
