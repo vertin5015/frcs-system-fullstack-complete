@@ -77,16 +77,20 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         String cacheKey = caseCacheService.generateCacheKey(keyword, country, period, reqVO.getSources());
         if (caseCacheService.hasCache(cacheKey)) {
             SearchCasesResVO resVO = new SearchCasesResVO();
-            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, reqVO.getStartIndex(), reqVO.getEndIndex());
+            int startIndex = reqVO.getStartIndex();
+            int endIndex = reqVO.getEndIndex();
+            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, startIndex, endIndex);
+            long total = caseCacheService.getCachedCount(cacheKey);
             log.info("命中缓存(stream),案例ID：{}", JSON.toJSONString(caseIds));
             if (CollectionUtils.isEmpty(caseIds)) {
-                resVO.setTotalCount(0);
+                // 请求页码超出实际范围：保留总数用于前端纠正页码，不把总数清成 0
+                resVO.setTotalCount((int) total);
                 resVO.setCases(Collections.emptyList());
                 notifier.done(resVO);
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
+            resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             notifier.done(resVO);
             return;
@@ -132,15 +136,18 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             caseService.saveCases(items, country);
             prewarmKnowledgeBase(items);
             prefetchOriginalDocuments(items);
-            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, 0, 9);
+            int startIndex = reqVO.getStartIndex();
+            int endIndex = reqVO.getEndIndex();
+            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, startIndex, endIndex);
+            long total = caseCacheService.getCachedCount(cacheKey);
             if (CollectionUtils.isEmpty(caseIds)) {
-                resVO.setTotalCount(0);
+                resVO.setTotalCount((int) total);
                 resVO.setCases(Collections.emptyList());
                 notifier.done(resVO);
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
+            resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             notifier.done(resVO);
         } catch (Throwable e) {
@@ -205,15 +212,18 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         String cacheKey = caseCacheService.generateCacheKey(keyword, country, period, reqVO.getSources());
         boolean hasCache = caseCacheService.hasCache(cacheKey);
         if (hasCache) {
-            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, reqVO.getStartIndex(), reqVO.getEndIndex());
+            int startIndex = reqVO.getStartIndex();
+            int endIndex = reqVO.getEndIndex();
+            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, startIndex, endIndex);
+            long total = caseCacheService.getCachedCount(cacheKey);
             log.info("命中缓存,案例ID：{}", JSON.toJSONString(caseIds));
             if (CollectionUtils.isEmpty(caseIds)) {
-                resVO.setTotalCount(0);
+                resVO.setTotalCount((int) total);
                 resVO.setCases(Collections.emptyList());
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
+            resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             return resVO;
         }
@@ -234,14 +244,17 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             caseService.saveCases(items, country);
             prewarmKnowledgeBase(items);
             prefetchOriginalDocuments(items);
-            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, 0, 9);
+            int startIndex = reqVO.getStartIndex();
+            int endIndex = reqVO.getEndIndex();
+            Set<String> caseIds = caseCacheService.getCachedCaseIds(cacheKey, startIndex, endIndex);
+            long total = caseCacheService.getCachedCount(cacheKey);
             if (CollectionUtils.isEmpty(caseIds)) {
-                resVO.setTotalCount(0);
+                resVO.setTotalCount((int) total);
                 resVO.setCases(Collections.emptyList());
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            resVO.setTotalCount(caseCacheService.getCachedCount(cacheKey).intValue());
+            resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             return resVO;
         } catch (Throwable e) {
