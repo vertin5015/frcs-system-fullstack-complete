@@ -50,7 +50,7 @@
           <div v-if="origTranslateTruncated" class="orig-translate-truncated">
             {{ lang === "zh" ? "原文较长，译文已按前若干段落截断，完整内容请查看官方原文。" : "The original is long; only leading paragraphs are translated. See the official document for the full text." }}
           </div>
-          <div v-loading="origTranslating" class="reader-translation-body" element-loading-text="正在翻译原文..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.85)">
+          <div v-loading="origTranslating" class="reader-translation-body" element-loading-text="正在获取原文并翻译..." element-loading-spinner="Loading" element-loading-background="rgba(255, 255, 255, 0.85)">
             <template v-if="!origTranslating">
               <div v-if="!origTranslatedContent" class="reader-placeholder">
                 {{ lang === "zh" ? "暂无译文内容" : "No translation available" }}
@@ -111,6 +111,8 @@ import MarkdownIt from "markdown-it";
 import api from "../api/index";
 import { ElMessage } from "element-plus";
 import { getAuth, setAuth } from "../utils/authStorage";
+import { fetchOriginalParagraphs } from "../utils/originalTextSource";
+import { detectTextLanguage, translateParagraphs } from "../utils/frontTranslate";
 
 export default {
   name: "CaseReaderView",
@@ -399,52 +401,132 @@ export default {
       originalFrameKey.value += 1;
     };
 
+    const proxyErrorText = (code, zhFlag) => {
+      const table = {
+        http: [
+          "获取原文失败（后端原文代理不可用或网络异常），请稍后重试。",
+          "Failed to fetch the original text (proxy unavailable or network error). Please retry later.",
+        ],
+        unavailable: [
+          "后端暂时未能抓取到该原文（目标站点可能拒绝访问）。请先在左侧「官方原文」打开一次或点击「刷新原文」后重试。",
+          "Backend could not fetch this document yet (the source site may refuse access). Open the official original once or click Reload, then retry.",
+        ],
+        empty: [
+          "后端返回的原文正文为空，暂时无法翻译。",
+          "The backend returned an empty original text, so translation is unavailable.",
+        ],
+        "loading-timeout": [
+          "等待后端抓取原文超时。请先在左侧「官方原文」标签打开一次原文，再切换「中文译文」。",
+          "Timed out waiting for the backend to fetch the original. Open the official original once, then switch back to translation.",
+        ],
+      };
+      const pair = table[code] || [
+        "原文获取失败，请稍后重试。",
+        "Could not get the original text. Please retry later.",
+      ];
+      return zhFlag ? pair[0] : pair[1];
+    };
+
     const fetchOriginalTranslation = async () => {
       if (!caseId.value) return;
       const runToken = ++origTranslateToken;
       const code = lang.value === "en" ? "en" : "zh";
+      const zh = lang.value === "zh";
       if (origCache.value[code]) {
         origTranslatedContent.value = origCache.value[code];
         origTranslating.value = false;
         return;
       }
       const isCurrentRun = () => runToken === origTranslateToken;
+      const fail = (zhMsg, enMsg) => {
+        origTranslateError.value = zh ? zhMsg : enMsg;
+      };
       origTranslating.value = true;
       origTranslateError.value = "";
       origTranslatedContent.value = "";
       origTranslateNote.value = "";
       origTranslateTruncated.value = false;
       try {
-        const r = await api.translateCaseOriginal(caseId.value, code);
+        // 1. 原文正文：走后端既有的 original-proxy（旧后端也有，只抓原文不翻译）
+        const rawUrl = rawOriginalUrl.value;
+        if (!rawUrl) {
+          fail(
+            "该案例缺少原始文书链接，无法翻译。",
+            "No original document URL. Translation unavailable."
+          );
+          return;
+        }
+        origTranslateNote.value = zh
+          ? "正在从后端获取原文正文…"
+          : "Fetching original text from backend…";
+        const fetched = await fetchOriginalParagraphs(rawUrl, {
+          timeoutMs: 90 * 1000,
+          onStatus: () => {
+            if (isCurrentRun()) {
+              origTranslateNote.value = zh
+                ? "正在从后端获取原文正文…"
+                : "Fetching original text from backend…";
+            }
+          },
+        });
         if (!isCurrentRun()) return;
-        if (r.code === 200 && r.data) {
-          const d = r.data;
-          origCache.value[code] = d.content || "";
-          origTranslatedContent.value = d.content || "";
-          origTranslateNote.value = d.message || "";
-          origTranslateTruncated.value = !!d.truncated;
-          // 原文本来就是英文且目标也是英文时，直接展示官方原文更合适
-          if (code === "en" && d.sourceLanguage === "en" && origView.value === "translated") {
+        if (!fetched.ok || !fetched.paragraphs || fetched.paragraphs.length === 0) {
+          fail(proxyErrorText(fetched.error, zh), proxyErrorText(fetched.error, false));
+          return;
+        }
+        const paragraphs = fetched.paragraphs;
+        const joined = paragraphs.join("\n\n");
+
+        // 2. 原文已是目标语言时直接按段落展示，不调用翻译接口
+        const detected = detectTextLanguage(joined);
+        if ((code === "zh" && detected === "zh") || (code === "en" && detected === "en")) {
+          origCache.value[code] = joined;
+          origTranslatedContent.value = joined;
+          origTranslateNote.value = zh
+            ? "原文已是" + (code === "zh" ? "中文" : "英文") + "，无需翻译，已按段落整理返回。"
+            : "The original is already " + (code === "zh" ? "Chinese" : "English") + "; no translation needed.";
+          if (code === "en" && origView.value === "translated") {
             origView.value = "original";
           }
+          return;
+        }
+
+        // 3. 前端直连第三方翻译 API，逐段翻译
+        origTranslateNote.value = zh
+          ? "正在逐段调用第三方翻译接口，请稍候…"
+          : "Translating paragraphs via third-party API…";
+        const result = await translateParagraphs(paragraphs, code);
+        if (!isCurrentRun()) return;
+        if (result.content && result.anyProviderUsed) {
+          origCache.value[code] = result.content;
+          origTranslatedContent.value = result.content;
+          origTranslateTruncated.value = !!result.truncated;
+          const notes = [];
+          notes.push(
+            zh
+              ? "译文由第三方翻译接口生成，仅供学习参考；如与官方原文冲突以原文为准。"
+              : "Translated by a third-party API for reference only; the official original prevails on conflict."
+          );
+          if (result.failedCount > 0) {
+            notes.push(
+              zh
+                ? "另有 " + result.failedCount + " 段翻译失败，已保留原文。"
+                : result.failedCount + " paragraph(s) failed and kept as original."
+            );
+          }
+          origTranslateNote.value = notes.join(" ");
         } else {
-          origTranslateError.value =
-            r.message || (lang.value === "zh" ? "原文翻译失败，请稍后重试" : "Translation failed. Please retry later.");
+          fail(
+            "第三方翻译接口暂不可用（网络受限或接口限流），请稍后重试。",
+            "Third-party translation API is unavailable (network or rate limit). Please retry later."
+          );
         }
       } catch (e) {
         if (!isCurrentRun()) return;
-        const status = e && e.response ? e.response.status : null;
-        if (status === 404) {
-          origTranslateError.value =
-            lang.value === "zh"
-              ? "原文翻译接口不存在（404）：当前连接的后端还没有部署最新代码，请先启动已更新的后端或把 /api 指向新后端。"
-              : "Translation endpoint not found (404): the connected backend is outdated. Start the updated backend or point /api to it.";
-        } else {
-          origTranslateError.value =
-            lang.value === "zh"
-              ? "原文翻译请求失败，请检查网络后重试"
-              : "Translation request failed. Check network and retry.";
-        }
+        fail(
+          "原文获取或翻译失败，请检查网络后重试。",
+          "Failed to fetch or translate the original. Check your network and retry."
+        );
       } finally {
         if (isCurrentRun()) {
           origTranslating.value = false;

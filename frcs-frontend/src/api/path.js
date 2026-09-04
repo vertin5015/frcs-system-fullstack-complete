@@ -20,7 +20,7 @@ const paths = {
   collectionList: '/api/cases/favorites',
   searchCases: '/api/cases/search',
   caseMeta: '/api/cases/meta',
-  caseOriginalTranslate: '/api/cases/original-translate',
+  originalProxy: '/api/cases/original-proxy',
   caseQa: '/api/cases/qa',
   getCaseSummary: '/api/cases/aisummary',
   startSummaryAsync: '/api/cases/summaryAsync/start',
