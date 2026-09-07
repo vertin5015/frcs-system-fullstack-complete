@@ -113,6 +113,13 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         CrawlerSearchBatch batch = crawlerService.startParallelCaseSearchBatch(
                 extractedKeyword, country, period, reqVO.getSources(),
                 (source, result) -> {
+                    if (result != null && result.isCrawlApiOk() && !CollectionUtils.isEmpty(result.getItems())) {
+                        try {
+                            caseService.saveCases(result.getItems(), source);
+                        } catch (Exception e) {
+                            log.warn("SSE 数据源 {} 结果提前落库失败，等待最终合并再落库：{}", source, e.getMessage());
+                        }
+                    }
                     List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result);
                     if (!previews.isEmpty()) {
                         notifier.part(new SearchStreamPartDTO(source, previews));
@@ -305,6 +312,17 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             int count = 0;
             for (CrawlerBaseInfoItem item : snapshot) {
                 if (item == null || StringUtils.isBlank(item.getUrl())) {
+                    continue;
+                }
+                // CourtListener 免费额度很低，EUR-Lex 详情也偏慢；搜索结果阶段不自动预抓，
+                // 等用户真正打开原文时再抓取，避免把额度耗尽或拖慢搜索。
+                String url = item.getUrl();
+                if (url.contains("courtlistener.com")
+                        || url.contains("eur-lex.europa.eu")
+                        || url.contains("publications.europa.eu")) {
+                    if (url.contains("courtlistener.com") && StringUtils.isNotBlank(item.getSummary())) {
+                        originalDocumentCacheService.cacheFallbackText(url, item.getSummary());
+                    }
                     continue;
                 }
                 originalDocumentCacheService.prefetch(item.getUrl(), item.getDocketNumber(), item.getTitle());

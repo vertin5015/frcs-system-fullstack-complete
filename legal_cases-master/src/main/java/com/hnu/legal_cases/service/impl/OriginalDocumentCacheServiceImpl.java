@@ -30,6 +30,7 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     private final Map<String, String> textCache = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<String>> tasks = new ConcurrentHashMap<>();
     private final Map<String, String> failures = new ConcurrentHashMap<>();
+    private final Map<String, String> fallbackTexts = new ConcurrentHashMap<>();
     private final Map<String, CaseDocumentMeta> metadata = new ConcurrentHashMap<>();
 
     @Autowired
@@ -108,6 +109,15 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     }
 
     @Override
+    public void cacheFallbackText(String url, String fallbackText) {
+        String key = normalize(url);
+        if (StringUtils.isBlank(key) || StringUtils.isBlank(fallbackText)) {
+            return;
+        }
+        fallbackTexts.put(key, fallbackText.trim());
+    }
+
+    @Override
     public String getLastFailure(String url) {
         String key = normalize(url);
         return StringUtils.isBlank(key) ? null : failures.get(key);
@@ -132,6 +142,15 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
                     CompletableFuture.runAsync(() -> ingestFullTextToKb(url, text), caseTaskExecutor);
                     log.info("原文正文缓存完成 url={} chars={}", url, text.length());
                     return text;
+                }
+                String fallback = fallbackTexts.get(url);
+                if (StringUtils.isNotBlank(fallback)) {
+                    textCache.put(url, fallback);
+                    failures.remove(url);
+                    persistCacheQuietly();
+                    CompletableFuture.runAsync(() -> ingestFullTextToKb(url, fallback), caseTaskExecutor);
+                    log.info("原文详情抓取失败，使用搜索 snippet 兜底 url={} chars={}", url, fallback.length());
+                    return fallback;
                 }
                 failures.put(url, "原文站点暂未返回可读正文");
             } catch (Exception e) {
