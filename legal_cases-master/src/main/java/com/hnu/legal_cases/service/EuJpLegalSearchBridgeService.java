@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -432,12 +434,12 @@ public class EuJpLegalSearchBridgeService {
     }
 
     private String fetchCourtListenerDetail(String detailUrl) {
-        String opinionId = "";
+        String clusterId = "";
         Matcher idMatcher = COURT_LISTENER_OPINION_ID.matcher(detailUrl);
         if (idMatcher.find()) {
-            opinionId = idMatcher.group(1);
+            clusterId = idMatcher.group(1);
         }
-        if (opinionId.isBlank()) {
+        if (clusterId.isBlank()) {
             return fetchHtmlDetail(detailUrl);
         }
         String apiKey = crawlerProperties.getCourtListenerApiKey();
@@ -447,7 +449,9 @@ public class EuJpLegalSearchBridgeService {
         }
         try {
             String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
-            URI detailUri = URI.create(base + "/opinions/" + opinionId + "/");
+            String detailQuery = "?cluster_id=" + URLEncoder.encode(clusterId, StandardCharsets.UTF_8)
+                    + "&page_size=10";
+            URI detailUri = URI.create(base + "/opinions/" + detailQuery);
             assertAllowedHost(detailUri);
             HttpRequest req = HttpRequest.newBuilder(detailUri)
                     .timeout(READ)
@@ -466,24 +470,50 @@ public class EuJpLegalSearchBridgeService {
                 return fetchHtmlDetail(detailUrl);
             }
             JsonNode root = objectMapper.readTree(response.body());
-            String plainText = text(root, "plain_text");
-            if (!plainText.isBlank()) {
-                return capText(normalizeTextBlocks(plainText));
+            JsonNode results = root.path("results");
+            if (results.isArray()) {
+                for (JsonNode opinion : results) {
+                    String opinionText = extractCourtListenerOpinionText(opinion, detailUrl);
+                    if (!opinionText.isBlank()) {
+                        return capText(opinionText);
+                    }
+                }
             }
-            String opinionHtml = text(root, "html_with_citations");
-            if (opinionHtml.isBlank()) {
-                opinionHtml = text(root, "html");
-            }
-            if (opinionHtml.isBlank()) {
-                return "";
-            }
-            Document doc = Jsoup.parse(opinionHtml, detailUrl);
-            doc.select("script,style,noscript,header,footer,nav,form").remove();
-            return capText(extractParagraphText(doc));
+            log.warn("CourtListener API detail has no text fields cluster_id={}", clusterId);
+            return fetchHtmlDetail(detailUrl);
         } catch (Exception e) {
             log.warn("CourtListener API detail failed, fallback to HTML: {}", e.getMessage());
             return fetchHtmlDetail(detailUrl);
         }
+    }
+
+    private String extractCourtListenerOpinionText(JsonNode opinion, String detailUrl) {
+        String htmlWithCitations = text(opinion, "html_with_citations");
+        if (!htmlWithCitations.isBlank()) {
+            return extractHtmlParagraphs(htmlWithCitations, detailUrl);
+        }
+        String html = text(opinion, "html");
+        if (!html.isBlank()) {
+            return extractHtmlParagraphs(html, detailUrl);
+        }
+        String plainText = text(opinion, "plain_text");
+        if (!plainText.isBlank()) {
+            return normalizeTextBlocks(plainText);
+        }
+        String xmlHarvard = text(opinion, "xml_harvard");
+        if (!xmlHarvard.isBlank()) {
+            String parsed = extractHtmlParagraphs(xmlHarvard, detailUrl);
+            return parsed.isBlank() ? normalizeTextBlocks(xmlHarvard) : parsed;
+        }
+        return "";
+    }
+
+    private String extractHtmlParagraphs(String html, String baseUri) {
+        Document doc = Jsoup.parse(html, baseUri);
+        doc.select("script,style,noscript,header,footer,nav,form").remove();
+        Element root = doc.body() == null ? doc : doc.body();
+        String text = extractParagraphText(root);
+        return text.isBlank() ? normalizeTextBlocks(root.text()) : text;
     }
 
     private String fetchEurLexDetail(String detailUrl) {
@@ -567,35 +597,57 @@ public class EuJpLegalSearchBridgeService {
         if (root == null) {
             return "";
         }
+        StringBuilder current = new StringBuilder();
         List<String> paragraphs = new ArrayList<>();
-        String previous = "";
-        for (Element el : root.select("h1,h2,h3,h4,h5,h6,p,li,blockquote,pre")) {
-            if (isNestedBlock(el, root)) {
-                continue;
-            }
-            String text = normalizeWhitespace(el.text());
-            if (text.isBlank() || text.equals(previous)) {
-                continue;
-            }
-            paragraphs.add(text);
-            previous = text;
-        }
+        walkTextNodes(root, current, paragraphs);
+        flushParagraph(current, paragraphs);
         return String.join("\n\n", paragraphs);
     }
 
-    private boolean isNestedBlock(Element el, Element root) {
-        Element parent = el.parent();
-        while (parent != null && parent != root) {
-            if (parent instanceof Element pe && BLOCK_TAGS.contains(pe.tagName())) {
-                return true;
+    private void walkTextNodes(Node node, StringBuilder current, List<String> paragraphs) {
+        if (node instanceof TextNode textNode) {
+            String text = normalizeWhitespace(textNode.text());
+            if (!text.isBlank()) {
+                if (current.length() > 0) {
+                    current.append(' ');
+                }
+                current.append(text);
             }
-            parent = parent.parent();
+            return;
         }
-        return false;
+        if (!(node instanceof Element element)) {
+            return;
+        }
+        String tag = element.tagName().toLowerCase(Locale.ROOT);
+        if ("br".equals(tag)) {
+            flushParagraph(current, paragraphs);
+            return;
+        }
+        boolean block = BLOCK_TAGS.contains(tag);
+        if (block && current.length() > 0) {
+            flushParagraph(current, paragraphs);
+        }
+        for (Node child : element.childNodes()) {
+            walkTextNodes(child, current, paragraphs);
+        }
+        if (block && current.length() > 0) {
+            flushParagraph(current, paragraphs);
+        }
+    }
+
+    private void flushParagraph(StringBuilder current, List<String> paragraphs) {
+        String text = normalizeWhitespace(current.toString());
+        if (!text.isBlank()) {
+            if (paragraphs.isEmpty() || !paragraphs.get(paragraphs.size() - 1).equals(text)) {
+                paragraphs.add(text);
+            }
+        }
+        current.setLength(0);
     }
 
     private static final Set<String> BLOCK_TAGS = Set.of(
-            "h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote", "pre");
+            "h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote", "pre",
+            "div", "section", "article", "table", "thead", "tbody", "tfoot", "tr");
 
     private String capText(String text) {
         String value = text == null ? "" : text.trim();

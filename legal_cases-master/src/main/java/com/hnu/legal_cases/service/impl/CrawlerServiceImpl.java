@@ -12,7 +12,6 @@ import com.hnu.legal_cases.dto.crawler.CrawlerSingleQueryResult;
 import com.hnu.legal_cases.enums.CountryEnum;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.CrawlerService;
-import com.hnu.legal_cases.service.SpringAIService;
 import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,8 +43,6 @@ public class CrawlerServiceImpl implements CrawlerService {
 
     @Autowired
     private CrawlerClient crawlerClient;
-    @Autowired
-    private SpringAIService springAIService;
     @Autowired
     @Qualifier("crawlerTaskExecutor")
     private Executor crawlerTaskExecutor;
@@ -112,9 +109,6 @@ public class CrawlerServiceImpl implements CrawlerService {
             final String sourceCode = countryEnum.getCode();
             CompletableFuture<CrawlerSingleQueryResult> f = CompletableFuture.supplyAsync(() -> {
                         String searchKeyword = keyword;
-                        if (targetCountries.size() > 1 && CountryEnum.JPN.equals(countryEnum)) {
-                            searchKeyword = springAIService.translate(keyword, "English", "Japanese");
-                        }
                         return crawlerClient.querySingleDataSource(searchKeyword, period, countryEnum);
                     },
                     crawlerTaskExecutor);
