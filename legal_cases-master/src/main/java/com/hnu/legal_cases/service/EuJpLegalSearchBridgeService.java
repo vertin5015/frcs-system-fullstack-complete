@@ -433,7 +433,7 @@ public class EuJpLegalSearchBridgeService {
         return fetchHtmlDetail(normalized);
     }
 
-    private String fetchCourtListenerDetail(String detailUrl) {
+    private String fetchCourtListenerDetail(String detailUrl) throws IOException, InterruptedException {
         String clusterId = "";
         Matcher idMatcher = COURT_LISTENER_OPINION_ID.matcher(detailUrl);
         if (idMatcher.find()) {
@@ -444,8 +444,7 @@ public class EuJpLegalSearchBridgeService {
         }
         String apiKey = crawlerProperties.getCourtListenerApiKey();
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("CourtListener full text requires COURTLISTENER_API_KEY; fallback to HTML detail url={}", detailUrl);
-            return fetchHtmlDetail(detailUrl);
+            throw new IOException("CourtListener 未配置 API token，无法获取全文；请配置 COURTLISTENER_API_KEY");
         }
         try {
             String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
@@ -462,12 +461,17 @@ public class EuJpLegalSearchBridgeService {
                     .build();
             HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 401 || response.statusCode() == 403) {
-                log.warn("CourtListener API token rejected status={}; fallback to HTML detail", response.statusCode());
-                return fetchHtmlDetail(detailUrl);
+                throw new IOException("CourtListener API token 无效（HTTP " + response.statusCode()
+                        + "），请检查 COURTLISTENER_API_KEY");
+            }
+            if (response.statusCode() == 429) {
+                throw new IOException("CourtListener 原文接口限流（HTTP 429），请稍后重试或减少访问频率");
+            }
+            if (response.statusCode() == 400) {
+                throw new IOException("CourtListener 原文接口参数错误（HTTP 400），cluster_id=" + clusterId);
             }
             if (response.statusCode() != 200) {
-                log.warn("CourtListener API detail HTTP {}; fallback to HTML detail", response.statusCode());
-                return fetchHtmlDetail(detailUrl);
+                throw new IOException("CourtListener 原文接口返回 HTTP " + response.statusCode());
             }
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode results = root.path("results");
@@ -481,8 +485,14 @@ public class EuJpLegalSearchBridgeService {
             }
             log.warn("CourtListener API detail has no text fields cluster_id={}", clusterId);
             return fetchHtmlDetail(detailUrl);
+        } catch (IOException e) {
+            log.warn("CourtListener API detail failed: {}", e.getMessage());
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
         } catch (Exception e) {
-            log.warn("CourtListener API detail failed, fallback to HTML: {}", e.getMessage());
+            log.warn("CourtListener API detail parse failed, fallback to HTML: {}", e.getMessage());
             return fetchHtmlDetail(detailUrl);
         }
     }
@@ -516,7 +526,7 @@ public class EuJpLegalSearchBridgeService {
         return text.isBlank() ? normalizeTextBlocks(root.text()) : text;
     }
 
-    private String fetchEurLexDetail(String detailUrl) {
+    private String fetchEurLexDetail(String detailUrl) throws IOException, InterruptedException {
         String celex = extractCelexToken(detailUrl);
         if (celex.isBlank()) {
             return fetchHtmlDetail(detailUrl);
@@ -587,44 +597,38 @@ public class EuJpLegalSearchBridgeService {
         return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
-    private String fetchHtmlDetail(String detailUrl) {
-        try {
-            HttpResponse<String> response = requestDetailWithRetry(detailUrl.trim());
-            if (isDeferredResponse(response.statusCode())) {
-                log.warn("CourtListener detail deferred by anti-bot response status={}", response.statusCode());
-                return "";
-            }
-            if (response.statusCode() != 200) {
-                throw new IOException("HTTP " + response.statusCode());
-            }
-            String html = response.body();
-            Document doc = Jsoup.parse(html, detailUrl);
-            doc.select("script,style,noscript,header,footer,nav,form").remove();
-
-            String title = str(doc.title());
-            Element main = firstPresent(doc,
-                    ".opinion-content",
-                    ".opinion",
-                    "#opinion",
-                    "article",
-                    "main",
-                    ".content");
-            Element root = main == null ? (doc.body() == null ? doc : doc.body()) : main;
-            String text = extractParagraphText(root);
-            if (text.isBlank()) {
-                text = normalizeTextBlocks(root.text());
-            }
-            if (text.length() > 120_000) {
-                text = text.substring(0, 120_000);
-            }
-            if (title.isEmpty()) {
-                return text;
-            }
-            return title + "\n\n" + text;
-        } catch (Exception e) {
-            log.warn("HTML detail fetch failed url={} : {}", detailUrl, e.getMessage());
-            return "";
+    private String fetchHtmlDetail(String detailUrl) throws IOException, InterruptedException {
+        HttpResponse<String> response = requestDetailWithRetry(detailUrl.trim());
+        if (isDeferredResponse(response.statusCode())) {
+            throw new IOException("目标站点触发防爬（HTTP 202），请稍后重试或外部打开原文");
         }
+        if (response.statusCode() != 200) {
+            throw new IOException("目标站点返回 HTTP " + response.statusCode());
+        }
+        String html = response.body();
+        Document doc = Jsoup.parse(html, detailUrl);
+        doc.select("script,style,noscript,header,footer,nav,form").remove();
+
+        String title = str(doc.title());
+        Element main = firstPresent(doc,
+                ".opinion-content",
+                ".opinion",
+                "#opinion",
+                "article",
+                "main",
+                ".content");
+        Element root = main == null ? (doc.body() == null ? doc : doc.body()) : main;
+        String text = extractParagraphText(root);
+        if (text.isBlank()) {
+            text = normalizeTextBlocks(root.text());
+        }
+        if (text.length() > 120_000) {
+            text = text.substring(0, 120_000);
+        }
+        if (title.isEmpty()) {
+            return text;
+        }
+        return title + "\n\n" + text;
     }
 
     private String extractParagraphText(Element root) {

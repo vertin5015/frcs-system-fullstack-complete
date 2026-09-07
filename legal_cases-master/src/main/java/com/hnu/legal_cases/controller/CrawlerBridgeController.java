@@ -105,6 +105,7 @@ public class CrawlerBridgeController {
         } catch (Exception e) {
             log.error("crawler-bridge detail failed", e);
             vo.setStatus("error");
+            vo.setMessage(e.getMessage());
             vo.setItems(List.of());
         }
         return vo;
