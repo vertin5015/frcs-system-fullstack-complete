@@ -525,15 +525,7 @@ public class EuJpLegalSearchBridgeService {
             String base = crawlerProperties.getEurlexContentBaseUrl().trim().replaceAll("/+$", "");
             String contentUrl = base + "/" + URLEncoder.encode(celex, StandardCharsets.UTF_8) + "?lang=en";
             URI uri = URI.create(contentUrl);
-            assertAllowedHost(uri);
-            HttpRequest req = HttpRequest.newBuilder(uri)
-                    .timeout(READ)
-                    .header("User-Agent", UA)
-                    .header("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8")
-                    .header("Accept-Language", "en")
-                    .GET()
-                    .build();
-            HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = requestContentFollowingRedirects(uri);
             if (response.statusCode() != 200) {
                 log.warn("EUR-Lex content HTTP {}; fallback to HTML detail", response.statusCode());
                 return fetchHtmlDetail(detailUrl);
@@ -551,6 +543,48 @@ public class EuJpLegalSearchBridgeService {
             log.warn("EUR-Lex content fetch failed, fallback to HTML: {}", e.getMessage());
             return fetchHtmlDetail(detailUrl);
         }
+    }
+
+    private HttpResponse<String> requestContentFollowingRedirects(URI uri) throws IOException, InterruptedException {
+        URI current = uri;
+        for (int i = 0; i < 3; i++) {
+            assertAllowedHost(current);
+            HttpRequest req = HttpRequest.newBuilder(current)
+                    .timeout(READ)
+                    .header("User-Agent", UA)
+                    .header("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "en")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            int status = response.statusCode();
+            if (status != 301 && status != 302 && status != 303 && status != 307 && status != 308) {
+                return response;
+            }
+            String location = response.headers().firstValue("Location").orElse("");
+            if (location.isBlank()) {
+                return response;
+            }
+            URI next = URI.create(current.resolve(location));
+            if (next.equals(current)) {
+                return response;
+            }
+            current = next;
+        }
+        return requestContent(current, "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8", "en");
+    }
+
+    private HttpResponse<String> requestContent(URI uri, String accept, String acceptLanguage)
+            throws IOException, InterruptedException {
+        assertAllowedHost(uri);
+        HttpRequest req = HttpRequest.newBuilder(uri)
+                .timeout(READ)
+                .header("User-Agent", UA)
+                .header("Accept", accept)
+                .header("Accept-Language", acceptLanguage)
+                .GET()
+                .build();
+        return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
     private String fetchHtmlDetail(String detailUrl) {
