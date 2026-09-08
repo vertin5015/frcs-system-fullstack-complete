@@ -17,9 +17,10 @@ spring:
 # 爬虫若连不上远程，改为你内网可访问的地址；列表搜索与详情是不同端口；key 与 CountryEnum 一致（大写）
 # 端口与请求示例见：scripts/crawler-endpoints.txt ；自检：scripts/verify-crawler-ports.ps1
 # crawler:
-#   detail-url: "http://127.0.0.1:9001/crawl.json"
+#   detail-url: "http://127.0.0.1:8122/api/crawler-bridge/detail/crawl.json"
+#   court-listener-api-key: "your-courtlistener-token"
 #   search:
-#     US: "http://127.0.0.1:9003/crawl.json"
-#     # 默认 EU/JPN 可走后端内置 bridge（8122）；外置爬虫时改回 9002 / 9004
+#     # 默认 US/EU/JPN 走后端内置 bridge（8122），内置桥会优先调用官方 API。
+#     US: "http://127.0.0.1:8122/api/crawler-bridge/list/US/crawl.json"
 #     EU: "http://127.0.0.1:8122/api/crawler-bridge/list/EU/crawl.json"
 #     JPN: "http://127.0.0.1:8122/api/crawler-bridge/list/JPN/crawl.json"

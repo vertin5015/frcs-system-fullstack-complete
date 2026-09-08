@@ -53,11 +53,15 @@ crawler:
   max-detail-response-bytes: 2097152
   max-detail-item-chars: 350000
   # 案例详情爬取（单 url）
-  detail-url: "http://127.0.0.1:9001/crawl.json"
+  detail-url: "http://127.0.0.1:8122/api/crawler-bridge/detail/crawl.json"
+  court-listener-api-base-url: ${COURTLISTENER_API_BASE_URL:https://www.courtlistener.com/api/rest/v4}
+  court-listener-api-key: ${COURTLISTENER_API_KEY:}
+  eurlex-sparql-url: ${EURLEX_SPARQL_URL:https://publications.europa.eu/webapi/rdf/sparql}
+  eurlex-content-base-url: ${EURLEX_CONTENT_BASE_URL:https://publications.europa.eu/resource/celex}
   # key 须与 CountryEnum 代码一致（当前仅启用 US/EU/JPN）；value 为列表搜索用 crawl.json
   search:
-    US: "http://127.0.0.1:9003/crawl.json"
-    # EU/JPN：无外置爬虫或 9002/9004 不可用/无数据时，走后端内置桥（JDK 直连列表页）
+    # 默认 US/EU/JPN 全部走后端内置 bridge：内置 US/EU 优先调用官方 API，失败再回退页面解析。
+    US: "http://127.0.0.1:8122/api/crawler-bridge/list/US/crawl.json"
     EU: "http://127.0.0.1:8122/api/crawler-bridge/list/EU/crawl.json"
     JPN: "http://127.0.0.1:8122/api/crawler-bridge/list/JPN/crawl.json"
     # 外置 Scrapy 可用且能返回 items 时改为：
@@ -81,7 +85,8 @@ app:
       base-url: ${SPRING_AI_UPSTREAM_BASE_URL:https://ai.nengyongai.cn}
       model: ${SPRING_AI_UPSTREAM_MODEL:gpt-4o-2024-08-06}
   embedding:
-    # OpenAI-compatible embedding endpoint；未配置或失败时自动回退本地哈希向量。
+    # 当前默认关闭云端 embedding，优先使用本地 3-gram 哈希向量兜底。
+    # 后续需要 Qwen 等云端 embedding 时再显式设置 APP_EMBEDDING_ENABLED=true。
     enabled: ${APP_EMBEDDING_ENABLED:false}
     api-key: ${APP_EMBEDDING_API_KEY:}
     base-url: ${APP_EMBEDDING_BASE_URL:}

@@ -19,6 +19,26 @@ public class CrawlerProperties {
     private String detailUrl;
 
     /**
+     * CourtListener official REST API base URL. Search is public; opinion detail requires a token.
+     */
+    private String courtListenerApiBaseUrl = "https://www.courtlistener.com/api/rest/v4";
+
+    /**
+     * Optional CourtListener API token (recommended for full opinion text). Empty means unauthenticated search only.
+     */
+    private String courtListenerApiKey = "";
+
+    /**
+     * EUR-Lex / Cellar public SPARQL endpoint. No API key required.
+     */
+    private String eurlexSparqlUrl = "https://publications.europa.eu/webapi/rdf/sparql";
+
+    /**
+     * EUR-Lex content-negotiation base URL used to fetch full text by CELEX.
+     */
+    private String eurlexContentBaseUrl = "https://publications.europa.eu/resource/celex";
+
+    /**
      * key 与 {@code CountryEnum} 的 code 一致（如 US、EU、JPN）；value 为列表搜索用 crawl.json 地址。
      */
     private Map<String, String> search = new HashMap<>();

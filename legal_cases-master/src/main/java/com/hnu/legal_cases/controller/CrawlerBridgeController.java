@@ -70,7 +70,7 @@ public class CrawlerBridgeController {
             String kw = args.getKeyword();
             List<CrawlerBaseInfoItem> items = switch (region) {
                 case US -> bridge.searchUs(kw, args.getYear());
-                case EU -> bridge.searchEu(kw);
+                case EU -> bridge.searchEu(kw, args.getYear());
                 case JPN -> bridge.searchJp(kw);
             };
             vo.setStatus("ok");
@@ -105,6 +105,7 @@ public class CrawlerBridgeController {
         } catch (Exception e) {
             log.error("crawler-bridge detail failed", e);
             vo.setStatus("error");
+            vo.setMessage(e.getMessage());
             vo.setItems(List.of());
         }
         return vo;

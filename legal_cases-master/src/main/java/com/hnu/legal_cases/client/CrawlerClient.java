@@ -10,6 +10,7 @@ import com.hnu.legal_cases.dto.crawler.CrawlerDetailArgs;
 import com.hnu.legal_cases.dto.crawler.CrawlerDetailResVO;
 import com.hnu.legal_cases.dto.crawler.CrawlerSingleQueryResult;
 import com.hnu.legal_cases.enums.CountryEnum;
+import com.hnu.legal_cases.exception.ServiceException;
 import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -161,8 +162,14 @@ public class CrawlerClient {
                 return items;
             }
             log.error("根据url：{} 查询案例详细信息返回状态异常: {}", url, parsed);
+            if (parsed != null && StringUtils.isNotBlank(parsed.getMessage())) {
+                throw new ServiceException(parsed.getMessage());
+            }
             return new ArrayList<>();
 
+        } catch (ServiceException e) {
+            log.warn("根据url：{} 查询案例详细信息失败：{}", url, e.getMessage());
+            throw e;
         } catch (JsonProcessingException e) {
             log.error("根据url：{} 查询案例详细信息JSON序列化失败", url, e);
             return new ArrayList<>();

@@ -1,7 +1,6 @@
 package com.hnu.legal_cases.service.impl;
 
 import com.hnu.legal_cases.dto.ai.SpringAIResVO;
-import com.hnu.legal_cases.enums.CountryEnum;
 import com.hnu.legal_cases.exception.ServiceException;
 import com.hnu.legal_cases.service.SpringAIService;
 import com.hnu.legal_cases.service.AiCallRunner;
@@ -50,10 +49,9 @@ public class SpringAIServiceImpl implements SpringAIService {
             return trimmed;
         }
 
+        // 当前 US/EU/JPN 三个数据源都使用英文检索（JPN 源为最高裁英文判例页），
+        // 因此关键词统一提取为英文，避免中文/日文关键词命中不到英文判例。
         String language = "English";
-        if (CountryEnum.JPN.getCode().equals(country)) {
-            language = "Japanese";
-        }
 
         try {
             String extractPrompt = String.format(
@@ -76,7 +74,7 @@ public class SpringAIServiceImpl implements SpringAIService {
         } catch (Exception e) {
             // 中文等关键词易导致模型输出非严格 JSON 或解析失败，此前会触发搜索接口 Throwable 分支仅提示「搜索案例错误」
             log.warn("ai提取关键词异常，改用原始关键词继续搜索：{}", trimmed, e);
-            String fallback = fallbackCnKeywordForCrawler(trimmed, country);
+            String fallback = fallbackCnKeywordForCrawler(trimmed);
             if (!fallback.equals(trimmed)) {
                 log.info("关键词本地兜底翻译生效：{} -> {}", trimmed, fallback);
             }
@@ -322,12 +320,8 @@ public class SpringAIServiceImpl implements SpringAIService {
                 + "Relevant excerpt:\n" + excerpt;
     }
 
-    private static String fallbackCnKeywordForCrawler(String keyword, String country) {
+    private static String fallbackCnKeywordForCrawler(String keyword) {
         if (StringUtils.isBlank(keyword)) {
-            return keyword;
-        }
-        // JPN 源优先走日文翻译流程，不使用本兜底。
-        if (CountryEnum.JPN.getCode().equals(country)) {
             return keyword;
         }
         if (!containsCjk(keyword)) {

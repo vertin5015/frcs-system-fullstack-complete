@@ -30,6 +30,7 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     private final Map<String, String> textCache = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<String>> tasks = new ConcurrentHashMap<>();
     private final Map<String, String> failures = new ConcurrentHashMap<>();
+    private final Map<String, String> fallbackTexts = new ConcurrentHashMap<>();
     private final Map<String, CaseDocumentMeta> metadata = new ConcurrentHashMap<>();
 
     @Autowired
@@ -53,7 +54,12 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
             Map<String, String> persisted = JSON.parseObject(json, new TypeReference<Map<String, String>>() {
             });
             if (persisted != null && !persisted.isEmpty()) {
-                textCache.putAll(persisted);
+                for (Map.Entry<String, String> entry : persisted.entrySet()) {
+                    String key = normalizeUrl(entry.getKey());
+                    if (StringUtils.isNotBlank(key)) {
+                        textCache.putIfAbsent(key, entry.getValue());
+                    }
+                }
                 log.info("原文正文持久缓存加载完成 count={}", persisted.size());
             }
         } catch (Exception e) {
@@ -103,6 +109,15 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     }
 
     @Override
+    public void cacheFallbackText(String url, String fallbackText) {
+        String key = normalize(url);
+        if (StringUtils.isBlank(key) || StringUtils.isBlank(fallbackText)) {
+            return;
+        }
+        fallbackTexts.put(key, fallbackText.trim());
+    }
+
+    @Override
     public String getLastFailure(String url) {
         String key = normalize(url);
         return StringUtils.isBlank(key) ? null : failures.get(key);
@@ -128,6 +143,15 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
                     log.info("原文正文缓存完成 url={} chars={}", url, text.length());
                     return text;
                 }
+                String fallback = fallbackTexts.get(url);
+                if (StringUtils.isNotBlank(fallback)) {
+                    textCache.put(url, fallback);
+                    failures.remove(url);
+                    persistCacheQuietly();
+                    CompletableFuture.runAsync(() -> ingestFullTextToKb(url, fallback), caseTaskExecutor);
+                    log.info("原文详情抓取失败，使用搜索 snippet 兜底 url={} chars={}", url, fallback.length());
+                    return fallback;
+                }
                 failures.put(url, "原文站点暂未返回可读正文");
             } catch (Exception e) {
                 failures.put(url, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
@@ -140,7 +164,25 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     }
 
     private String normalize(String url) {
-        return url == null ? null : url.trim();
+        return normalizeUrl(url);
+    }
+
+    private String normalizeUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        String value = url.trim();
+        if (value.contains("courtlistener.com") && value.contains("/opinion/")) {
+            int q = value.indexOf('?');
+            if (q > 0) {
+                value = value.substring(0, q);
+            }
+            int hash = value.indexOf('#');
+            if (hash > 0) {
+                value = value.substring(0, hash);
+            }
+        }
+        return value;
     }
 
     private void rememberMeta(String url, String sourceId, String title) {
