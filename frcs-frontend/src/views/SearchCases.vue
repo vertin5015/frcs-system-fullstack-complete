@@ -126,8 +126,13 @@
               >
                 <div class="case-card-content">
                   <div class="case-card-header">
-                    <div class="case-title-wrap">
-                      <el-tooltip class="box-item" effect="dark" :content="item.case_name" placement="top-start">
+                    <div class="case-title-wrap" @mouseenter="ensureTitleTranslation(item)">
+                      <el-tooltip
+                        class="box-item"
+                        effect="dark"
+                        :content="titleTooltipContent(item)"
+                        placement="top-start"
+                      >
                         <span class="case-title">{{ item.case_name }}</span>
                       </el-tooltip>
                     </div>
@@ -206,12 +211,13 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
 import { useStore } from "vuex";
 import { useRoute, useRouter } from "vue-router";
 import api from "../api/index";
 import { ElNotification } from "element-plus";
 import { getAuth, setAuth } from "../utils/authStorage";
+import { detectTextLanguage, translateParagraphs } from "../utils/frontTranslate";
 
 export default {
   name: "SearchCases",
@@ -266,6 +272,63 @@ export default {
       } catch {
         /* ignore */
       }
+    };
+
+    // ===== 标题悬浮中文翻译：复用案例详情页“中文译文”同一套前端直连翻译逻辑，不经过后端 =====
+    const titleTranslations = reactive(new Map()); // key -> { status: "pending"|"done"|"failed", text }
+    const titleTranslateTasks = new Map(); // 同一标题只发起一次翻译请求
+
+    const titleTranslateKey = (title) => "zh|" + String(title || "").trim();
+
+    const titleTooltipContent = (item) => {
+      const title = item && item.case_name ? String(item.case_name).trim() : "";
+      if (!title) return "";
+      // 标题本身已是中文时，维持原有“悬浮显示完整标题”行为，不再重复翻译
+      if (detectTextLanguage(title) === "zh") return title;
+      const key = titleTranslateKey(title);
+      const entry = titleTranslations.get(key);
+      if (entry && entry.status === "done" && entry.text) return entry.text;
+      if (entry && entry.status === "failed") return title; // 翻译失败回退为原标题
+      return lang.value === "zh" ? "标题翻译中…" : "Translating title…";
+    };
+
+    const ensureTitleTranslation = (item) => {
+      const title = item && item.case_name ? String(item.case_name).trim() : "";
+      if (!title) return Promise.resolve("");
+      if (detectTextLanguage(title) === "zh") return Promise.resolve(title);
+      const key = titleTranslateKey(title);
+      const existing = titleTranslations.get(key);
+      if (existing && (existing.status === "done" || existing.status === "failed")) {
+        return Promise.resolve(existing.text || title);
+      }
+      if (titleTranslateTasks.has(key)) return titleTranslateTasks.get(key);
+      titleTranslations.set(key, { status: "pending", text: "" });
+      const task = translateParagraphs([title], "zh")
+        .then((result) => {
+          const translated =
+            result && result.content && result.anyProviderUsed ? String(result.content).trim() : "";
+          titleTranslations.set(key, {
+            status: translated ? "done" : "failed",
+            text: translated,
+          });
+          return translated || title;
+        })
+        .catch(() => {
+          titleTranslations.set(key, { status: "failed", text: "" });
+          return title;
+        })
+        .finally(() => {
+          titleTranslateTasks.delete(key);
+        });
+      titleTranslateTasks.set(key, task);
+      return task;
+    };
+
+    // 结果到达后先在后台翻译当前页标题，用户悬停时通常能直接看到中文
+    const warmTitleTranslations = (list) => {
+      (list || []).forEach((item) => {
+        ensureTitleTranslation(item).catch(() => {});
+      });
     };
 
     const page = ref(1);
@@ -441,6 +504,7 @@ export default {
           if (chunk.length) {
             cases.value = [...cases.value, ...chunk];
             loadingCases.value = false;
+            warmTitleTranslations(chunk);
           }
         } catch (err) {
           console.error(err);
@@ -457,6 +521,7 @@ export default {
             cases.value = list;
             totalCasesCount.value = total;
             sourceStats.value = wrap.data.sourceStats || [];
+            warmTitleTranslations(list);
           }
         } catch (err) {
           console.error(err);
@@ -692,6 +757,10 @@ export default {
       readerHref,
 
       summaryCredits,
+
+      titleTooltipContent,
+
+      ensureTitleTranslation,
 
     };
 
