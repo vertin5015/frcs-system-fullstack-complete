@@ -57,7 +57,9 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
                 for (Map.Entry<String, String> entry : persisted.entrySet()) {
                     String key = normalizeUrl(entry.getKey());
                     if (StringUtils.isNotBlank(key)) {
-                        textCache.putIfAbsent(key, entry.getValue());
+                        if (!isLikelyEurLexHomepage(key, entry.getValue())) {
+                            textCache.putIfAbsent(key, entry.getValue());
+                        }
                     }
                 }
                 log.info("原文正文持久缓存加载完成 count={}", persisted.size());
@@ -70,7 +72,15 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     @Override
     public String getCachedText(String url) {
         String key = normalize(url);
-        return StringUtils.isBlank(key) ? null : textCache.get(key);
+        if (StringUtils.isBlank(key)) {
+            return null;
+        }
+        String cached = textCache.get(key);
+        if (StringUtils.isNotBlank(cached) && isLikelyEurLexHomepage(url, cached)) {
+            textCache.remove(key);
+            return null;
+        }
+        return cached;
     }
 
     @Override
@@ -183,6 +193,16 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
             }
         }
         return value;
+    }
+
+    private boolean isLikelyEurLexHomepage(String url, String text) {
+        if (StringUtils.isBlank(url) || StringUtils.isBlank(text)) {
+            return false;
+        }
+        boolean eurLexUrl = url.contains("eur-lex.europa.eu") || url.contains("publications.europa.eu");
+        return eurLexUrl
+                && text.contains("Official Journal of the European Union")
+                && text.contains("Series L");
     }
 
     private void rememberMeta(String url, String sourceId, String title) {

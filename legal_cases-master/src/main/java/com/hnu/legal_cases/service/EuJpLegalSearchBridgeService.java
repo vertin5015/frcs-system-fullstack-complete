@@ -609,6 +609,13 @@ public class EuJpLegalSearchBridgeService {
         Document doc = Jsoup.parse(html, detailUrl);
         doc.select("script,style,noscript,header,footer,nav,form").remove();
 
+        if (detailUrl.contains("courts.go.jp")) {
+            String japanText = extractJapanJudgmentText(doc);
+            if (!japanText.isBlank()) {
+                return capText(japanText);
+            }
+        }
+
         String title = str(doc.title());
         Element main = firstPresent(doc,
                 ".opinion-content",
@@ -629,6 +636,51 @@ public class EuJpLegalSearchBridgeService {
             return text;
         }
         return title + "\n\n" + text;
+    }
+
+    private String extractJapanJudgmentText(Document doc) {
+        Elements blocks = doc.select("div.module-sub-page-parts-table dl");
+        if (blocks.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (Element block : blocks) {
+            Element dt = block.selectFirst("dt");
+            if (dt == null) {
+                continue;
+            }
+            String label = normalizeWhitespace(dt.wholeText());
+            if (label.isBlank()) {
+                continue;
+            }
+            out.append(label).append("\n");
+            for (Element p : block.select("dd > p")) {
+                String content = normalizePreserveLineBreaks(p.wholeText());
+                if (!content.isBlank()) {
+                    out.append(content).append("\n");
+                }
+            }
+            out.append("\n");
+        }
+        return out.toString().trim();
+    }
+
+    private String normalizePreserveLineBreaks(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String[] lines = raw.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        StringBuilder out = new StringBuilder();
+        for (String line : lines) {
+            String value = normalizeWhitespace(line);
+            if (!value.isBlank()) {
+                if (out.length() > 0) {
+                    out.append('\n');
+                }
+                out.append(value);
+            }
+        }
+        return out.toString();
     }
 
     private String extractParagraphText(Element root) {

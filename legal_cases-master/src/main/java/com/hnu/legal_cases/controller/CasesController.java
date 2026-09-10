@@ -431,7 +431,7 @@ public class CasesController {
                 + "<meta name='viewport' content='width=device-width, initial-scale=1'/>"
                 + "<body style='font-family:Arial,Helvetica,sans-serif;line-height:1.65;padding:18px;color:#222'>"
                 + "<h3 style='margin:0 0 12px 0;'>原文（可读模式）</h3>"
-                + "<div style='font-size:13px;color:#666;margin-bottom:10px;'>源站阻止内嵌，已自动切换为正文渲染。</div>"
+                + "<div style='font-size:13px;color:#666;margin-bottom:10px;'>已切换到正文渲染模式。</div>"
                 + "<article style='max-width:980px;margin:0 auto;'>"
                 + body
                 + "</article>"
