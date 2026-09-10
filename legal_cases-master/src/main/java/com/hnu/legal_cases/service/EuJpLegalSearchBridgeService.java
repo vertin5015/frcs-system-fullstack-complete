@@ -575,7 +575,7 @@ public class EuJpLegalSearchBridgeService {
             if (location.isBlank()) {
                 return response;
             }
-            URI next = URI.create(current.resolve(location));
+            URI next = current.resolve(location);
             if (next.equals(current)) {
                 return response;
             }
