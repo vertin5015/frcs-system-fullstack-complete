@@ -611,7 +611,19 @@ export default {
 
     const onOriginalLoaded = () => {};
 
-    const backToSearch = () => router.push("/case-query/search");
+    const backToSearch = () => {
+      // 阅读页由搜索结果打开时会携带 keyword/country/period/sources/page，
+      // 返回时把这些检索条件带回搜索页，让搜索页恢复并展示原来的结果列表
+      const q = route.query || {};
+      const query = {};
+      ["keyword", "country", "period", "sources", "page"].forEach((key) => {
+        const v = q[key];
+        if (v !== undefined && v !== null && String(v) !== "") {
+          query[key] = String(v);
+        }
+      });
+      router.push({ path: "/case-query/search", query });
+    };
     const backToHome = () => router.push("/case-query/home");
     const goRecharge = () => router.push("/case-query/recharge");
 
