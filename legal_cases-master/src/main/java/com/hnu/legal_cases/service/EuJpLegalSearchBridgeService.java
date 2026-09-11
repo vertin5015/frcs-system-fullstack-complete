@@ -46,6 +46,8 @@ public class EuJpLegalSearchBridgeService {
 
     private static final Duration CONNECT = Duration.ofSeconds(8);
     private static final Duration READ = Duration.ofSeconds(55);
+    /** SPARQL 查询不能占用搜索锁太久；超时就直接返回空结果，避免“系统繁忙”连锁反应。 */
+    private static final Duration SPARQL_READ = Duration.ofSeconds(15);
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
             + "Chrome/120.0.0.0 Safari/537.36";
     private static final int MAX_ITEMS = 20;
@@ -269,7 +271,7 @@ public class EuJpLegalSearchBridgeService {
             String formBody = "query=" + URLEncoder.encode(query.toString(), StandardCharsets.UTF_8)
                     + "&format=" + URLEncoder.encode("application/sparql-results+json", StandardCharsets.UTF_8);
             HttpRequest request = HttpRequest.newBuilder(sparqlUri)
-                    .timeout(READ)
+                    .timeout(SPARQL_READ)
                     .header("User-Agent", UA)
                     .header("Accept", "application/sparql-results+json")
                     .header("Content-Type", "application/x-www-form-urlencoded")

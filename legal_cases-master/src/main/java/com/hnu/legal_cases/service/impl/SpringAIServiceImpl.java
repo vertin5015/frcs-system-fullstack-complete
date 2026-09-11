@@ -49,6 +49,15 @@ public class SpringAIServiceImpl implements SpringAIService {
             return trimmed;
         }
 
+        // 中文法律词优先走本地词典，避免上游模型返回空内容时把中文原样送给英文案例库。
+        if (containsCjk(trimmed)) {
+            String local = fallbackCnKeywordForCrawler(trimmed);
+            if (!local.equals(trimmed) && !containsCjk(local)) {
+                log.info("中文关键词本地转换生效：{} -> {}", trimmed, local);
+                return local;
+            }
+        }
+
         // 当前 US/EU/JPN 三个数据源都使用英文检索（JPN 源为最高裁英文判例页），
         // 因此关键词统一提取为英文，避免中文/日文关键词命中不到英文判例。
         String language = "English";
@@ -333,6 +342,22 @@ public class SpringAIServiceImpl implements SpringAIService {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("抢劫罪", "robbery");
         map.put("抢劫", "robbery");
+        map.put("夫妻财产", "marital property");
+        map.put("婚姻财产", "marital property");
+        map.put("夫妻共同财产", "community property");
+        map.put("工人解雇", "worker dismissal");
+        map.put("解雇赔偿", "unfair dismissal compensation");
+        map.put("劳动纠纷", "labor dispute");
+        map.put("劳动合同", "employment contract");
+        map.put("解雇", "dismissal");
+        map.put("辞退", "dismissal");
+        map.put("工伤", "work injury");
+        map.put("工人", "worker");
+        map.put("雇员", "employee");
+        map.put("雇主", "employer");
+        map.put("公司", "company");
+        map.put("赔偿", "compensation");
+        map.put("抚养权", "child custody");
         map.put("盗窃罪", "theft");
         map.put("盗窃", "theft");
         map.put("故意杀人", "murder");
