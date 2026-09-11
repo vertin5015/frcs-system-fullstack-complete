@@ -144,33 +144,46 @@ public class OriginalDocumentCacheServiceImpl implements OriginalDocumentCacheSe
     private CompletableFuture<String> startFetchTask(String url) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String text = crawlerService.getCaseDetail(url);
-                if (StringUtils.isNotBlank(text)) {
-                    textCache.put(url, text);
-                    failures.remove(url);
-                    persistCacheQuietly();
-                    CompletableFuture.runAsync(() -> ingestFullTextToKb(url, text), caseTaskExecutor);
-                    log.info("原文正文缓存完成 url={} chars={}", url, text.length());
-                    return text;
+                String failureReason = null;
+                try {
+                    String text = crawlerService.getCaseDetail(url);
+                    if (StringUtils.isNotBlank(text)) {
+                        textCache.put(url, text);
+                        failures.remove(url);
+                        persistCacheQuietly();
+                        CompletableFuture.runAsync(() -> ingestFullTextToKb(url, text), caseTaskExecutor);
+                        log.info("原文正文缓存完成 url={} chars={}", url, text.length());
+                        return text;
+                    }
+                    failureReason = "原文站点暂未返回可读正文";
+                } catch (Exception e) {
+                    failureReason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    log.warn("原文正文缓存抓取失败 url={} msg={}", url, e.getMessage());
                 }
-                String fallback = fallbackTexts.get(url);
-                if (StringUtils.isNotBlank(fallback)) {
-                    textCache.put(url, fallback);
-                    failures.remove(url);
-                    persistCacheQuietly();
-                    CompletableFuture.runAsync(() -> ingestFullTextToKb(url, fallback), caseTaskExecutor);
-                    log.info("原文详情抓取失败，使用搜索 snippet 兜底 url={} chars={}", url, fallback.length());
-                    return fallback;
-                }
-                failures.put(url, "原文站点暂未返回可读正文");
-            } catch (Exception e) {
-                failures.put(url, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-                log.warn("原文正文缓存抓取失败 url={} msg={}", url, e.getMessage());
+                return useSearchSnippetFallback(url, failureReason);
             } finally {
                 tasks.remove(url);
             }
-            return null;
         }, caseTaskExecutor);
+    }
+
+    /**
+     * 详情接口报错（参数错误 / 额度 / 防爬等）时同样要用搜索 snippet 兜底，
+     * 否则原文窗口和 AI 摘要都会因为“正文缺失”直接失败。
+     */
+    private String useSearchSnippetFallback(String url, String failureReason) {
+        String fallback = fallbackTexts.get(url);
+        if (StringUtils.isNotBlank(fallback)) {
+            textCache.put(url, fallback);
+            failures.put(url, failureReason + "（已使用搜索摘要兜底）");
+            persistCacheQuietly();
+            CompletableFuture.runAsync(() -> ingestFullTextToKb(url, fallback), caseTaskExecutor);
+            log.info("原文详情抓取失败，使用搜索 snippet 兜底 url={} chars={} reason={}",
+                    url, fallback.length(), failureReason);
+            return fallback;
+        }
+        failures.put(url, failureReason);
+        return null;
     }
 
     private String normalize(String url) {
