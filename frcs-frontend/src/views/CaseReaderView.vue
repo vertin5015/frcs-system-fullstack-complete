@@ -620,7 +620,7 @@ export default {
       // 返回时把这些检索条件带回搜索页，让搜索页恢复并展示原来的结果列表
       const q = route.query || {};
       const query = {};
-      ["keyword", "country", "period", "sources", "page"].forEach((key) => {
+      ["keyword", "searchMode", "country", "period", "sources", "page"].forEach((key) => {
         const v = q[key];
         if (v !== undefined && v !== null && String(v) !== "") {
           query[key] = String(v);

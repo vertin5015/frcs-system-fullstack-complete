@@ -142,7 +142,8 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
                 return normalizeKeywordLine(inline);
             }
             StringBuilder collected = new StringBuilder();
-            for (int j = i + 1; j < lines.length && j <= i + 3; j++) {
+            int collectedLines = 0;
+            for (int j = i + 1; j < lines.length && collectedLines < 3; j++) {
                 String next = lines[j] == null ? "" : lines[j].trim();
                 if (next.isBlank()) {
                     continue;
@@ -154,6 +155,7 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
                     collected.append(", ");
                 }
                 collected.append(next.replaceAll("^[#>*\\-\\d.、\\s]+", "").trim());
+                collectedLines++;
             }
             return normalizeKeywordLine(collected.toString());
         }
