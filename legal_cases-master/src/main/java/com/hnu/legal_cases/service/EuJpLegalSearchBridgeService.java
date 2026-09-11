@@ -246,11 +246,24 @@ public class EuJpLegalSearchBridgeService {
                     .append("OPTIONAL { ?work cdm:work_date_document ?date . } ")
                     .append("OPTIONAL { ?expr cdm:expression_belongs_to_work ?work . ?expr cdm:expression_title ?title . FILTER(lang(?title) = \"en\") } ")
                     .append("OPTIONAL { ?expr2 cdm:expression_belongs_to_work ?work . ?expr2 cdm:expression_case-law_parties ?parties . FILTER(lang(?parties) = \"en\") } ")
-                    .append("FILTER(CONTAINS(LCASE(STR(?title)), \"")
-                    .append(safeKeyword)
-                    .append("\") || CONTAINS(LCASE(STR(?parties)), \"")
-                    .append(safeKeyword)
-                    .append("\")) ");
+                    .append("FILTER(");
+            String[] tokens = safeKeyword.split("\\s+");
+            boolean hasTokenCondition = false;
+            for (String token : tokens) {
+                if (token.isBlank()) {
+                    continue;
+                }
+                if (hasTokenCondition) {
+                    query.append(" || ");
+                }
+                query.append("(CONTAINS(LCASE(STR(?title)), \"")
+                        .append(token)
+                        .append("\") || CONTAINS(LCASE(STR(?parties)), \"")
+                        .append(token)
+                        .append("\"))");
+                hasTokenCondition = true;
+            }
+            query.append(") ");
             if (year != null && !year.isBlank()) {
                 try {
                     int years = Math.max(1, Math.min(50, Integer.parseInt(year.trim())));
@@ -379,14 +392,16 @@ public class EuJpLegalSearchBridgeService {
     private HttpResponse<String> requestJsonGet(String urlStr) throws IOException, InterruptedException {
         URI uri = URI.create(urlStr);
         assertAllowedHost(uri);
-        HttpRequest req = HttpRequest.newBuilder(uri)
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                 .timeout(READ)
                 .header("User-Agent", UA)
                 .header("Accept", "application/json")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .GET()
-                .build();
-        return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                .header("Accept-Language", "en-US,en;q=0.9");
+        String apiKey = crawlerProperties.getCourtListenerApiKey();
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("Authorization", "Token " + apiKey.trim());
+        }
+        return http.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
     private void assertAllowedHost(URI uri) throws IOException {
