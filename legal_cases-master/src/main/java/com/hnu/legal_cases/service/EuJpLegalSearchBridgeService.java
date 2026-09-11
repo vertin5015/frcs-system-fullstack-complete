@@ -77,7 +77,10 @@ public class EuJpLegalSearchBridgeService {
         if (!official.isEmpty()) {
             return official;
         }
-        return searchEurLexHtml(keyword);
+        // Eur-Lex 旧版 search.html 现已返回 404，继续回退只会拖慢搜索并制造无意义日志；
+        // SPARQL 无结果时直接返回空结果。
+        log.info("EUR-Lex SPARQL no results for keyword={}", keyword);
+        return List.of();
     }
 
     private List<CrawlerBaseInfoItem> searchCourtListenerHtml(String keyword, String year) {
