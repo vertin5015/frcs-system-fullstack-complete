@@ -78,8 +78,8 @@ public class SpringAIServiceImpl implements SpringAIService {
                 log.info("ai提取关键词成功：{}", res.getResult());
                 return res.getResult().trim();
             }
-            log.warn("ai返回非ok或result为空，改用原始关键词：{}", trimmed);
-            return trimmed;
+            log.warn("ai返回非ok或result为空，改本地兜底：{}", trimmed);
+            return fallbackCnKeywordForCrawler(trimmed);
         } catch (Exception e) {
             // 中文等关键词易导致模型输出非严格 JSON 或解析失败，此前会触发搜索接口 Throwable 分支仅提示「搜索案例错误」
             log.warn("ai提取关键词异常，改用原始关键词继续搜索：{}", trimmed, e);
