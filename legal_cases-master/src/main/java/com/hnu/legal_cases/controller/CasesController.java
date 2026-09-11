@@ -80,7 +80,7 @@ public class CasesController {
             String sources = reqVO.getSources() != null && !reqVO.getSources().isBlank() ? reqVO.getSources() : "ALL";
             lockName = distributedLock.getLockName("search", reqVO.getKeyword(), country, period, sources);
 
-            lockValue = distributedLock.tryLock(lockName, 180);
+            lockValue = distributedLock.tryLock(lockName, 180, 20_000L);
             if (lockValue == null) {
                 return JSONReturnBean.failed("系统繁忙，请稍后再试");
             }
@@ -116,7 +116,7 @@ public class CasesController {
             String sources = reqVO.getSources() != null && !reqVO.getSources().isBlank() ? reqVO.getSources() : "ALL";
             lockName = distributedLock.getLockName("search", reqVO.getKeyword(), country, period, sources);
 
-            lockValue = distributedLock.tryLock(lockName, 180);
+            lockValue = distributedLock.tryLock(lockName, 180, 20_000L);
             if (lockValue == null) {
                 try {
                     emitter.send(SseEmitter.event().name("fail")

@@ -70,6 +70,33 @@ public class DistributedLock {
     }
 
     /**
+     * 尝试获取锁；如果锁被占用，则最多等待 waitMillis 毫秒。
+     * 用于同一关键词被连续点击搜索时，避免立即返回“系统繁忙”。
+     */
+    public String tryLock(String lockKey, int expireTime, long waitMillis) {
+        long deadline = System.currentTimeMillis() + Math.max(0L, waitMillis);
+        String lockValue = UUID.randomUUID().toString();
+        while (true) {
+            Boolean success = stringRedisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, lockValue, Duration.ofSeconds(expireTime));
+            if (Boolean.TRUE.equals(success)) {
+                log.info("成功获取锁：{}, 值: {}", lockKey, lockValue);
+                return lockValue;
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                log.warn("等待获取锁超时：{}", lockKey);
+                return null;
+            }
+            try {
+                Thread.sleep(300L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+    }
+
+    /**
      * 释放锁
      *
      * @param lockKey   锁的键

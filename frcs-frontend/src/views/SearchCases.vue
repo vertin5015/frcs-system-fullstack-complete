@@ -497,6 +497,16 @@ export default {
         }
         return;
       }
+      if (loadingCases.value && !options.keepTotal) {
+        if (options.notify) {
+          ElNotification({
+            title: lang.value === "zh" ? "提示" : "Notice",
+            message: lang.value === "zh" ? "正在搜索中，请等待当前搜索完成" : "Search is still running, please wait.",
+            type: "info",
+          });
+        }
+        return;
+      }
       if (seq !== searchSeq) return;
       if (searchEventSource.value) {
         try {
