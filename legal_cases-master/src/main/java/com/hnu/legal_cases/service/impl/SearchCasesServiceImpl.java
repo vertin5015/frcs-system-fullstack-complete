@@ -235,11 +235,11 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 cardKeywords = backfillKeywordsFromSummary(caseId, targetChinese);
             }
             info.setKeywords(cardKeywords);
-            String summary = info.getTags();
-            if (StringUtils.isNotBlank(summary)) {
+            String originalSummary = info.getTags();
+            if (StringUtils.isNotBlank(originalSummary)) {
                 String translated = translatedSummaries.get(caseId);
                 if (StringUtils.isBlank(translated)) {
-                    translated = translateSummaryForCard(caseId, summary, targetChinese);
+                    translated = translateSummaryForCard(caseId, originalSummary, targetChinese);
                 }
                 if (StringUtils.isNotBlank(translated)) {
                     info.setTags(translated);
@@ -249,7 +249,9 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             if (StringUtils.isBlank(url) || !url.contains("courtlistener.com")) {
                 continue;
             }
-            String snippet = info.getTags();
+            // 兜底给“原文”的是搜索摘要原文，不能用中文翻译后的卡片摘要，
+            // 否则用户打开原文会看到中文摘要而不是原始英文正文片段。
+            String snippet = originalSummary;
             if (StringUtils.isNotBlank(snippet)) {
                 originalDocumentCacheService.cacheFallbackText(url, snippet);
             }

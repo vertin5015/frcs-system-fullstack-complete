@@ -176,7 +176,9 @@ public class CaseServiceImpl implements CaseService {
         if (StringUtils.isBlank(text)) {
             text = item.getTitle();
         }
-        enCase.setSummary(compactText(text, 180));
+        // 搜索卡片只截取展示，但数据库保留更长的搜索片段，
+        // 这样 CourtListener 详情限流时“原文”兜底也不至于只剩半句话。
+        enCase.setSummary(compactText(text, 2000));
 
         // 处理引用次数（为空时存储为0）
         if (StringUtils.isNotBlank(item.getCitationCount())) {
@@ -227,4 +229,3 @@ public class CaseServiceImpl implements CaseService {
         return compact.length() > maxLen ? compact.substring(0, maxLen) : compact;
     }
 }
-
