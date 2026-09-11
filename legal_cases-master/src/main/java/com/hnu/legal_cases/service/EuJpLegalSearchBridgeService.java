@@ -427,55 +427,185 @@ public class EuJpLegalSearchBridgeService {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IOException("CourtListener 未配置 API token，无法获取全文；请配置 COURTLISTENER_API_KEY");
         }
+        String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
+        StringBuilder apiFailure = new StringBuilder();
+
+        /*
+         * 站点 URL 里的编号是 cluster_id，不是 opinion_id；而 CourtListener v4 只接受 filterset
+         * 中声明的过滤参数，未知参数会直接返回 HTTP 400（Unknown filter parameters are not allowed）。
+         * 因此这里必须用 cluster__id（双下划线），cluster_id 会被判为未知参数。
+         */
+        String detailQuery = buildCourtListenerOpinionsQuery(clusterId);
+        URI detailUri = URI.create(base + "/opinions/" + detailQuery);
+        assertAllowedHost(detailUri);
+        HttpResponse<String> response = courtListenerGet(detailUri, apiKey);
+        int statusCode = response.statusCode();
+        if (statusCode == 401 || statusCode == 403) {
+            throw new IOException("CourtListener API token 无效（HTTP " + statusCode
+                    + "），请检查 COURTLISTENER_API_KEY");
+        }
+        if (statusCode == 429) {
+            throw new IOException("CourtListener 原文接口限流（HTTP 429），请稍后重试或减少访问频率");
+        }
+        if (statusCode == 200) {
+            String text = extractCourtListenerOpinionListText(response.body(), detailUrl);
+            if (!text.isBlank()) {
+                return capText(text);
+            }
+            apiFailure.append("opinions 接口未返回正文");
+        } else {
+            String apiDetail = extractCourtListenerApiError(response.body());
+            apiFailure.append("opinions 接口 HTTP ").append(statusCode);
+            if (!apiDetail.isBlank()) {
+                apiFailure.append("（").append(apiDetail).append("）");
+            }
+        }
+        log.warn("CourtListener opinions?cluster__id= 未取到正文（{}），改用 Cluster API cluster_id={}",
+                apiFailure, clusterId);
+
+        // 官方文档「Finding a Case by URL」推荐路径：cluster 详情里的 sub_opinions。
         try {
-            String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
-            String detailQuery = "?cluster=" + URLEncoder.encode(clusterId, StandardCharsets.UTF_8)
-                    + "&page_size=10";
-            URI detailUri = URI.create(base + "/opinions/" + detailQuery);
-            assertAllowedHost(detailUri);
-            HttpRequest req = HttpRequest.newBuilder(detailUri)
-                    .timeout(READ)
-                    .header("User-Agent", UA)
-                    .header("Accept", "application/json")
-                    .header("Authorization", "Token " + apiKey.trim())
-                    .GET()
-                    .build();
-            HttpResponse<String> response = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() == 401 || response.statusCode() == 403) {
-                throw new IOException("CourtListener API token 无效（HTTP " + response.statusCode()
-                        + "），请检查 COURTLISTENER_API_KEY");
+            String clusterText = fetchCourtListenerClusterText(base, apiKey, clusterId, detailUrl);
+            if (!clusterText.isBlank()) {
+                return capText(clusterText);
             }
-            if (response.statusCode() == 429) {
-                throw new IOException("CourtListener 原文接口限流（HTTP 429），请稍后重试或减少访问频率");
-            }
-            if (response.statusCode() == 400) {
-                throw new IOException("CourtListener 原文接口参数错误（HTTP 400），cluster=" + clusterId);
-            }
-            if (response.statusCode() != 200) {
-                throw new IOException("CourtListener 原文接口返回 HTTP " + response.statusCode());
-            }
-            JsonNode root = objectMapper.readTree(response.body());
-            JsonNode results = root.path("results");
-            if (results.isArray()) {
-                for (JsonNode opinion : results) {
-                    String opinionText = extractCourtListenerOpinionText(opinion, detailUrl);
-                    if (!opinionText.isBlank()) {
-                        return capText(opinionText);
-                    }
-                }
-            }
-            log.warn("CourtListener API detail has no text fields cluster_id={}", clusterId);
-            return fetchHtmlDetail(detailUrl);
-        } catch (IOException e) {
-            log.warn("CourtListener API detail failed: {}", e.getMessage());
-            throw e;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw e;
         } catch (Exception e) {
-            log.warn("CourtListener API detail parse failed, fallback to HTML: {}", e.getMessage());
-            return fetchHtmlDetail(detailUrl);
+            log.warn("CourtListener Cluster API 失败: {}", e.getMessage());
         }
+
+        // 最后回退抓 HTML 页面：CourtListener 对 /opinion/ 页面会返回 202 防爬挑战。
+        try {
+            return fetchHtmlDetail(detailUrl);
+        } catch (IOException e) {
+            if (apiFailure.length() > 0) {
+                throw new IOException(apiFailure + "；" + e.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    private HttpResponse<String> courtListenerGet(URI uri, String apiKey) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(uri)
+                .timeout(READ)
+                .header("User-Agent", UA)
+                .header("Accept", "application/json")
+                .header("Authorization", "Token " + apiKey.trim())
+                .GET()
+                .build();
+        return http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * CourtListener v4 会拒绝 filterset 未声明的过滤参数（HTTP 400 Unknown filter parameters）。
+     * opinion URL 中的编号是 cluster_id，opinions 接口里对应的过滤参数是 {@code cluster__id}（双下划线）。
+     */
+    static String buildCourtListenerOpinionsQuery(String clusterId) {
+        return "?cluster__id=" + URLEncoder.encode(clusterId, StandardCharsets.UTF_8) + "&page_size=10";
+    }
+
+    /**
+     * 解析 {@code /opinions/?cluster__id=xxx} 的列表响应，按顺序拼接所有 opinion 的正文。
+     */
+    private String extractCourtListenerOpinionListText(String body, String detailUrl) {
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode results = root.path("results");
+            if (!results.isArray()) {
+                return "";
+            }
+            StringBuilder out = new StringBuilder();
+            for (JsonNode opinion : results) {
+                String opinionText = extractCourtListenerOpinionText(opinion, detailUrl);
+                if (!opinionText.isBlank()) {
+                    if (out.length() > 0) {
+                        out.append("\n\n");
+                    }
+                    out.append(opinionText);
+                }
+            }
+            return out.toString().trim();
+        } catch (Exception e) {
+            log.warn("CourtListener opinions 响应解析失败: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * 回退方案：GET /clusters/{clusterId}/，再逐个 GET sub_opinions 里的 opinion 详情。
+     */
+    private String fetchCourtListenerClusterText(String base, String apiKey, String clusterId, String detailUrl)
+            throws IOException, InterruptedException {
+        URI clusterUri = URI.create(base + "/clusters/"
+                + URLEncoder.encode(clusterId, StandardCharsets.UTF_8) + "/");
+        assertAllowedHost(clusterUri);
+        HttpResponse<String> response = courtListenerGet(clusterUri, apiKey);
+        if (response.statusCode() != 200) {
+            log.warn("CourtListener Cluster API 返回 HTTP {} cluster_id={}", response.statusCode(), clusterId);
+            return "";
+        }
+        JsonNode cluster;
+        try {
+            cluster = objectMapper.readTree(response.body());
+        } catch (Exception e) {
+            log.warn("CourtListener Cluster API 响应解析失败: {}", e.getMessage());
+            return "";
+        }
+        JsonNode subOpinions = cluster.path("sub_opinions");
+        if (!subOpinions.isArray() || subOpinions.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (JsonNode node : subOpinions) {
+            String opinionUrl = node.isTextual() ? node.asText("") : text(node, "resource_uri");
+            if (opinionUrl.isBlank()) {
+                continue;
+            }
+            URI opinionUri = URI.create(opinionUrl);
+            assertAllowedHost(opinionUri);
+            HttpResponse<String> opinionResponse = courtListenerGet(opinionUri, apiKey);
+            if (opinionResponse.statusCode() != 200) {
+                continue;
+            }
+            try {
+                JsonNode opinion = objectMapper.readTree(opinionResponse.body());
+                String opinionText = extractCourtListenerOpinionText(opinion, detailUrl);
+                if (!opinionText.isBlank()) {
+                    if (out.length() > 0) {
+                        out.append("\n\n");
+                    }
+                    out.append(opinionText);
+                }
+            } catch (Exception e) {
+                log.warn("CourtListener opinion 详情解析失败 url={}: {}", opinionUrl, e.getMessage());
+            }
+        }
+        return out.toString().trim();
+    }
+
+    private String extractCourtListenerApiError(String body) {
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            String detail = text(root, "detail");
+            if (!detail.isBlank()) {
+                JsonNode unknown = root.path("unknown_params");
+                if (unknown.isArray() && !unknown.isEmpty()) {
+                    List<String> params = new ArrayList<>();
+                    unknown.forEach(node -> params.add(node.asText("")));
+                    return detail + " unknown_params=" + String.join(",", params);
+                }
+                return detail;
+            }
+        } catch (Exception ignored) {
+            // 非 JSON 响应体
+        }
+        String compact = body.replaceAll("\\s+", " ").trim();
+        return compact.length() > 200 ? compact.substring(0, 200) : compact;
     }
 
     private String extractCourtListenerOpinionText(JsonNode opinion, String detailUrl) {
@@ -600,6 +730,7 @@ public class EuJpLegalSearchBridgeService {
         String title = str(doc.title());
         Element main = firstPresent(doc,
                 ".opinion-content",
+                ".plaintext",
                 ".opinion",
                 "#opinion",
                 "article",
