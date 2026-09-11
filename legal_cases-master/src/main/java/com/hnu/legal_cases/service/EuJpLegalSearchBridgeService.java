@@ -331,21 +331,11 @@ public class EuJpLegalSearchBridgeService {
         String enc = URLEncoder.encode(keyword.trim(), StandardCharsets.UTF_8);
         String[] urls = {
                 JP_SC_EN_SEARCH_INDEX + "?query1=" + enc,
-                "https://www.courts.go.jp/app/hanrei_en/search?page=1&q=" + enc,
-                "https://www.courts.go.jp/app/hanrei_en/search?page=1&keyword=" + enc,
-                "https://www.courts.go.jp/app/hanrei_en/search?page=1&queryText=" + enc,
-                "https://www.courts.go.jp/app/hanrei_jp/search1?kw=" + enc,
-                "https://www.courts.go.jp/app/hanrei_jp/search1?keyword=" + enc,
         };
         for (String url : urls) {
             try {
                 String html = get(url);
-                List<CrawlerBaseInfoItem> items;
-                if (url.startsWith(JP_SC_EN_SEARCH_INDEX)) {
-                    items = parseCourtsJpModernEnglishJudgments(html, JP_SC_EN_SEARCH_INDEX);
-                } else {
-                    items = parseCourtsJpLegacyHanrei(html);
-                }
+                List<CrawlerBaseInfoItem> items = parseCourtsJpModernEnglishJudgments(html, JP_SC_EN_SEARCH_INDEX);
                 if (!items.isEmpty()) {
                     return items;
                 }
@@ -353,19 +343,10 @@ public class EuJpLegalSearchBridgeService {
                 log.warn("JPN bridge fetch failed url={} : {}", url, e.getMessage());
             }
         }
-        try {
-            String html = get(JP_SC_EN_SEARCH_INDEX + "?query1=" + URLEncoder.encode("judgment", StandardCharsets.UTF_8));
-            return parseCourtsJpModernEnglishJudgments(html, JP_SC_EN_SEARCH_INDEX);
-        } catch (Exception e) {
-            log.warn("JPN bridge fallback supreme court english search failed: {}", e.getMessage());
-            try {
-                String html = get("https://www.courts.go.jp/app/hanrei_en/search?page=1");
-                return parseCourtsJpLegacyHanrei(html);
-            } catch (Exception e2) {
-                log.warn("JPN bridge legacy fallback list failed: {}", e2.getMessage());
-                return List.of();
-            }
-        }
+        // 不做 "judgment" 兜底搜索：搜不到真实匹配时应返回空结果，
+        // 否则用户会看到与关键词无关的日本案例。
+        log.info("JPN bridge: no results for keyword={}", keyword);
+        return List.of();
     }
 
     private String get(String urlStr) throws IOException, InterruptedException {

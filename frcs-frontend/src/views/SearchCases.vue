@@ -178,9 +178,9 @@
                     <div class="case-tags-tooltip-host">
                       <el-tooltip effect="dark" :content="item.tags || ''" placement="top-start" :disabled="!item.tags">
                         <div class="case-tags-wrap">
-                          <div class="case-tags-heading">关键词摘要</div>
+                          <div class="case-tags-heading">{{ lang === "zh" ? "摘要" : "Summary" }}</div>
                           <div class="case-tags-lines">
-                            <div v-for="(kw, idx) in twoKeywordLines(item.tags)" :key="idx" class="case-tags-line">{{ kw }}</div>
+                            <div class="case-tags-line">{{ truncateSummary(item.tags) }}</div>
                           </div>
                         </div>
                       </el-tooltip>
@@ -350,61 +350,12 @@ export default {
       }
     };
 
-    /** 从后端摘要字段中截取至多两条「关键词」片段，各占一行展示 */
-    const truncateKwChunk = (s, max = 120) => {
-      const x = (s || "").trim().replace(/^\.+|\.+$/g, "").trim();
-      if (!x) return "";
-      if (x.length <= max) return x;
-      return `${x.slice(0, max - 1)}…`;
-    };
-
-    const twoKeywordLines = (tags) => {
-      if (tags == null || typeof tags !== "string") return [];
-      const t = tags.trim().replace(/^…+|…+$/g, "").trim();
-      if (!t) return [];
-
-      const splitMulti = (raw) =>
-        raw
-          .split(/[,，;；|、/\r\n]+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-      let parts = splitMulti(t);
-      if (parts.length >= 2) {
-        return [truncateKwChunk(parts[0]), truncateKwChunk(parts[1])];
-      }
-
-      parts = t
-        .split(/\s*\.\.\.\s*/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (parts.length >= 2) {
-        return [truncateKwChunk(parts[0]), truncateKwChunk(parts[1])];
-      }
-
-      parts = t
-        .split(/\s*(?:\.{3}|…+|……+)\s*/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (parts.length >= 2) {
-        return [truncateKwChunk(parts[0]), truncateKwChunk(parts[1])];
-      }
-
-      const words = t.split(/\s+/).filter(Boolean);
-      if (words.length >= 2) {
-        return [truncateKwChunk(words[0]), truncateKwChunk(words[1])];
-      }
-      if (words.length === 1) {
-        const w = words[0];
-        if (w.length >= 44) {
-          const mid = Math.floor(w.length / 2);
-          return [truncateKwChunk(w.slice(0, mid)), truncateKwChunk(w.slice(mid))];
-        }
-        const one = truncateKwChunk(w);
-        return one ? [one] : [];
-      }
-
-      return [truncateKwChunk(t)];
+    /** 结果卡片展示的是案例摘要/snippet，不再把摘要强行拆成“关键词”。 */
+    const truncateSummary = (tags) => {
+      const text = String(tags || "").trim().replace(/\s+/g, " ");
+      if (!text) return "";
+      const max = 160;
+      return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
     };
 
     const showCountry = (country) => {
@@ -752,7 +703,7 @@ export default {
 
       shortSiteHost,
 
-      twoKeywordLines,
+      truncateSummary,
 
       readerHref,
 
