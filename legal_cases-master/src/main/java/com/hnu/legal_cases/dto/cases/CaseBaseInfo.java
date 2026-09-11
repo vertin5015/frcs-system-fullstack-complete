@@ -31,6 +31,10 @@ public class CaseBaseInfo {
      */
     private String tags;
     /**
+     * AI 摘要中提取出的案例关键词（按请求语言返回）。
+     */
+    private String keywords;
+    /**
      * 引用次数
      */
     private Integer citationCount;

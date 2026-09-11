@@ -4,6 +4,7 @@ import com.hnu.legal_cases.dto.crawler.CrawlerBaseInfoItem;
 import com.hnu.legal_cases.dto.cases.SearchSourceStat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface CaseCacheService {
@@ -46,6 +47,16 @@ public interface CaseCacheService {
      * 读取缓存中的数据源统计。
      */
     List<SearchSourceStat> getCachedSourceStats(String cacheKey);
+
+    /**
+     * 保存案例 AI 摘要中提取出的关键词（中文/英文各一份）。
+     */
+    void cacheCaseKeywords(String caseId, String keywordsZh, String keywordsEn);
+
+    /**
+     * 按语言批量读取案例关键词：返回 caseId -> 关键词。
+     */
+    Map<String, String> getCaseKeywords(Set<String> caseIds, String language);
 
     /**
      * 删除缓存

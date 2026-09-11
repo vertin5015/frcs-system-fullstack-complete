@@ -18,7 +18,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +34,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
      * 缓存key前缀
      */
     private static final String CACHE_KEY_PREFIX = "case_search:";
+    private static final String KEYWORD_KEY_PREFIX = "case_keywords:";
     /**
      * 缓存过期时间（单位：小时）
      */
@@ -146,6 +149,55 @@ public class CaseCacheServiceImpl implements CaseCacheService {
             log.warn("读取数据源统计缓存失败 key={} error={}", cacheKey, e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    @Override
+    public void cacheCaseKeywords(String caseId, String keywordsZh, String keywordsEn) {
+        if (StringUtils.isBlank(caseId)) {
+            return;
+        }
+        try {
+            String id = caseId.trim();
+            if (StringUtils.isNotBlank(keywordsZh)) {
+                stringRedisTemplate.opsForValue().set(KEYWORD_KEY_PREFIX + id + ":zh",
+                        keywordsZh.trim(), 30, TimeUnit.DAYS);
+            }
+            if (StringUtils.isNotBlank(keywordsEn)) {
+                stringRedisTemplate.opsForValue().set(KEYWORD_KEY_PREFIX + id + ":en",
+                        keywordsEn.trim(), 30, TimeUnit.DAYS);
+            }
+        } catch (Exception e) {
+            log.warn("缓存案例关键词失败 caseId={} error={}", caseId, e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, String> getCaseKeywords(Set<String> caseIds, String language) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (caseIds == null || caseIds.isEmpty()) {
+            return result;
+        }
+        String lang = "zh".equalsIgnoreCase(language) ? "zh" : "en";
+        List<String> ids = new ArrayList<>(caseIds);
+        List<String> keys = new ArrayList<>(ids.size());
+        for (String id : ids) {
+            keys.add(KEYWORD_KEY_PREFIX + id + ":" + lang);
+        }
+        try {
+            List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
+            if (values == null) {
+                return result;
+            }
+            for (int i = 0; i < ids.size() && i < values.size(); i++) {
+                String value = values.get(i);
+                if (StringUtils.isNotBlank(value)) {
+                    result.put(ids.get(i), value);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("读取案例关键词失败 language={} error={}", language, e.getMessage());
+        }
+        return result;
     }
 
     /**

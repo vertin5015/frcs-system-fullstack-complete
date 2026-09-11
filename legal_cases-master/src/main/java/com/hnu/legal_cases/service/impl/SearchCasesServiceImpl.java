@@ -94,7 +94,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            cacheCourtListenerFallbacks(caseBaseInfoList);
+            enrichCaseResults(caseBaseInfoList, language);
             resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
@@ -121,7 +121,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                             log.warn("SSE 数据源 {} 结果提前落库失败，等待最终合并再落库：{}", source, e.getMessage());
                         }
                     }
-                    List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result);
+                    List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result, reqVO.getLanguage());
                     if (!previews.isEmpty()) {
                         notifier.part(new SearchStreamPartDTO(source, previews));
                     }
@@ -165,7 +165,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 return;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            cacheCourtListenerFallbacks(caseBaseInfoList);
+            enrichCaseResults(caseBaseInfoList, language);
             resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             resVO.setSourceStats(crawlerResult.getSourceStats());
@@ -176,7 +176,10 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         }
     }
 
-    private List<SearchPreviewCaseDTO> buildPreviewCases(String sourceCode, CrawlerSingleQueryResult result) {
+    private List<SearchPreviewCaseDTO> buildPreviewCases(
+            String sourceCode,
+            CrawlerSingleQueryResult result,
+            String language) {
         if (result == null || result.getItems() == null) {
             return List.of();
         }
@@ -196,6 +199,11 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             dto.setTags(sum);
             dto.setJudgement_date(item.getDateFiled());
             dto.setOriginal_document_url(item.getUrl());
+            if (StringUtils.isNotBlank(item.getDocketNumber())) {
+                String caseId = item.getDocketNumber().trim();
+                java.util.Map<String, String> keywords = caseCacheService.getCaseKeywords(Set.of(caseId), language);
+                dto.setKeywords(keywords.get(caseId));
+            }
             dto.setIsfavored(false);
             dto.setFavoritedCount(0);
             dto.setCitationCount(parseCitationInt(item.getCitationCount()));
@@ -204,12 +212,23 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         return list;
     }
 
-    private void cacheCourtListenerFallbacks(List<CaseBaseInfo> cases) {
+    private void enrichCaseResults(List<CaseBaseInfo> cases, String language) {
         if (CollectionUtils.isEmpty(cases)) {
             return;
         }
+        Set<String> caseIds = new java.util.HashSet<>();
         for (CaseBaseInfo info : cases) {
-            String url = info == null ? "" : info.getOriginal_document_url();
+            if (info != null && StringUtils.isNotBlank(info.getCase_id())) {
+                caseIds.add(info.getCase_id().trim());
+            }
+        }
+        java.util.Map<String, String> keywords = caseCacheService.getCaseKeywords(caseIds, language);
+        for (CaseBaseInfo info : cases) {
+            if (info == null || StringUtils.isBlank(info.getCase_id())) {
+                continue;
+            }
+            info.setKeywords(keywords.get(info.getCase_id().trim()));
+            String url = info.getOriginal_document_url();
             if (StringUtils.isBlank(url) || !url.contains("courtlistener.com")) {
                 continue;
             }
@@ -260,7 +279,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            cacheCourtListenerFallbacks(caseBaseInfoList);
+            enrichCaseResults(caseBaseInfoList, language);
             resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             resVO.setSourceStats(caseCacheService.getCachedSourceStats(cacheKey));
@@ -298,7 +317,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 return resVO;
             }
             List<CaseBaseInfo> caseBaseInfoList = caseService.getCasesByLanguage(caseIds, language, userId);
-            cacheCourtListenerFallbacks(caseBaseInfoList);
+            enrichCaseResults(caseBaseInfoList, language);
             resVO.setTotalCount((int) total);
             resVO.setCases(caseBaseInfoList);
             resVO.setSourceStats(crawlerResult.getSourceStats());

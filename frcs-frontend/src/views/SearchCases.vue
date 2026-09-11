@@ -174,13 +174,19 @@
                       <span class="case-meta-value">{{ shortSiteHost(item.original_document_url) }}</span>
                     </div>
                   </div>
-                  <div v-if="item.tags && item.tags.trim()" class="case-card-row case-tags-row">
+                  <div v-if="hasCardMeta(item)" class="case-card-row case-tags-row">
                     <div class="case-tags-tooltip-host">
-                      <el-tooltip effect="dark" :content="item.tags || ''" placement="top-start" :disabled="!item.tags">
+                      <div v-if="item.keywords && item.keywords.trim()" class="case-tags-wrap">
+                        <div class="case-tags-heading">{{ lang === "zh" ? "关键词" : "Keywords" }}</div>
+                        <div class="case-keywords-line">
+                          <span v-for="(kw, idx) in keywordList(item.keywords)" :key="idx" class="case-keyword-chip">{{ kw }}</span>
+                        </div>
+                      </div>
+                      <el-tooltip v-else effect="dark" :content="summaryTooltip(item)" placement="top-start">
                         <div class="case-tags-wrap">
                           <div class="case-tags-heading">{{ lang === "zh" ? "摘要" : "Summary" }}</div>
                           <div class="case-tags-lines">
-                            <div class="case-tags-line">{{ truncateSummary(item.tags) }}</div>
+                            <div class="case-tags-line">{{ summaryDisplay(item) }}</div>
                           </div>
                         </div>
                       </el-tooltip>
@@ -331,6 +337,87 @@ export default {
       });
     };
 
+    // ===== 搜索结果摘要翻译（跟随页面语言 zh / en） =====
+    const summaryTranslations = reactive(new Map());
+    const summaryTranslateTasks = new Map();
+
+    const targetSummaryLang = () => (lang.value === "zh" ? "zh" : "en");
+    const summaryTranslateKey = (text, target) => target + "|" + String(text || "").trim();
+
+    const summaryDisplay = (item) => {
+      const raw = String((item && item.tags) || "").trim();
+      if (!raw) return "";
+      const target = targetSummaryLang();
+      if (detectTextLanguage(raw) === target) {
+        return truncateSummary(raw);
+      }
+      const entry = summaryTranslations.get(summaryTranslateKey(raw, target));
+      if (entry && entry.status === "done" && entry.text) {
+        return truncateSummary(entry.text);
+      }
+      return truncateSummary(raw);
+    };
+
+    const summaryTooltip = (item) => {
+      const raw = String((item && item.tags) || "").trim();
+      if (!raw) return "";
+      const target = targetSummaryLang();
+      if (detectTextLanguage(raw) === target) return raw;
+      const entry = summaryTranslations.get(summaryTranslateKey(raw, target));
+      return entry && entry.status === "done" && entry.text ? entry.text : raw;
+    };
+
+    const ensureSummaryTranslation = (item) => {
+      const raw = String((item && item.tags) || "").trim();
+      if (!raw) return Promise.resolve("");
+      const target = targetSummaryLang();
+      if (detectTextLanguage(raw) === target) return Promise.resolve(raw);
+      const key = summaryTranslateKey(raw, target);
+      const existing = summaryTranslations.get(key);
+      if (existing && (existing.status === "done" || existing.status === "failed")) {
+        return Promise.resolve(existing.text || raw);
+      }
+      if (summaryTranslateTasks.has(key)) return summaryTranslateTasks.get(key);
+      summaryTranslations.set(key, { status: "pending", text: "" });
+      const task = translateParagraphs([raw], target)
+        .then((result) => {
+          const translated = result && result.content && result.anyProviderUsed ? String(result.content).trim() : "";
+          summaryTranslations.set(key, { status: translated ? "done" : "failed", text: translated });
+          return translated || raw;
+        })
+        .catch(() => {
+          summaryTranslations.set(key, { status: "failed", text: "" });
+          return raw;
+        })
+        .finally(() => {
+          summaryTranslateTasks.delete(key);
+        });
+      summaryTranslateTasks.set(key, task);
+      return task;
+    };
+
+    const warmSummaryTranslations = (list) => {
+      (list || []).forEach((item) => {
+        ensureSummaryTranslation(item).catch(() => {});
+      });
+    };
+
+    const hasCardMeta = (item) => {
+      const keywords = String((item && item.keywords) || "").trim();
+      const summary = String((item && item.tags) || "").trim();
+      return !!keywords || !!summary;
+    };
+
+    const keywordList = (keywords) => {
+      const raw = String(keywords || "").trim();
+      if (!raw) return [];
+      return raw
+        .split(/[,，;；|、]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+    };
+
     const page = ref(1);
     const pageSize = ref(6);
 
@@ -456,6 +543,7 @@ export default {
             cases.value = [...cases.value, ...chunk];
             loadingCases.value = false;
             warmTitleTranslations(chunk);
+            warmSummaryTranslations(chunk);
           }
         } catch (err) {
           console.error(err);
@@ -473,6 +561,7 @@ export default {
             totalCasesCount.value = total;
             sourceStats.value = wrap.data.sourceStats || [];
             warmTitleTranslations(list);
+            warmSummaryTranslations(list);
           }
         } catch (err) {
           console.error(err);
@@ -704,6 +793,14 @@ export default {
       shortSiteHost,
 
       truncateSummary,
+
+      summaryDisplay,
+
+      summaryTooltip,
+
+      hasCardMeta,
+
+      keywordList,
 
       readerHref,
 
@@ -1252,6 +1349,38 @@ export default {
   background: rgba(64, 158, 255, 0.08);
 
   border-left: 3px solid #409eff;
+
+}
+
+.case-keywords-line {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+}
+
+.case-keyword-chip {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  padding: 3px 9px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+
+  line-height: 1.4;
+
+  color: #0958d9;
+
+  background: rgba(64, 158, 255, 0.1);
+
+  border: 1px solid rgba(64, 158, 255, 0.25);
 
 }
 

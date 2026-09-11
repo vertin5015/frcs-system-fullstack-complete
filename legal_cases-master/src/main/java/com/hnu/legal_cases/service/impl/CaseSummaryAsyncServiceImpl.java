@@ -4,6 +4,7 @@ import com.hnu.legal_cases.dao.CaseDetailMapper;
 import com.hnu.legal_cases.dao.CaseMapper;
 import com.hnu.legal_cases.pojo.CaseInfo;
 import com.hnu.legal_cases.service.BrowseHistoryService;
+import com.hnu.legal_cases.service.CaseCacheService;
 import com.hnu.legal_cases.service.CaseSummaryAsyncService;
 import com.hnu.legal_cases.service.OriginalDocumentCacheService;
 import com.hnu.legal_cases.service.SpringAIService;
@@ -34,6 +35,8 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
     private BrowseHistoryService browseHistoryService;
     @Autowired
     private SummaryQuotaService summaryQuotaService;
+    @Autowired
+    private CaseCacheService caseCacheService;
 
     @Override
     @Async("caseTaskExecutor")
@@ -70,6 +73,7 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
             }
             summaryZH = formatText(summaryZH);
             caseDetailMapper.updateSummaryDone(caseId, summaryZH, summaryEN);
+            saveSummaryKeywords(caseId, summaryZH, summaryEN);
             if (userId != null && userId != 0L) {
                 browseHistoryService.saveBrowseHistory(userId, caseId);
             }
@@ -84,6 +88,75 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
             }
             caseDetailMapper.updateSummaryStatus(caseId, "FAILED", msg);
         }
+    }
+
+    private void saveSummaryKeywords(String caseId, String summaryZh, String summaryEn) {
+        String zhKeywords = extractKeywords(summaryZh);
+        String enKeywords = extractKeywords(summaryEn);
+        try {
+            if (StringUtils.isBlank(zhKeywords) && StringUtils.isNotBlank(enKeywords)) {
+                zhKeywords = springAIService.translate(enKeywords, "English", "Chinese");
+            } else if (StringUtils.isNotBlank(zhKeywords) && StringUtils.isBlank(enKeywords)) {
+                enKeywords = springAIService.translate(zhKeywords, "Chinese", "English");
+            }
+        } catch (Exception e) {
+            log.warn("案例关键词补充翻译失败 caseId={} error={}", caseId, e.getMessage());
+        }
+        if (StringUtils.isNotBlank(zhKeywords) || StringUtils.isNotBlank(enKeywords)) {
+            caseCacheService.cacheCaseKeywords(caseId, zhKeywords, enKeywords);
+            log.info("案例关键词缓存完成 caseId={} zh={} en={}", caseId, zhKeywords, enKeywords);
+        }
+    }
+
+    private String extractKeywords(String summary) {
+        if (StringUtils.isBlank(summary)) {
+            return "";
+        }
+        String[] lines = summary.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i] == null ? "" : lines[i].trim();
+            String lower = line.toLowerCase();
+            if (!(lower.contains("关键词") || lower.contains("keyword"))) {
+                continue;
+            }
+            String inline = line.replaceAll("^[#>*\\-\\s]*", "")
+                    .replaceFirst("(?i)^(关键词|keywords?)\\s*[:：]?\\s*", "")
+                    .trim();
+            if (!inline.isBlank()) {
+                return normalizeKeywordLine(inline);
+            }
+            StringBuilder collected = new StringBuilder();
+            for (int j = i + 1; j < lines.length && j <= i + 3; j++) {
+                String next = lines[j] == null ? "" : lines[j].trim();
+                if (next.isBlank()) {
+                    continue;
+                }
+                if (next.startsWith("#") || next.matches("^\\*\\*.+\\*\\*$")) {
+                    break;
+                }
+                if (collected.length() > 0) {
+                    collected.append(", ");
+                }
+                collected.append(next.replaceAll("^[#>*\\-\\d.、\\s]+", "").trim());
+            }
+            return normalizeKeywordLine(collected.toString());
+        }
+        return "";
+    }
+
+    private String normalizeKeywordLine(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return "";
+        }
+        String normalized = raw.replaceAll("[\\[\\]【】]", "")
+                .replaceAll("\\s*[,，;；|、]\\s*", ", ")
+                .replaceAll("(,\\s*)+", ", ")
+                .replaceAll("^,\\s*|,\\s*$", "")
+                .trim();
+        if (normalized.length() > 300) {
+            normalized = normalized.substring(0, 300);
+        }
+        return normalized;
     }
 
     private String formatText(String text) {
