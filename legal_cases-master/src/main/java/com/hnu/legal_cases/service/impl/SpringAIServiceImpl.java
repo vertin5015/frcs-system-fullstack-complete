@@ -91,6 +91,35 @@ public class SpringAIServiceImpl implements SpringAIService {
         }
     }
 
+    @Override
+    public String preparePreciseKeyword(String keyword) {
+        if (StringUtils.isBlank(keyword)) {
+            throw new ServiceException("关键词为空");
+        }
+        String trimmed = keyword.trim();
+        if (isSimpleLatinKeyword(trimmed)) {
+            log.info("精准搜索：英文关键词直接使用 {}", trimmed);
+            return trimmed;
+        }
+        if (containsCjk(trimmed)) {
+            String local = fallbackCnKeywordForCrawler(trimmed);
+            if (!local.equals(trimmed) && !containsCjk(local)) {
+                log.info("精准搜索：本地词典转换 {} -> {}", trimmed, local);
+                return local;
+            }
+            try {
+                String translated = translate(trimmed, "Chinese", "English");
+                if (StringUtils.isNotBlank(translated) && !containsCjk(translated)) {
+                    log.info("精准搜索：外部翻译 {} -> {}", trimmed, translated);
+                    return translated.trim();
+                }
+            } catch (Exception e) {
+                log.warn("精准搜索翻译失败，使用原始关键词：{}", e.getMessage());
+            }
+        }
+        return trimmed;
+    }
+
     /**
      * 总结案例详细信息
      *
@@ -188,7 +217,9 @@ public class SpringAIServiceImpl implements SpringAIService {
     private static final String TRANSLATE_PROMPT_TEMPLATE = """
             You are a professional legal translator.
             Translate the text below from %s to %s.
-            Preserve names, citations, and legal terminology. Output only the translation (no preface).
+            Translate every heading, label, list item, keyword, and body text into the target language.
+            Do not leave headings or labels in the source language. Preserve names, citations, case numbers,
+            and legal terminology where appropriate. Output only the translation (no preface).
 
             Text:
             %s
@@ -238,20 +269,35 @@ public class SpringAIServiceImpl implements SpringAIService {
             Please analyze and summarize the following legal case information according to a standard structure.
             Please focus on the most important details while keeping your summary concise and within 1000 words.
             Output language: %s.
+            Every heading, label, list item, keyword, and body paragraph MUST be written in the output language.
+            Never mix languages inside one summary.
             
             **Case Content to be Analyzed:**
             %s
             
             Please provide a comprehensive summary according to the standard case summary structure
             and return it in Markdown format using the requested output language.
-            The first section MUST be titled "案件基本信息" and include these exact labeled lines:
-            - 案件名称：
-            - 案号：
-            - 判决时间：
-            - 判决法庭：
-            - 当事人：
-            - 简要内容：
-            Then continue with 关键词、基本案情、裁判理由、裁判要旨、关联索引.
+            If the output language is Chinese, use these headings:
+            - 案件基本信息：案件名称、案号、判决时间、判决法庭、当事人、简要内容
+            - 争议焦点
+            - 争议核心矛盾
+            - 关键词
+            - 基本案情
+            - 裁判理由
+            - 裁判要旨
+            - 关联索引
+            If the output language is English, use these headings:
+            - Case Information: Case Name, Docket Number, Judgment Date, Court, Parties, Brief Facts
+            - Disputed Issues
+            - Core Dispute
+            - Keywords
+            - Background
+            - Reasoning
+            - Holding
+            - Related References
+            In "Disputed Issues" and "Core Dispute", explain what the parties actually disagreed about,
+            the competing legal positions, and how the court resolved the dispute. If there is no clear
+            dispute, explicitly state that no significant disputed issue is apparent.
             Note that plain text is returned directly!
             
             Output Markdown only. Do not wrap the answer in JSON. Do not use ``` code fences.

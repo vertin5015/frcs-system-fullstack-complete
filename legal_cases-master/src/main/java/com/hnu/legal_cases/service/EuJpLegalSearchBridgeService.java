@@ -27,6 +27,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -197,6 +199,11 @@ public class EuJpLegalSearchBridgeService {
                 if (opinions.isArray() && opinions.size() > 0) {
                     snippet = text(opinions.get(0), "snippet");
                 }
+                String syllabus = text(row, "syllabus");
+                String suitNature = text(row, "suitNature");
+                String cardSummary = !syllabus.isBlank()
+                        ? syllabus
+                        : (!suitNature.isBlank() ? suitNature : snippet);
                 CrawlerBaseInfoItem item = new CrawlerBaseInfoItem();
                 item.setSourceId(CountryEnum.US.getSourceId());
                 item.setDocketNumber(docket);
@@ -205,7 +212,7 @@ public class EuJpLegalSearchBridgeService {
                 item.setCitationCount(String.valueOf(row.path("citeCount").asInt(0)));
                 String date = text(row, "dateFiled");
                 item.setDateFiled(date.isBlank() ? LocalDate.now().withDayOfMonth(1).toString() : date);
-                item.setSummary(snippet.isBlank() ? null : snippet);
+                item.setSummary(cardSummary.isBlank() ? null : cardSummary);
                 out.add(item);
                 if (out.size() >= MAX_ITEMS) {
                     break;
@@ -328,7 +335,7 @@ public class EuJpLegalSearchBridgeService {
                 item.setCitationCount("0");
                 String date = bindingText(binding, "date");
                 item.setDateFiled(date.isBlank() ? LocalDate.now().withDayOfMonth(1).toString() : date);
-                item.setSummary(title);
+                item.setSummary(buildEurLexCardSummary(title, parties));
                 out.add(item);
                 if (out.size() >= MAX_ITEMS) {
                     break;
@@ -340,6 +347,19 @@ public class EuJpLegalSearchBridgeService {
             log.warn("EUR-Lex SPARQL search failed, fallback to HTML: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private static String buildEurLexCardSummary(String title, String parties) {
+        if (title != null && !title.isBlank()) {
+            String[] parts = title.split("#");
+            if (parts.length >= 3 && !parts[2].isBlank()) {
+                return parts[2].trim();
+            }
+            if (parts.length == 2 && !parts[1].isBlank()) {
+                return parts[1].trim();
+            }
+        }
+        return parties == null || parties.isBlank() ? title : parties;
     }
 
     public List<CrawlerBaseInfoItem> searchJp(String keyword) {
@@ -355,6 +375,7 @@ public class EuJpLegalSearchBridgeService {
                 String html = get(url);
                 List<CrawlerBaseInfoItem> items = parseCourtsJpModernEnglishJudgments(html, JP_SC_EN_SEARCH_INDEX);
                 if (!items.isEmpty()) {
+                    enrichJapanJudgmentSummaries(items);
                     return items;
                 }
             } catch (Exception e) {
@@ -365,6 +386,54 @@ public class EuJpLegalSearchBridgeService {
         // 否则用户会看到与关键词无关的日本案例。
         log.info("JPN bridge: no results for keyword={}", keyword);
         return List.of();
+    }
+
+    private void enrichJapanJudgmentSummaries(List<CrawlerBaseInfoItem> items) {
+        int limit = Math.min(5, items.size());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < limit; i++) {
+            CrawlerBaseInfoItem item = items.get(i);
+            if (item == null || item.getUrl() == null || item.getUrl().isBlank()) {
+                continue;
+            }
+            futures.add(CompletableFuture.runAsync(() -> {
+                String summary = fetchJapanJudgmentSummary(item.getUrl());
+                if (!summary.isBlank()) {
+                    item.setSummary(summary);
+                }
+            }));
+        }
+        if (futures.isEmpty()) {
+            return;
+        }
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(12, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("补充日本判决要旨超时或失败：{}", e.getMessage());
+        }
+    }
+
+    private String fetchJapanJudgmentSummary(String detailUrl) {
+        try {
+            String html = get(detailUrl);
+            Document doc = Jsoup.parse(html, detailUrl);
+            for (Element block : doc.select("div.module-sub-page-parts-table dl")) {
+                Element dt = block.selectFirst("dt");
+                if (dt == null || !dt.text().toLowerCase(Locale.ROOT).contains("summary of the judgment")) {
+                    continue;
+                }
+                Element dd = block.selectFirst("dd p");
+                if (dd != null) {
+                    String summary = normalizePreserveLineBreaks(dd.wholeText());
+                    if (!summary.isBlank()) {
+                        return summary.length() > 3000 ? summary.substring(0, 3000) : summary;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("日本判决要旨抓取失败 url={} error={}", detailUrl, e.getMessage());
+        }
+        return "";
     }
 
     private String get(String urlStr) throws IOException, InterruptedException {

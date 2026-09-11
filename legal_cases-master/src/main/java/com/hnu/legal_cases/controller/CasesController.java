@@ -82,7 +82,7 @@ public class CasesController {
 
             lockValue = distributedLock.tryLock(lockName, 180, 20_000L);
             if (lockValue == null) {
-                return JSONReturnBean.failed("系统繁忙，请稍后再试");
+                return JSONReturnBean.failed("已有相同关键词的搜索正在进行，请稍后重试");
             }
 
             SearchCasesResVO resVO = searchCasesService.searchCases(reqVO);
@@ -120,7 +120,7 @@ public class CasesController {
             if (lockValue == null) {
                 try {
                     emitter.send(SseEmitter.event().name("fail")
-                            .data(JSON.toJSONString(JSONReturnBean.failed("系统繁忙，请稍后再试"))));
+                            .data(JSON.toJSONString(JSONReturnBean.failed("已有相同关键词的搜索正在进行，请稍后重试"))));
                 } catch (IOException ignored) {
                     log.warn("sse busy send");
                 }
@@ -160,6 +160,21 @@ public class CasesController {
         });
 
         SearchStreamNotifier notifier = new SearchStreamNotifier() {
+            @Override
+            public void notice(String message) {
+                synchronized (sendLock) {
+                    if (streamGuard.isClosed()) {
+                        return;
+                    }
+                    try {
+                        emitter.send(SseEmitter.event().name("notice").data(message));
+                    } catch (IOException | IllegalStateException e) {
+                        streamGuard.markClientClosed();
+                        releaseLockOnce.run();
+                    }
+                }
+            }
+
             @Override
             public void part(SearchStreamPartDTO chunk) {
                 synchronized (sendLock) {
@@ -236,7 +251,7 @@ public class CasesController {
             lockName = distributedLock.getLockName("summary", reqVO.getCaseId());
             lockValue = distributedLock.tryLock(lockName, 180);
             if (lockValue == null) {
-                return JSONReturnBean.failed("系统繁忙，请稍后再试");
+                return JSONReturnBean.failed("该案例摘要正在生成，请稍后刷新查看");
             }
             SummaryStatusResVO res = searchCasesService.startAsyncSummary(reqVO, force);
             return JSONReturnBean.success(res);
@@ -280,7 +295,7 @@ public class CasesController {
             lockName = distributedLock.getLockName("summary", reqVO.getCaseId());
             lockValue = distributedLock.tryLock(lockName, 180);
             if (lockValue == null) {
-                return JSONReturnBean.failed("系统繁忙，请稍后再试");
+                return JSONReturnBean.failed("该案例摘要正在生成，请稍后刷新查看");
             }
 
             String content = searchCasesService.summaryCases(reqVO);

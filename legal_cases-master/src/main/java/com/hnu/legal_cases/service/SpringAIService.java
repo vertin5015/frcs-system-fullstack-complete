@@ -12,6 +12,11 @@ public interface SpringAIService {
     String extractKeyword(String keyword, String language);
 
     /**
+     * 精准搜索关键词：英文原样使用；中文优先本地词典，其次外部翻译，不做关键词扩展。
+     */
+    String preparePreciseKeyword(String keyword);
+
+    /**
      * 总结案例详细信息
      *
      * @param content 案例详细信息

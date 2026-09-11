@@ -8,6 +8,8 @@ import com.hnu.legal_cases.dto.cases.SearchStreamPartDTO;
  */
 public interface SearchStreamNotifier {
 
+    void notice(String message);
+
     void part(SearchStreamPartDTO chunk);
 
     void done(SearchCasesResVO res);

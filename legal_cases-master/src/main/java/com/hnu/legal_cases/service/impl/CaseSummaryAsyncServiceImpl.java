@@ -66,12 +66,13 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
             String summaryEN;
             if (zh) {
                 summaryZH = ensureChineseSummary(primarySummary, caseDetail, caseId, caseName, url);
-                summaryEN = "";
+                summaryEN = translateSummary(summaryZH, "Chinese", "English");
             } else {
                 summaryEN = primarySummary;
                 summaryZH = ensureChineseSummary(summaryEN, caseDetail, caseId, caseName, url);
             }
             summaryZH = formatText(summaryZH);
+            summaryEN = formatText(summaryEN);
             caseDetailMapper.updateSummaryDone(caseId, summaryZH, summaryEN);
             saveSummaryKeywords(caseId, summaryZH, summaryEN);
             if (userId != null && userId != 0L) {
@@ -88,6 +89,21 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
             }
             caseDetailMapper.updateSummaryStatus(caseId, "FAILED", msg);
         }
+    }
+
+    private String translateSummary(String summary, String sourceLanguage, String targetLanguage) {
+        if (StringUtils.isBlank(summary)) {
+            return summary;
+        }
+        try {
+            String translated = springAIService.translate(summary, sourceLanguage, targetLanguage);
+            if (StringUtils.isNotBlank(translated) && !translated.trim().equals(summary.trim())) {
+                return translated.trim();
+            }
+        } catch (Exception e) {
+            log.warn("摘要整篇翻译失败 source={} target={} error={}", sourceLanguage, targetLanguage, e.getMessage());
+        }
+        return summary;
     }
 
     private void saveSummaryKeywords(String caseId, String summaryZh, String summaryEn) {

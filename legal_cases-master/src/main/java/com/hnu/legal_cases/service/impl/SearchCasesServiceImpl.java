@@ -77,7 +77,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
         String language = reqVO.getLanguage();
         Integer period = reqVO.getPeriod();
 
-        String cacheKey = caseCacheService.generateCacheKey(keyword, country, period, reqVO.getSources());
+        String cacheKey = searchCacheKey(reqVO);
         if (caseCacheService.hasCache(cacheKey)) {
             SearchCasesResVO resVO = new SearchCasesResVO();
             int startIndex = reqVO.getStartIndex();
@@ -104,39 +104,33 @@ public class SearchCasesServiceImpl implements SearchCasesService {
 
         final String extractedKeyword;
         try {
-            extractedKeyword = springAIService.extractKeyword(keyword, country);
+            extractedKeyword = resolveSearchKeyword(keyword, country, reqVO.getSearchMode());
         } catch (ServiceException e) {
             notifier.fail(e.getMessage());
             return;
         }
-        log.info("提取关键词（stream）：{}", extractedKeyword);
-
-        CrawlerSearchBatch batch = crawlerService.startParallelCaseSearchBatch(
-                extractedKeyword, country, period, reqVO.getSources(),
-                (source, result) -> {
-                    if (result != null && result.isCrawlApiOk() && !CollectionUtils.isEmpty(result.getItems())) {
-                        try {
-                            caseService.saveCases(result.getItems(), source);
-                        } catch (Exception e) {
-                            log.warn("SSE 数据源 {} 结果提前落库失败，等待最终合并再落库：{}", source, e.getMessage());
-                        }
-                    }
-                    List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result, reqVO.getLanguage());
-                    if (!previews.isEmpty()) {
-                        notifier.part(new SearchStreamPartDTO(source, previews));
-                    }
-                });
+        log.info("搜索模式={} 实际检索词（stream）：{}", normalizeSearchMode(reqVO.getSearchMode()), extractedKeyword);
 
         CrawlerSearchResult crawlerResult;
         try {
-            crawlerResult = crawlerService.mergeDistinctAfterWaitWithStats(
-                    batch.getFutures(), batch.getTargetCountries());
+            crawlerResult = runStreamSearchBatch(extractedKeyword, reqVO, notifier);
         } catch (ServiceException e) {
             notifier.fail(e.getMessage());
             return;
         }
 
         List<CrawlerBaseInfoItem> items = crawlerResult.getItems();
+        if (isPreciseMode(reqVO.getSearchMode()) && CollectionUtils.isEmpty(items)) {
+            notifier.notice("当前关键词精准搜索不到结果，已自动启动智能搜索。");
+            try {
+                String smartKeyword = springAIService.extractKeyword(keyword, country);
+                log.info("精准搜索无结果，自动智能搜索：{} -> {}", keyword, smartKeyword);
+                crawlerResult = runStreamSearchBatch(smartKeyword, reqVO, notifier);
+                items = crawlerResult.getItems();
+            } catch (Exception e) {
+                log.warn("自动智能搜索失败：{}", e.getMessage());
+            }
+        }
         if (CollectionUtils.isEmpty(items)) {
             SearchCasesResVO empty = new SearchCasesResVO();
             empty.setTotalCount(0);
@@ -174,6 +168,55 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             caseCacheService.deleteCacheKey(cacheKey);
             notifier.fail(e.getMessage() != null ? e.getMessage() : "保存案例失败");
         }
+    }
+
+    private CrawlerSearchResult runStreamSearchBatch(
+            String searchKeyword,
+            SearchCasesReqVO reqVO,
+            SearchStreamNotifier notifier) {
+        CrawlerSearchBatch batch = crawlerService.startParallelCaseSearchBatch(
+                searchKeyword,
+                reqVO.getCountry(),
+                reqVO.getPeriod(),
+                reqVO.getSources(),
+                (source, result) -> {
+                    if (result != null && result.isCrawlApiOk() && !CollectionUtils.isEmpty(result.getItems())) {
+                        try {
+                            caseService.saveCases(result.getItems(), source);
+                        } catch (Exception e) {
+                            log.warn("SSE 数据源 {} 结果提前落库失败，等待最终合并再落库：{}", source, e.getMessage());
+                        }
+                    }
+                    List<SearchPreviewCaseDTO> previews = buildPreviewCases(source, result, reqVO.getLanguage());
+                    if (!previews.isEmpty()) {
+                        notifier.part(new SearchStreamPartDTO(source, previews));
+                    }
+                });
+        return crawlerService.mergeDistinctAfterWaitWithStats(
+                batch.getFutures(), batch.getTargetCountries());
+    }
+
+    private String resolveSearchKeyword(String keyword, String country, String searchMode) {
+        if (isPreciseMode(searchMode)) {
+            return springAIService.preparePreciseKeyword(keyword);
+        }
+        return springAIService.extractKeyword(keyword, country);
+    }
+
+    private boolean isPreciseMode(String searchMode) {
+        return !"smart".equalsIgnoreCase(normalizeSearchMode(searchMode));
+    }
+
+    private String normalizeSearchMode(String searchMode) {
+        return "smart".equalsIgnoreCase(searchMode) ? "smart" : "precise";
+    }
+
+    private String searchCacheKey(SearchCasesReqVO reqVO) {
+        return caseCacheService.generateCacheKey(
+                String.valueOf(reqVO.getKeyword()) + "|" + normalizeSearchMode(reqVO.getSearchMode()),
+                reqVO.getCountry(),
+                reqVO.getPeriod(),
+                reqVO.getSources());
     }
 
     private List<SearchPreviewCaseDTO> buildPreviewCases(
@@ -357,7 +400,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
 
         SearchCasesResVO resVO = new SearchCasesResVO();
 
-        String cacheKey = caseCacheService.generateCacheKey(keyword, country, period, reqVO.getSources());
+        String cacheKey = searchCacheKey(reqVO);
         boolean hasCache = caseCacheService.hasCache(cacheKey);
         if (hasCache) {
             int startIndex = reqVO.getStartIndex();
@@ -379,7 +422,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             return resVO;
         }
 
-        String extractedKeyword = springAIService.extractKeyword(keyword, country);
+        String extractedKeyword = resolveSearchKeyword(keyword, country, reqVO.getSearchMode());
         log.info("提取关键词：{}", extractedKeyword);
 
         CrawlerSearchResult crawlerResult = crawlerService.queryCaseBaseInfoWithStats(
@@ -627,6 +670,26 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             vo.setStatus("DONE");
             vo.setContent(content);
             return vo;
+        }
+
+        // 已有另一种语言摘要时，整篇翻译并回写，保证标题、正文、列表语言一致。
+        boolean targetZh = LanguageEnum.ZH_CN.getCode().equals(language);
+        String otherLanguageContent = targetZh ? row.getContentEnUs() : row.getContentZhCn();
+        if (StringUtils.isNotBlank(otherLanguageContent)
+                && !SpringAIServiceImpl.isFallbackSummary(otherLanguageContent)) {
+            String translated = springAIService.translate(
+                    otherLanguageContent,
+                    targetZh ? "English" : "Chinese",
+                    targetZh ? "Chinese" : "English");
+            if (StringUtils.isNotBlank(translated) && !translated.trim().equals(otherLanguageContent.trim())) {
+                String zh = targetZh ? translated : row.getContentZhCn();
+                String en = targetZh ? row.getContentEnUs() : translated;
+                caseDetailMapper.updateSummaryDone(row.getCaseId(), zh, en);
+                vo.setStatus("DONE");
+                vo.setContent(translated);
+                vo.setSummaryUpdatedAtMs(resolveUpdatedAtMs(row.getCaseId()));
+                return vo;
+            }
         }
 
         String st = row.getSummaryStatus();

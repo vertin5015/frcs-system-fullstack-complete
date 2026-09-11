@@ -87,6 +87,23 @@
           />
         </div>
       </div>
+      <div class="search-mode-row">
+        <el-radio-group v-model="searchMode" size="small">
+          <el-radio-button label="precise">{{ lang === "zh" ? "精准搜索" : "Precise" }}</el-radio-button>
+          <el-radio-button label="smart">{{ lang === "zh" ? "智能搜索" : "Smart" }}</el-radio-button>
+        </el-radio-group>
+        <span class="search-mode-hint">
+          {{
+            searchMode === "precise"
+              ? lang === "zh"
+                ? "按原词或翻译结果搜索，无结果时自动切换智能搜索"
+                : "Search by exact/translated terms, auto-switch to smart when empty"
+              : lang === "zh"
+                ? "AI 自动提取法律关键词后搜索"
+                : "AI extracts legal keywords before searching"
+          }}
+        </span>
+      </div>
       <div v-if="sourceStats.length" class="source-stats-bar">
         <span
           v-for="stat in sourceStats"
@@ -240,6 +257,7 @@ export default {
     const searchParams = computed(() => store.getters.searchParams);
 
     const loadingCases = ref(false);
+    const searchMode = ref("precise");
     const searchEventSource = ref(null);
     const isCollapsed = ref(true);
 
@@ -531,6 +549,7 @@ export default {
       const params = new URLSearchParams();
       params.set("keyword", keyword);
       params.set("language", lang.value);
+      params.set("searchMode", searchMode.value);
       const normalizedCountry = normalizeOptionalParam(filterCountry.value);
       if (normalizedCountry) {
         params.set("country", normalizedCountry);
@@ -563,6 +582,16 @@ export default {
         } catch (err) {
           console.error(err);
         }
+      });
+
+      es.addEventListener("notice", (e) => {
+        if (seq !== searchSeq) return;
+        ElNotification({
+          title: lang.value === "zh" ? "提示" : "Notice",
+          message: e.data || (lang.value === "zh" ? "搜索状态已更新" : "Search status updated"),
+          type: "info",
+          duration: 6000,
+        });
       });
 
       es.addEventListener("done", (e) => {
@@ -637,6 +666,7 @@ export default {
       const query = {};
       const keyword = normalizeOptionalParam(searchText.value);
       if (keyword) query.keyword = keyword;
+      if (searchMode.value) query.searchMode = searchMode.value;
       const country = normalizeOptionalParam(filterCountry.value);
       if (country) query.country = country;
       const period = normalizeOptionalParam(filterTime.value);
@@ -711,6 +741,9 @@ export default {
       const patch = {};
       const keyword = normalizeOptionalParam(q.keyword);
       if (keyword) patch.keyword = keyword;
+      if (q.searchMode === "smart" || q.searchMode === "precise") {
+        searchMode.value = q.searchMode;
+      }
       const country = normalizeOptionalParam(q.country);
       if (country) patch.country = country;
       const period = normalizeOptionalParam(q.period);
@@ -750,7 +783,7 @@ export default {
     });
 
     // 页码变化只由分页组件触发，避免其它 watch 在翻页时把结果/页码互相覆盖
-    watch([filterCountry, filterTime, filterSources, lang, pageSize], resetPageAndSearch);
+    watch([filterCountry, filterTime, filterSources, lang, pageSize, searchMode], resetPageAndSearch);
 
     const backToHome = () => {
       router.push("/case-query/home");
@@ -787,6 +820,8 @@ export default {
       pageSize,
 
       searchText,
+
+      searchMode,
 
       toggleFavorite,
 
@@ -912,6 +947,28 @@ export default {
   flex-shrink: 0;
 
   margin-bottom: 8px;
+
+}
+
+.search-mode-row {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+
+  margin: 4px 0 10px;
+
+}
+
+.search-mode-hint {
+
+  font-size: 12px;
+
+  color: #909399;
 
 }
 

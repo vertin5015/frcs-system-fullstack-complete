@@ -41,6 +41,10 @@ public class SearchCasesReqVO {
      */
     private String sources;
     /**
+     * 搜索模式：precise=精准搜索，smart=智能搜索。默认 precise。
+     */
+    private String searchMode = "precise";
+    /**
      * 页码
      */
     private Integer pagenum = 1;

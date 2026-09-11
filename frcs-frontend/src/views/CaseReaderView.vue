@@ -206,16 +206,19 @@ export default {
       return t.replace(/```[\s\S]*?```/g, "").replace(/[#>*`_~-]/g, "").replace(/\s+/g, " ").trim();
     };
 
-    const extractLabeledField = (content, label) => {
+    const extractLabeledField = (content, labels) => {
       const text = String(content || "");
-      const patterns = [
-        new RegExp(`${label}\\s*[:：]\\s*(.+)`),
-        new RegExp(`\\*\\*${label}\\*\\*\\s*[:：]\\s*(.+)`),
-      ];
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match && match[1] && match[1].trim()) {
-          return match[1].trim();
+      const list = Array.isArray(labels) ? labels : [labels];
+      for (const label of list) {
+        const patterns = [
+          new RegExp(`${label}\\s*[:：]\\s*(.+)`),
+          new RegExp(`\\*\\*${label}\\*\\*\\s*[:：]\\s*(.+)`),
+        ];
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          if (match && match[1] && match[1].trim()) {
+            return match[1].trim();
+          }
         }
       }
       return "";
@@ -225,20 +228,21 @@ export default {
       const meta = caseMeta.value || {};
       const content = caseDetailContent.value || "";
       const brief = stripMarkdown(content).slice(0, 240);
-      const court = extractLabeledField(content, "判决法庭");
-      const parties = extractLabeledField(content, "当事人");
-      const summary = extractLabeledField(content, "简要内容") || brief;
+      const zh = lang.value === "zh";
+      const court = extractLabeledField(content, ["判决法庭", "Court"]);
+      const parties = extractLabeledField(content, ["当事人", "Parties"]);
+      const summary = extractLabeledField(content, ["简要内容", "Brief Facts"]) || brief;
       const rootLabel = meta.case_name || caseId.value || "案例";
       return [{
         id: "root",
         label: rootLabel,
         children: [
-          { id: "name", label: `案件名称：${meta.case_name || "-"}` },
-          { id: "docket", label: `案号：${meta.case_id || "-"}` },
-          { id: "date", label: `判决时间：${meta.judgement_date || "-"}` },
-          { id: "court", label: `判决法庭：${court || "-"}` },
-          { id: "parties", label: `当事人：${parties || "-"}` },
-          { id: "summary", label: `简要内容：${summary || "-"}` },
+          { id: "name", label: `${zh ? "案件名称" : "Case Name"}：${meta.case_name || "-"}` },
+          { id: "docket", label: `${zh ? "案号" : "Docket"}：${meta.case_id || "-"}` },
+          { id: "date", label: `${zh ? "判决时间" : "Judgment Date"}：${meta.judgement_date || "-"}` },
+          { id: "court", label: `${zh ? "判决法庭" : "Court"}：${court || "-"}` },
+          { id: "parties", label: `${zh ? "当事人" : "Parties"}：${parties || "-"}` },
+          { id: "summary", label: `${zh ? "简要内容" : "Brief Facts"}：${summary || "-"}` },
         ],
       }];
     });
