@@ -448,7 +448,7 @@ public class EuJpLegalSearchBridgeService {
         }
         try {
             String base = crawlerProperties.getCourtListenerApiBaseUrl().trim().replaceAll("/+$", "");
-            String detailQuery = "?cluster_id=" + URLEncoder.encode(clusterId, StandardCharsets.UTF_8)
+            String detailQuery = "?cluster=" + URLEncoder.encode(clusterId, StandardCharsets.UTF_8)
                     + "&page_size=10";
             URI detailUri = URI.create(base + "/opinions/" + detailQuery);
             assertAllowedHost(detailUri);
@@ -468,7 +468,7 @@ public class EuJpLegalSearchBridgeService {
                 throw new IOException("CourtListener 原文接口限流（HTTP 429），请稍后重试或减少访问频率");
             }
             if (response.statusCode() == 400) {
-                throw new IOException("CourtListener 原文接口参数错误（HTTP 400），cluster_id=" + clusterId);
+                throw new IOException("CourtListener 原文接口参数错误（HTTP 400），cluster=" + clusterId);
             }
             if (response.statusCode() != 200) {
                 throw new IOException("CourtListener 原文接口返回 HTTP " + response.statusCode());
