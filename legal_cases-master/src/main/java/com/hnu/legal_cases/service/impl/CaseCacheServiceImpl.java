@@ -35,6 +35,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
      */
     private static final String CACHE_KEY_PREFIX = "case_search:";
     private static final String KEYWORD_KEY_PREFIX = "case_keywords:";
+    private static final String SUMMARY_KEY_PREFIX = "case_summary:";
     /**
      * 缓存过期时间（单位：小时）
      */
@@ -173,6 +174,33 @@ public class CaseCacheServiceImpl implements CaseCacheService {
 
     @Override
     public Map<String, String> getCaseKeywords(Set<String> caseIds, String language) {
+        return getTextMap(caseIds, KEYWORD_KEY_PREFIX, language, "案例关键词");
+    }
+
+    @Override
+    public void cacheCaseSummary(String caseId, String language, String summary) {
+        if (StringUtils.isBlank(caseId) || StringUtils.isBlank(summary)) {
+            return;
+        }
+        String lang = "zh".equalsIgnoreCase(language) ? "zh" : "en";
+        try {
+            stringRedisTemplate.opsForValue().set(SUMMARY_KEY_PREFIX + caseId.trim() + ":" + lang,
+                    summary.trim(), 30, TimeUnit.DAYS);
+        } catch (Exception e) {
+            log.warn("缓存案例摘要翻译失败 caseId={} language={} error={}", caseId, language, e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, String> getCaseSummaries(Set<String> caseIds, String language) {
+        return getTextMap(caseIds, SUMMARY_KEY_PREFIX, language, "案例摘要");
+    }
+
+    private Map<String, String> getTextMap(
+            Set<String> caseIds,
+            String prefix,
+            String language,
+            String typeName) {
         Map<String, String> result = new LinkedHashMap<>();
         if (caseIds == null || caseIds.isEmpty()) {
             return result;
@@ -181,7 +209,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
         List<String> ids = new ArrayList<>(caseIds);
         List<String> keys = new ArrayList<>(ids.size());
         for (String id : ids) {
-            keys.add(KEYWORD_KEY_PREFIX + id + ":" + lang);
+            keys.add(prefix + id + ":" + lang);
         }
         try {
             List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
@@ -195,7 +223,7 @@ public class CaseCacheServiceImpl implements CaseCacheService {
                 }
             }
         } catch (Exception e) {
-            log.warn("读取案例关键词失败 language={} error={}", language, e.getMessage());
+            log.warn("读取{}失败 language={} error={}", typeName, language, e.getMessage());
         }
         return result;
     }

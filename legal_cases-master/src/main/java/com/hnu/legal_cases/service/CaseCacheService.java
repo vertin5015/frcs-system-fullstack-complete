@@ -59,6 +59,16 @@ public interface CaseCacheService {
     Map<String, String> getCaseKeywords(Set<String> caseIds, String language);
 
     /**
+     * 缓存搜索结果卡片摘要的翻译结果。
+     */
+    void cacheCaseSummary(String caseId, String language, String summary);
+
+    /**
+     * 批量读取指定语言的卡片摘要翻译。
+     */
+    Map<String, String> getCaseSummaries(Set<String> caseIds, String language);
+
+    /**
      * 删除缓存
      */
     void deleteCacheKey(String cacheKey);

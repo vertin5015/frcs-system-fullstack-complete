@@ -108,7 +108,7 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
         }
     }
 
-    private String extractKeywords(String summary) {
+    static String extractKeywords(String summary) {
         if (StringUtils.isBlank(summary)) {
             return "";
         }
@@ -144,7 +144,7 @@ public class CaseSummaryAsyncServiceImpl implements CaseSummaryAsyncService {
         return "";
     }
 
-    private String normalizeKeywordLine(String raw) {
+    private static String normalizeKeywordLine(String raw) {
         if (StringUtils.isBlank(raw)) {
             return "";
         }

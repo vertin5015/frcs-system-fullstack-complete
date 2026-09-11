@@ -176,13 +176,18 @@
                   </div>
                   <div v-if="hasCardMeta(item)" class="case-card-row case-tags-row">
                     <div class="case-tags-tooltip-host">
-                      <div v-if="item.keywords && item.keywords.trim()" class="case-tags-wrap">
+                      <div v-if="item.keywords && item.keywords.trim()" class="case-tags-wrap case-keywords-block">
                         <div class="case-tags-heading">{{ lang === "zh" ? "关键词" : "Keywords" }}</div>
                         <div class="case-keywords-line">
                           <span v-for="(kw, idx) in keywordList(item.keywords)" :key="idx" class="case-keyword-chip">{{ kw }}</span>
                         </div>
                       </div>
-                      <el-tooltip v-else effect="dark" :content="summaryTooltip(item)" placement="top-start">
+                      <el-tooltip
+                        v-if="item.tags && item.tags.trim()"
+                        effect="dark"
+                        :content="summaryTooltip(item)"
+                        placement="top-start"
+                      >
                         <div class="case-tags-wrap">
                           <div class="case-tags-heading">{{ lang === "zh" ? "摘要" : "Summary" }}</div>
                           <div class="case-tags-lines">
@@ -1359,6 +1364,12 @@ export default {
   flex-wrap: wrap;
 
   gap: 6px;
+
+}
+
+.case-keywords-block {
+
+  margin-bottom: 8px;
 
 }
 

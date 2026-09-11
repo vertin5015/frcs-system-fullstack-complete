@@ -223,11 +223,28 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             }
         }
         java.util.Map<String, String> keywords = caseCacheService.getCaseKeywords(caseIds, language);
+        java.util.Map<String, String> translatedSummaries = caseCacheService.getCaseSummaries(caseIds, language);
+        boolean targetChinese = language != null && language.toLowerCase().startsWith("zh");
         for (CaseBaseInfo info : cases) {
             if (info == null || StringUtils.isBlank(info.getCase_id())) {
                 continue;
             }
-            info.setKeywords(keywords.get(info.getCase_id().trim()));
+            String caseId = info.getCase_id().trim();
+            String cardKeywords = keywords.get(caseId);
+            if (StringUtils.isBlank(cardKeywords)) {
+                cardKeywords = backfillKeywordsFromSummary(caseId, targetChinese);
+            }
+            info.setKeywords(cardKeywords);
+            String summary = info.getTags();
+            if (StringUtils.isNotBlank(summary)) {
+                String translated = translatedSummaries.get(caseId);
+                if (StringUtils.isBlank(translated)) {
+                    translated = translateSummaryForCard(caseId, summary, targetChinese);
+                }
+                if (StringUtils.isNotBlank(translated)) {
+                    info.setTags(translated);
+                }
+            }
             String url = info.getOriginal_document_url();
             if (StringUtils.isBlank(url) || !url.contains("courtlistener.com")) {
                 continue;
@@ -237,6 +254,80 @@ public class SearchCasesServiceImpl implements SearchCasesService {
                 originalDocumentCacheService.cacheFallbackText(url, snippet);
             }
         }
+    }
+
+    private String translateSummaryForCard(String caseId, String summary, boolean targetChinese) {
+        String text = summary.trim();
+        boolean hasCjk = containsCjk(text);
+        if (targetChinese && hasCjk) {
+            caseCacheService.cacheCaseSummary(caseId, "zh", text);
+            return text;
+        }
+        if (!targetChinese && !hasCjk) {
+            caseCacheService.cacheCaseSummary(caseId, "en", text);
+            return text;
+        }
+        try {
+            String translated = springAIService.translate(
+                    text,
+                    targetChinese ? "English" : "Chinese",
+                    targetChinese ? "Chinese" : "English");
+            boolean validTranslation = StringUtils.isNotBlank(translated)
+                    && !translated.trim().equals(text)
+                    && (targetChinese ? containsCjk(translated) : !containsCjk(translated));
+            if (validTranslation) {
+                caseCacheService.cacheCaseSummary(caseId, targetChinese ? "zh" : "en", translated);
+                return translated;
+            }
+        } catch (Exception e) {
+            log.warn("搜索结果摘要翻译失败 caseId={} error={}", caseId, e.getMessage());
+        }
+        return text;
+    }
+
+    private String backfillKeywordsFromSummary(String caseId, boolean targetChinese) {
+        try {
+            CaseDetailInfo detail = caseDetailMapper.getCaseDetailByCaseId(caseId);
+            if (detail == null) {
+                return "";
+            }
+            String content = targetChinese ? detail.getContentZhCn() : detail.getContentEnUs();
+            if (StringUtils.isBlank(content)) {
+                content = targetChinese ? detail.getContentEnUs() : detail.getContentZhCn();
+            }
+            String extracted = CaseSummaryAsyncServiceImpl.extractKeywords(content);
+            if (StringUtils.isNotBlank(extracted)) {
+                if (targetChinese && !containsCjk(extracted)) {
+                    extracted = springAIService.translate(extracted, "English", "Chinese");
+                } else if (!targetChinese && containsCjk(extracted)) {
+                    extracted = springAIService.translate(extracted, "Chinese", "English");
+                }
+                if (targetChinese) {
+                    caseCacheService.cacheCaseKeywords(caseId, extracted, null);
+                } else {
+                    caseCacheService.cacheCaseKeywords(caseId, null, extracted);
+                }
+            }
+            return extracted;
+        } catch (Exception e) {
+            log.warn("回填案例关键词失败 caseId={} error={}", caseId, e.getMessage());
+            return "";
+        }
+    }
+
+    private static boolean containsCjk(String text) {
+        if (StringUtils.isBlank(text)) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(text.charAt(i));
+            if (block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Integer parseCitationInt(String raw) {
