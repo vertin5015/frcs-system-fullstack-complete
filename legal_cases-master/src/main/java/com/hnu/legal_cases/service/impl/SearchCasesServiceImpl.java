@@ -132,6 +132,7 @@ public class SearchCasesServiceImpl implements SearchCasesService {
             }
         }
         if (CollectionUtils.isEmpty(items)) {
+            notifier.notice("本次未找到匹配案例，部分数据源可能暂时不可用，可稍后重试或更换关键词。");
             SearchCasesResVO empty = new SearchCasesResVO();
             empty.setTotalCount(0);
             empty.setCases(Collections.emptyList());

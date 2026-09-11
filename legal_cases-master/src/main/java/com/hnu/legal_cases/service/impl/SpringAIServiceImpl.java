@@ -14,6 +14,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
 @Slf4j
@@ -79,11 +80,15 @@ public class SpringAIServiceImpl implements SpringAIService {
                 return res.getResult().trim();
             }
             log.warn("ai返回非ok或result为空，改本地兜底：{}", trimmed);
-            return fallbackCnKeywordForCrawler(trimmed);
+            String localHints = localKeywordHints(trimmed);
+            return StringUtils.isNotBlank(localHints) ? localHints : trimmed;
         } catch (Exception e) {
             // 中文等关键词易导致模型输出非严格 JSON 或解析失败，此前会触发搜索接口 Throwable 分支仅提示「搜索案例错误」
             log.warn("ai提取关键词异常，改用原始关键词继续搜索：{}", trimmed, e);
-            String fallback = fallbackCnKeywordForCrawler(trimmed);
+            String fallback = localKeywordHints(trimmed);
+            if (StringUtils.isBlank(fallback)) {
+                fallback = fallbackCnKeywordForCrawler(trimmed);
+            }
             if (!fallback.equals(trimmed)) {
                 log.info("关键词本地兜底翻译生效：{} -> {}", trimmed, fallback);
             }
@@ -254,7 +259,14 @@ public class SpringAIServiceImpl implements SpringAIService {
             - 关键词必须简短、适合搜索引擎和官方案例库检索
             - 删除代词、案号、日期、程序性词语和无关描述
             - 如果原文不是英文，请先翻译成英文法律术语
+            - 如果用户问“有没有……案例”，不要输出整句，只提取核心法律关系和相关法律概念
+            - 如果找不到精确术语，允许输出更宽泛但仍相关的法律关键词
             - 关键词间用一个空格分隔
+            - 示例：
+              输入：有没有公司解雇工人的相关案例
+              输出：worker dismissal employment
+              输入：夫妻离婚后财产怎么分
+              输出：divorce marital property
             - 输出JSON格式，类似：
             {
                 "status": "ok",
@@ -428,6 +440,58 @@ public class SpringAIServiceImpl implements SpringAIService {
         }
         String out = s.trim().replaceAll("\\s+", " ");
         return out.isEmpty() ? keyword : out;
+    }
+
+    /**
+     * 从自然语言中文中抽取命中的英文法律词，允许忽略未命中的普通描述词。
+     * 例如“有没有公司解雇工人的相关案例” -> “company dismissal worker”。
+     */
+    private static String localKeywordHints(String keyword) {
+        if (StringUtils.isBlank(keyword) || !containsCjk(keyword)) {
+            return "";
+        }
+        LinkedHashMap<String, String> ordered = new LinkedHashMap<>();
+        ordered.put("工人解雇", "worker dismissal");
+        ordered.put("解雇赔偿", "unfair dismissal compensation");
+        ordered.put("劳动合同", "employment contract");
+        ordered.put("劳动纠纷", "labor dispute");
+        ordered.put("夫妻共同财产", "community property");
+        ordered.put("夫妻财产", "marital property");
+        ordered.put("婚姻财产", "marital property");
+        ordered.put("合同纠纷", "contract dispute");
+        ordered.put("故意杀人", "murder");
+        ordered.put("抚养权", "child custody");
+        ordered.put("工伤", "work injury");
+        ordered.put("解雇", "dismissal");
+        ordered.put("辞退", "dismissal");
+        ordered.put("工人", "worker");
+        ordered.put("雇员", "employee");
+        ordered.put("雇主", "employer");
+        ordered.put("公司", "company");
+        ordered.put("赔偿", "compensation");
+        ordered.put("抢劫", "robbery");
+        ordered.put("盗窃", "theft");
+        ordered.put("合同", "contract");
+        ordered.put("侵权", "tort");
+        ordered.put("离婚", "divorce");
+        ordered.put("抚养", "custody");
+        ordered.put("杀人", "homicide");
+        ordered.put("谋杀", "murder");
+        ordered.put("诈骗", "fraud");
+        ordered.put("破产", "bankruptcy");
+        ordered.put("商标", "trademark");
+        ordered.put("专利", "patent");
+        ordered.put("版权", "copyright");
+        ordered.put("劳动", "employment");
+        ordered.put("移民", "immigration");
+        ordered.put("证券", "securities");
+        LinkedHashSet<String> hints = new LinkedHashSet<>();
+        for (Map.Entry<String, String> entry : ordered.entrySet()) {
+            if (keyword.contains(entry.getKey())) {
+                hints.add(entry.getValue());
+            }
+        }
+        return String.join(" ", hints);
     }
 
     private static boolean containsCjk(String s) {

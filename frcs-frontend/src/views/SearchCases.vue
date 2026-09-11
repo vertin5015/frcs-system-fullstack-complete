@@ -767,7 +767,14 @@ export default {
     restoreSearchFromQuery();
 
     onMounted(() => {
-      performSearch();
+      const autoSearchRequested = sessionStorage.getItem("frcs_auto_search_on_search_page") === "1";
+      sessionStorage.removeItem("frcs_auto_search_on_search_page");
+      const hasExplicitQuery = !!normalizeOptionalParam(route.query.keyword);
+      if (autoSearchRequested || hasExplicitQuery) {
+        performSearch();
+      } else {
+        loadingCases.value = false;
+      }
       refreshSummaryCredits();
     });
 

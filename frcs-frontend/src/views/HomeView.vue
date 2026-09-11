@@ -279,6 +279,7 @@ export default {
         country: filter.value.country,
         period: filter.value.period,
       });
+      sessionStorage.setItem("frcs_auto_search_on_search_page", "1");
       router.push("/case-query/search");
     };
 
@@ -289,6 +290,7 @@ export default {
         country: filter.value.country,
         period: filter.value.period,
       });
+      sessionStorage.setItem("frcs_auto_search_on_search_page", "1");
       router.push("/case-query/search");
     };
 
