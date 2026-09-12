@@ -1,0 +1,165 @@
+# ============================================================================
+#  /opt/projects/docker-compose.yml
+#
+#  按《多项目交付规范》的格式：一个项目一个 lawN-api 服务，
+#  容器内监听 8000，宿主机只映射到 127.0.0.1:800N，全部挂到 proj_net。
+#
+#  本项目 = 第三组 lawsys1 = law3.hexilab.cn -> 127.0.0.1:8003 -> /var/www/law3-web
+#  所以 law3-api 已经写好；law1 / law2 / law4 等对方交付后按注释模板放开即可。
+#
+#  使用：
+#    cd /opt/projects
+#    cp env.example .env && nano .env       # 填模型 key
+#    docker compose up -d law3-mysql law3-redis law3-api
+# ============================================================================
+
+services:
+  # ==================== law3（第三组 lawsys1，本项目） ====================
+  law3-api:
+    image: frcs-backend:${LAW3_IMAGE_TAG:-v1.0.0}
+    container_name: law3-api
+    restart: always
+    depends_on:
+      law3-mysql:
+        condition: service_healthy
+      law3-redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8003:8000"
+    volumes:
+      - ./law3/logs:/app/logs
+      - ./law3/data/app:/app/data
+      - ./law3/data/original-cache:/app/original-cache
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_PORT: 8000
+      SPRING_DATASOURCE_URL: jdbc:mysql://law3-mysql:3306/legal_cases?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${LAW3_MYSQL_ROOT_PASSWORD:-frcs123456}
+      SPRING_DATA_REDIS_HOST: law3-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ""
+      KB_LOCAL_INDEX_FILE: /app/data/kb-index/local-kb.json
+      # AI：默认指向宿主机 Ollama；用云端模型时在 /opt/projects/.env 里覆盖这三个变量
+      SPRING_AI_OPENAI_API_KEY: ${SPRING_AI_OPENAI_API_KEY:-ollama}
+      SPRING_AI_OPENAI_BASE_URL: ${SPRING_AI_OPENAI_BASE_URL:-http://host.docker.internal:11434}
+      SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:-qwen2.5:7b-instruct}
+      APP_EMBEDDING_ENABLED: ${APP_EMBEDDING_ENABLED:-false}
+      APP_EMBEDDING_API_KEY: ${APP_EMBEDDING_API_KEY:-}
+      APP_EMBEDDING_BASE_URL: ${APP_EMBEDDING_BASE_URL:-}
+      APP_EMBEDDING_MODEL: ${APP_EMBEDDING_MODEL:-text-embedding-v3}
+      APP_EMBEDDING_PATH: ${APP_EMBEDDING_PATH:-/embeddings}
+      APP_EMBEDDING_DIMENSIONS: ${APP_EMBEDDING_DIMENSIONS:-1024}
+      COURTLISTENER_API_KEY: ${COURTLISTENER_API_KEY:-}
+      APP_ADMIN_SECRET: ${APP_ADMIN_SECRET:-frcs-admin-change-me}
+      APP_AUTH_EXPOSE_CODE_IN_RESPONSE: ${APP_AUTH_EXPOSE_CODE_IN_RESPONSE:-false}
+      # 内置爬虫兜底 bridge 是容器自调用，必须指向容器自己的 8000 端口（不是 8122）
+      SPRING_APPLICATION_JSON: >
+        {
+          "crawler": {
+            "detail-url": "http://127.0.0.1:8000/api/crawler-bridge/detail/crawl.json",
+            "search": {
+              "US": "http://127.0.0.1:8000/api/crawler-bridge/list/US/crawl.json",
+              "EU": "http://127.0.0.1:8000/api/crawler-bridge/list/EU/crawl.json",
+              "JPN": "http://127.0.0.1:8000/api/crawler-bridge/list/JPN/crawl.json"
+            }
+          }
+        }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    networks:
+      - proj_net
+
+  # 本项目自己的数据库（老师模板里没有，我们的业务需要 MySQL + Redis，所以跟着 law3 一起跑）
+  law3-mysql:
+    image: mysql:8.4
+    container_name: law3-mysql
+    restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LAW3_MYSQL_ROOT_PASSWORD:-frcs123456}
+      MYSQL_DATABASE: legal_cases
+      TZ: Asia/Shanghai
+    volumes:
+      - ./law3/data/mysql:/var/lib/mysql
+      # 首次启动自动建表（users / case_en_US / case_zh_CN / usage_log / recharge_order 等 9 张表）
+      - ./law3/src/docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - proj_net
+
+  law3-redis:
+    image: redis:7-alpine
+    container_name: law3-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - ./law3/data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - proj_net
+
+  # ==================== 以下是其他组的占位，交付后再放开 ====================
+  # 对方交付物：镜像名:tag + 环境变量清单 + 持久化目录。把 image 换成他们的 tag，
+  # 环境变量按他们给的清单补在 environment 下，然后 docker compose up -d law1-api
+  #
+  # law1-api:
+  #   image: lawllm1-api:v1.0.0
+  #   container_name: law1-api
+  #   restart: always
+  #   ports:
+  #     - "127.0.0.1:8001:8000"
+  #   volumes:
+  #     - ./law1/logs:/app/logs
+  #     - ./law1/data:/app/data
+  #   environment:
+  #     TZ: Asia/Shanghai
+  #   networks:
+  #     - proj_net
+  #
+  # law2-api:
+  #   image: lawllm2-api:v1.0.0
+  #   container_name: law2-api
+  #   restart: always
+  #   ports:
+  #     - "127.0.0.1:8002:8000"
+  #   volumes:
+  #     - ./law2/logs:/app/logs
+  #     - ./law2/data:/app/data
+  #   environment:
+  #     TZ=Asia/Shanghai
+  #   networks:
+  #     - proj_net
+  #
+  # law4-api:
+  #   image: lawsys2-api:v1.0.0
+  #   container_name: law4-api
+  #   restart: always
+  #   ports:
+  #     - "127.0.0.1:8004:8000"
+  #   volumes:
+  #     - ./law4/logs:/app/logs
+  #     - ./law4/data:/app/data
+  #   environment:
+  #     TZ=Asia/Shanghai
+  #   networks:
+  #     - proj_net
+
+networks:
+  proj_net:
+    name: proj_net
+    driver: bridge

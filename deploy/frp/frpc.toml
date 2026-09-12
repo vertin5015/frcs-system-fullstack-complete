@@ -1,0 +1,40 @@
+# ============================================================================
+#  内网 Ubuntu 宿主机上的 frpc 配置：/home/kvktv/frp_0.71.0_linux_amd64/frpc.toml
+#
+#  作用：把公网 80/443 的访问，转发到本机 Nginx 的 80/443。
+#  改完执行： sudo systemctl restart frpc && sudo systemctl status frpc
+# ============================================================================
+
+serverAddr = "8.129.108.145"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "therealzzt"
+loginFailExit = true
+
+# HTTP 隧道 -> 本机 Nginx 80
+[[proxies]]
+name = "all-http"
+type = "http"
+localIP = "127.0.0.1"
+localPort = 80
+customDomains = [
+  "law1.hexilab.cn",
+  "law2.hexilab.cn",
+  "law3.hexilab.cn",
+  "law4.hexilab.cn",
+]
+
+# HTTPS 隧道 -> 本机 Nginx 443（小程序必须 HTTPS）
+# 证书在 Nginx 上，frp 只按 SNI 转发，不负责证书
+[[proxies]]
+name = "all-https"
+type = "https"
+localIP = "127.0.0.1"
+localPort = 443
+customDomains = [
+  "law1.hexilab.cn",
+  "law2.hexilab.cn",
+  "law3.hexilab.cn",
+  "law4.hexilab.cn",
+]

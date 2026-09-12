@@ -1,0 +1,24 @@
+# ============================================================================
+#  云服务器（8.129.108.145）上的 frps 配置参考：/etc/frp/frps.toml
+#
+#  实测现状：7000、80 端口可达，443 不可达 —— 443 没放开时，
+#  微信小程序（强制 HTTPS）和 https://lawN.hexilab.cn 全都访问不了。
+#  请确认下面三行都写全，并在云服务器安全组放行 7000 / 80 / 443。
+# ============================================================================
+
+bindPort = 7000
+vhostHTTPPort = 80
+vhostHTTPSPort = 443          # ← 关键：没有这行 frps 就不会监听 443
+
+auth.method = "token"
+auth.token = "therealzzt"     # 与 frpc.toml 保持一致
+
+# 管理面板（可选，注意别对公网开放）
+webServer.addr = "127.0.0.1"
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "change-me"
+
+log.to = "/var/log/frps.log"
+log.level = "info"
+log.maxDays = 7
